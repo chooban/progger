@@ -34,6 +34,8 @@ type Episode struct {
 	Issue    Issue
 	SeriesID uint
 	Series   Series
+	PageFrom int
+	PageThru int
 }
 
 func Init(dbName string) *gorm.DB {

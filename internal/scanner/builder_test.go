@@ -3,6 +3,7 @@ package scanner
 import (
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"io"
@@ -19,6 +20,9 @@ func createAppEnv() env.AppEnv {
 	appEnv := env.AppEnv{
 		Log: &logger,
 		Db:  nil,
+		Known: env.ToSkip{SeriesTitles: []string{
+			"The Fall of Deadworld",
+		}},
 	}
 	return appEnv
 }
@@ -178,6 +182,13 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			expectedSeries: "Feature",
 			expectedTitle:  "Caballistics, Inc",
 		},
+		{
+			name:           "Tales from MC1",
+			input:          "Tales from Mega-City One - Christmas comes to Devil's Island",
+			expectedPart:   1,
+			expectedSeries: "Tales From Mega-City One",
+			expectedTitle:  "Christmas Comes To Devil's Island",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -279,23 +290,31 @@ func TestShouldIncludeEpisode(t *testing.T) {
 			},
 			shouldInclude: false,
 		},
+		{
+			name: "Interrogation",
+			input: db.Episode{
+				Title:  "Doug Church",
+				Series: db.Series{Title: "Interrogation"},
+				Part:   1,
+			},
+		},
 	}
 
-	writer := zerolog.ConsoleWriter{
-		Out:        io.Discard,
-		TimeFormat: time.RFC3339,
+	appEnv := createAppEnv()
+	appEnv.Skip = env.ToSkip{
+		SeriesTitles: []string{"Interrogation"},
 	}
-	logger := zerolog.New(writer)
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := shouldIncludeEpisode(&logger, tc.input)
+			got := shouldIncludeEpisode(appEnv, tc.input)
 			if got != tc.shouldInclude {
 				t.Errorf("shouldIncludeEpisode(%v) = %v; want %v", tc.input.Series.Title+", "+tc.input.Title, got, tc.shouldInclude)
 			}
 		})
 	}
 }
+
 func TestFromRawEpisodes(t *testing.T) {
 	// Create a mock AppEnv
 	appEnv := createAppEnv()
@@ -311,10 +330,59 @@ func TestFromRawEpisodes(t *testing.T) {
 		},
 	}
 
-	issue := fromRawEpisodes(appEnv.Log, rawEpisodes)
+	issue := fromRawEpisodes(appEnv, rawEpisodes)
 
 	ep := issue[0]
 	assert.Equal(t, "Test Series", ep.Series.Title)
 	assert.Equal(t, "Test Title", ep.Title)
 	assert.Equal(t, 1, ep.Part)
+}
+
+func TestBuildEpisodes(t *testing.T) {
+	testCases := []struct {
+		name           string
+		bookmarks      []pdfcpu.Bookmark
+		expectedSeries string
+		expectedTitle  string
+		expectedPart   int
+	}{
+		{
+			name: "Test Case 1",
+			bookmarks: []pdfcpu.Bookmark{
+				{
+					Title:    "Test Series: Test Title - Part 1",
+					PageFrom: 1,
+					PageThru: 10,
+				},
+			},
+			expectedSeries: "Test Series",
+			expectedTitle:  "Test Title",
+			expectedPart:   1,
+		},
+		{
+			name: "Renaming Deadworld",
+			bookmarks: []pdfcpu.Bookmark{
+				{
+					Title:    "The Fall of Deadwood - Jessica",
+					PageFrom: 1,
+					PageThru: 10,
+				},
+			},
+			expectedPart:   1,
+			expectedTitle:  "Jessica",
+			expectedSeries: "The Fall of Deadworld",
+		},
+		// Add more test cases here
+	}
+
+	appEnv := createAppEnv()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			issue := buildEpisodes(appEnv, 123, tc.bookmarks)
+			assert.Equal(t, 123, issue.IssueNumber)
+			assert.Equal(t, tc.expectedSeries, issue.Episodes[0].Series.Title)
+			assert.Equal(t, tc.expectedTitle, issue.Episodes[0].Title)
+			assert.Equal(t, tc.expectedPart, issue.Episodes[0].Part)
+		})
+	}
 }

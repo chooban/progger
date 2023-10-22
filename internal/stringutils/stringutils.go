@@ -3,8 +3,9 @@ package stringutils
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -53,26 +54,18 @@ func TrimNonAlphaNumeric(input string) string {
 }
 
 func CapitalizeWords(sentence string) string {
-	skipWords := []string{"of"}
-	words := strings.Fields(sentence) // Split the sentence into words
-	var capitalizedWords []string
+	skipWords := map[string]string{
+		"Of":       "of",
+		"Vs":       "vs",
+		"3Rillers": "3rillers",
+	}
+	capitalized := cases.Title(language.BritishEnglish).String(sentence)
 
-	for _, word := range words {
-		if len(word) == 0 {
-			continue
-		}
-		if slices.Contains(skipWords, word) {
-			capitalizedWords = append(capitalizedWords, word)
-		} else {
-			// Capitalize the first letter of each word
-			capitalizedWord := strings.ToUpper(word[:1]) + word[1:]
-			capitalizedWords = append(capitalizedWords, capitalizedWord)
-		}
+	for k, v := range skipWords {
+		capitalized = strings.ReplaceAll(capitalized, k, v)
 	}
 
-	// Join the capitalized words to form the final sentence
-	capitalizedSentence := strings.Join(capitalizedWords, " ")
-	return capitalizedSentence
+	return capitalized
 }
 
 func ContainsI(s string, substr string) bool {

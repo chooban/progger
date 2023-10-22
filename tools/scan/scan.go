@@ -38,6 +38,19 @@ func main() {
 	appEnv := env.AppEnv{
 		Db:  db.Init("progs.db"),
 		Log: &logger,
+		Skip: env.ToSkip{
+			SeriesTitles: []string{
+				"Interrogation",
+				"New Books",
+				"Obituary",
+				"Untitled",
+			},
+		},
+		Known: env.ToSkip{
+			SeriesTitles: []string{
+				"The Fall of Deadworld",
+			},
+		},
 	}
 	issues := scanner.ScanDir(appEnv, *d)
 

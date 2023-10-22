@@ -6,7 +6,6 @@ import (
 	"github.com/chooban/progdl-go/internal/env"
 	"github.com/chooban/progdl-go/internal/stringutils"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
-	"github.com/rs/zerolog"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
 	"regexp"
 	"strconv"
@@ -23,6 +22,15 @@ func buildEpisodes(appEnv env.AppEnv, issueNumber int, bookmarks []pdfcpu.Bookma
 			log.Debug().Msg(fmt.Sprintf("Odd title: %s", b.Title))
 			continue
 		}
+		// Check to see if the series is close to any of the blessed titles
+		for _, v := range appEnv.Known.SeriesTitles {
+			distance := levenshtein.DistanceForStrings([]rune(v), []rune(series), levenshtein.DefaultOptions)
+			log.Debug().Msg(fmt.Sprintf("Distance between '%s' and '%s' is %d", v, series, distance))
+			if distance < 5 {
+				series = v
+			}
+		}
+
 		allEpisodes = append(allEpisodes, RawEpisode{
 			Title:     title,
 			Series:    series,
@@ -35,7 +43,7 @@ func buildEpisodes(appEnv env.AppEnv, issueNumber int, bookmarks []pdfcpu.Bookma
 		Publication: db.Publication{Title: "2000 AD"},
 		IssueNumber: issueNumber,
 	}
-	issue.Episodes = fromRawEpisodes(appEnv.Log, allEpisodes)
+	issue.Episodes = fromRawEpisodes(appEnv, allEpisodes)
 
 	return issue
 }
@@ -43,15 +51,13 @@ func buildEpisodes(appEnv env.AppEnv, issueNumber int, bookmarks []pdfcpu.Bookma
 func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, series string, storyline string) {
 	// We don't want any zero parts. It's 1 if not specified
 	episodeNumber = -1
-	f := func(c rune) bool {
-		return c == ':' || c == '-' || c == '_' || c == '"'
-	}
-	// We're going to re-capitalise it later, so lowercase it now
 	bookmarkTitle = strings.ToLower(bookmarkTitle)
 
-	if len(strings.FieldsFunc(bookmarkTitle, f)) == 3 {
+	splitRegex := regexp.MustCompile("([:_\"]|(- ))")
+	parts := splitRegex.Split(bookmarkTitle, -1)
+
+	if len(parts) == 3 {
 		// Three episodeNumber split? Series, storyline, episodeNumber
-		parts := strings.FieldsFunc(bookmarkTitle, f)
 		series = stringutils.CapitalizeWords(strings.TrimSpace(parts[0]))
 		storyline = stringutils.CapitalizeWords(strings.TrimSpace(parts[1]))
 		episodeNumber = extractPartNumberFromString(parts[2])
@@ -70,10 +76,8 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 		toReplace := regexp.MustCompile("\\s+part " + partString + "[^a-zA-Z0-9]*")
 		bookmarkTitle = toReplace.ReplaceAllString(bookmarkTitle, " ")
 	}
-	multiSplit := func(r rune) bool {
-		return r == ':' || r == '-'
-	}
-	titleSplit := strings.FieldsFunc(bookmarkTitle, multiSplit)
+
+	titleSplit := splitRegex.Split(bookmarkTitle, -1)
 	series = strings.TrimSpace(titleSplit[0])
 	if len(titleSplit) > 2 {
 		// Already set, so we must have had "Part Two" somewhere else. Just put it all back together and call
@@ -100,24 +104,26 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	return
 }
 
-func fromRawEpisodes(log *zerolog.Logger, rawEpisodes []RawEpisode) []db.Episode {
+func fromRawEpisodes(appEnv env.AppEnv, rawEpisodes []RawEpisode) []db.Episode {
 	episodes := make([]db.Episode, 0, len(rawEpisodes))
 	for _, rawEpisode := range rawEpisodes {
 		ep := db.Episode{
-			Title:  rawEpisode.Title,
-			Part:   rawEpisode.Part,
-			Series: db.Series{Title: rawEpisode.Series},
+			Title:    rawEpisode.Title,
+			Part:     rawEpisode.Part,
+			Series:   db.Series{Title: rawEpisode.Series},
+			PageFrom: rawEpisode.FirstPage,
+			PageThru: rawEpisode.LastPage,
 		}
-		if shouldIncludeEpisode(log, ep) {
+		if shouldIncludeEpisode(appEnv, ep) {
 			episodes = append(episodes, ep)
 		} else {
-			log.Info().Msg(fmt.Sprintf("Skipping. Series: %s. Episode: %s", ep.Series.Title, ep.Title))
+			appEnv.Log.Info().Msg(fmt.Sprintf("Skipping. Series: %s. Episode: %s", ep.Series.Title, ep.Title))
 		}
 	}
 	return episodes
 }
 
-func shouldIncludeEpisode(log *zerolog.Logger, episode db.Episode) bool {
+func shouldIncludeEpisode(appEnv env.AppEnv, episode db.Episode) bool {
 	pagesToSkip := []string{
 		"Star scan",
 		"Normal Opti",
@@ -134,6 +140,14 @@ func shouldIncludeEpisode(log *zerolog.Logger, episode db.Episode) bool {
 		"Insight profile",
 		"How to draw",
 		"Feature",
+	}
+	log := appEnv.Log
+
+	for _, s := range appEnv.Skip.SeriesTitles {
+		if episode.Series.Title == s {
+			log.Info().Msg(fmt.Sprintf("Skipping series %s", s))
+			return false
+		}
 	}
 	for _, s := range pagesToSkip {
 		for _, t := range []string{episode.Title, episode.Series.Title} {
