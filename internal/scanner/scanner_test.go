@@ -1,4 +1,7 @@
 package scanner
+
+import "testing"
+
 func TestGetProgNumber(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -7,12 +10,12 @@ func TestGetProgNumber(t *testing.T) {
 	}{
 		{
 			name:           "Prog 2000",
-			input:          "2000AD Prog 2000.pdf",
+			input:          "2000AD 2000 (1977).pdf",
 			expectedNumber: 2000,
 		},
 		{
 			name:           "Prog 1234",
-			input:          "2000AD Prog 1234.pdf",
+			input:          "2000AD 1234 (1977).pdf",
 			expectedNumber: 1234,
 		},
 		// Add more test cases here
