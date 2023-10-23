@@ -30,3 +30,31 @@ func TestGetProgNumber(t *testing.T) {
 		})
 	}
 }
+func TestShouldIncludeIssue(t *testing.T) {
+	testCases := []struct {
+		name          string
+		input         db.Issue
+		expected      bool
+	}{
+		{
+			name:          "Issue with number 0",
+			input:         db.Issue{IssueNumber: 0},
+			expected:      false,
+		},
+		{
+			name:          "Issue with number 1234",
+			input:         db.Issue{IssueNumber: 1234},
+			expected:      true,
+		},
+		// Add more test cases here
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := shouldIncludeIssue(tc.input)
+			if got != tc.expected {
+				t.Errorf("shouldIncludeIssue(%v) = %v; want %v", tc.input, got, tc.expected)
+			}
+		})
+	}
+}
