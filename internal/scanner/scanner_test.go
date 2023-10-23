@@ -1,6 +1,9 @@
 package scanner
 
-import "testing"
+import (
+	"github.com/chooban/progdl-go/internal/db"
+	"testing"
+)
 
 func TestGetProgNumber(t *testing.T) {
 	testCases := []struct {
@@ -32,19 +35,19 @@ func TestGetProgNumber(t *testing.T) {
 }
 func TestShouldIncludeIssue(t *testing.T) {
 	testCases := []struct {
-		name          string
-		input         db.Issue
-		expected      bool
+		name     string
+		input    db.Issue
+		expected bool
 	}{
 		{
-			name:          "Issue with number 0",
-			input:         db.Issue{IssueNumber: 0},
-			expected:      false,
+			name:     "Issue with number 0",
+			input:    db.Issue{IssueNumber: 0},
+			expected: false,
 		},
 		{
-			name:          "Issue with number 1234",
-			input:         db.Issue{IssueNumber: 1234},
-			expected:      true,
+			name:     "Issue with number 1234",
+			input:    db.Issue{IssueNumber: 1234},
+			expected: true,
 		},
 		// Add more test cases here
 	}
