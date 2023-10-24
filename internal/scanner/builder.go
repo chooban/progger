@@ -24,7 +24,14 @@ func buildEpisodes(appEnv env.AppEnv, issueNumber int, bookmarks []pdfcpu.Bookma
 		}
 		// Check to see if the series is close to any of the blessed titles
 		for _, v := range appEnv.Known.SeriesTitles {
-			distance := levenshtein.DistanceForStrings([]rune(v), []rune(series), levenshtein.DefaultOptions)
+			if series == v {
+				break
+			}
+			distance := levenshtein.DistanceForStrings(
+				[]rune(strings.ToLower(v)),
+				[]rune(strings.ToLower(series)),
+				levenshtein.DefaultOptions,
+			)
 			log.Debug().Msg(fmt.Sprintf("Distance between '%s' and '%s' is %d", v, series, distance))
 			if distance < 5 {
 				series = v

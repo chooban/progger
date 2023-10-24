@@ -21,7 +21,6 @@ func TestGetProgNumber(t *testing.T) {
 			input:          "2000AD 1234 (1977).pdf",
 			expectedNumber: 1234,
 		},
-		// Add more test cases here
 	}
 
 	for _, tc := range testCases {
@@ -49,7 +48,6 @@ func TestShouldIncludeIssue(t *testing.T) {
 			input:    db.Issue{IssueNumber: 1234},
 			expected: true,
 		},
-		// Add more test cases here
 	}
 
 	for _, tc := range testCases {

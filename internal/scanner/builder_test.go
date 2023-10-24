@@ -21,6 +21,8 @@ func createAppEnv() env.AppEnv {
 		Log: &logger,
 		Db:  nil,
 		Known: env.ToSkip{SeriesTitles: []string{
+			"Strontium Dog",
+			"Strontium Dug",
 			"The Fall of Deadworld",
 		}},
 	}
@@ -189,6 +191,13 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			expectedSeries: "Tales From Mega-City One",
 			expectedTitle:  "Christmas Comes To Devil's Island",
 		},
+		{
+			name:           "Bulletopia",
+			input:          "Sinister Dexter Bulletopia: Chapter 2 Stay Brave - Part 1",
+			expectedPart:   1,
+			expectedSeries: "Sinister Dexter Bulletopia",
+			expectedTitle:  "Chapter 2 Stay Brave",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -338,6 +347,16 @@ func TestFromRawEpisodes(t *testing.T) {
 	assert.Equal(t, 1, ep.Part)
 }
 
+func discardingLogger() *zerolog.Logger {
+	writer := zerolog.ConsoleWriter{
+		Out:        io.Discard,
+		TimeFormat: time.RFC3339,
+	}
+	logger := zerolog.New(writer)
+
+	return &logger
+}
+
 func TestBuildEpisodes(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -372,10 +391,72 @@ func TestBuildEpisodes(t *testing.T) {
 			expectedTitle:  "Jessica",
 			expectedSeries: "The Fall of Deadworld",
 		},
+		{
+			name: "Strontium Dog",
+			bookmarks: []pdfcpu.Bookmark{
+				{
+					Title:    "Strontium Dog - Series Title",
+					PageFrom: 1,
+					PageThru: 10,
+				},
+			},
+			expectedPart:   1,
+			expectedSeries: "Strontium Dog",
+			expectedTitle:  "Series Title",
+		},
+		{
+			name: "Strontium Dug",
+			bookmarks: []pdfcpu.Bookmark{
+				{
+					Title:    "Strontium Dug - Series Title",
+					PageFrom: 1,
+					PageThru: 10,
+				},
+			},
+			expectedPart:   1,
+			expectedSeries: "Strontium Dug",
+			expectedTitle:  "Series Title",
+		},
+		{
+			name: "ABC Warriors",
+			bookmarks: []pdfcpu.Bookmark{
+				{
+					Title:    "Abc Warriors - Series Title",
+					PageFrom: 1,
+					PageThru: 10,
+				},
+			},
+			expectedPart:   1,
+			expectedSeries: "ABC Warriors",
+			expectedTitle:  "Series Title",
+		},
+		{
+			name: "The ABC Warriors",
+			bookmarks: []pdfcpu.Bookmark{
+				{
+					Title:    "The Abc Warriors - Series Title",
+					PageFrom: 1,
+					PageThru: 10,
+				},
+			},
+			expectedPart:   1,
+			expectedSeries: "ABC Warriors",
+			expectedTitle:  "Series Title",
+		},
 		// Add more test cases here
 	}
 
-	appEnv := createAppEnv()
+	appEnv := env.AppEnv{
+		Log: discardingLogger(),
+		Db:  nil,
+		Known: env.ToSkip{SeriesTitles: []string{
+			"ABC Warriors",
+			"Strontium Dog",
+			"Strontium Dug",
+			"The Fall of Deadworld",
+		}},
+	}
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			issue := buildEpisodes(appEnv, 123, tc.bookmarks)

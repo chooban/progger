@@ -43,12 +43,22 @@ func main() {
 				"Interrogation",
 				"New Books",
 				"Obituary",
+				"Tribute",
 				"Untitled",
 			},
 		},
 		Known: env.ToSkip{
 			SeriesTitles: []string{
+				"ABC Warriors",
+				"Anderson, Psi-Division",
+				"Aquila",
+				"Chimpsky's Law",
+				"Counterfeit Girl",
+				"Hook-Jaw",
+				"Lowborn High",
 				"The Fall of Deadworld",
+				"Scarlet Traces",
+				"Sláine",
 			},
 		},
 	}
