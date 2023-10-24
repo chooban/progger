@@ -198,6 +198,21 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			expectedSeries: "Sinister Dexter Bulletopia",
 			expectedTitle:  "Chapter 2 Stay Brave",
 		},
+		{
+			name:           "Bulletopia 2",
+			input:          "Sinister Dexter: Bulletopia - Chapter One: Boys In The Hud",
+			expectedPart:   1,
+			expectedSeries: "Sinister Dexter",
+			expectedTitle:  "Bulletopia: Chapter One: Boys In The Hud",
+		},
+		{
+			name:           "Bulletopia 3",
+			input:          "Sinister Dexter- Bulletopia Chapter Three: Ghostlands Part One",
+			expectedPart:   1,
+			expectedSeries: "Sinister Dexter",
+			expectedTitle:  "Bulletopia Chapter Three",
+			//expectedTitle:  "Bulletopia Chapter Three: Ghostlands",
+		},
 	}
 
 	for _, tc := range testCases {

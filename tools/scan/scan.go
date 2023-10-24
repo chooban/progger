@@ -54,6 +54,7 @@ func main() {
 				"Aquila",
 				"Chimpsky's Law",
 				"Counterfeit Girl",
+				"Feral & Foe",
 				"Hook-Jaw",
 				"Lowborn High",
 				"The Fall of Deadworld",
