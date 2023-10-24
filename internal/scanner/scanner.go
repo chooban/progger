@@ -57,10 +57,7 @@ func ScanDir(appEnv env.AppEnv, dir string) (issues []db.Issue) {
 }
 
 func shouldIncludeIssue(issue db.Issue) bool {
-	if issue.IssueNumber == 0 {
-		return false
-	}
-	return true
+	return issue.IssueNumber != 0
 }
 
 // ScanFile scans the given file in the specified directory and extracts episode details.
@@ -92,19 +89,18 @@ func ScanFile(appEnv env.AppEnv, fileName string) (db.Issue, error) {
 		return db.Issue{}, errors.New("failed to read bookmarks")
 	}
 
-	progNumber := getProgNumber(fileName, err)
+	progNumber, _ := getProgNumber(fileName)
 	issue := buildEpisodes(appEnv, progNumber, bookmarks)
 
 	return issue, nil
 }
 
-func getProgNumber(inFile string, err error) int {
+func getProgNumber(inFile string) (int, error) {
 	fileParts := strings.Split(inFile, string(os.PathSeparator))
 	regex := pcre.MustCompile(`([^()])(\d{4})\1`, 0)
 	matches := regex.NewMatcherString(fileParts[len(fileParts)-1], 0)
 	rawProgNumber := matches.Group(matches.Groups)
-	progNumber, err := strconv.Atoi(string(rawProgNumber))
-	return progNumber
+	return strconv.Atoi(string(rawProgNumber))
 }
 
 func getFiles(appEnv env.AppEnv, dir string) (pdfFiles []fs.DirEntry) {

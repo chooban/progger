@@ -25,7 +25,7 @@ func TestGetProgNumber(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			gotNumber := getProgNumber(tc.input, nil)
+			gotNumber, _ := getProgNumber(tc.input)
 			if gotNumber != tc.expectedNumber {
 				t.Errorf("getProgNumber(%v) = %v; want %v", tc.input, gotNumber, tc.expectedNumber)
 			}

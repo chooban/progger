@@ -72,7 +72,7 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 		return
 	}
 
-	partFinder := regexp.MustCompile("^.*(?P<whole>part (?P<episodeNumber>\\w+)).*$")
+	partFinder := regexp.MustCompile(`^.*(?P<whole>part (?P<episodeNumber>\w+)).*$`)
 	if partFinder.MatchString(bookmarkTitle) {
 		namedResults := stringutils.FindNamedMatches(partFinder, bookmarkTitle)
 		partString := namedResults["episodeNumber"]
