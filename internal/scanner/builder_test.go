@@ -474,7 +474,7 @@ func TestBuildEpisodes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			issue := buildEpisodes(appEnv, 123, tc.bookmarks)
+			issue := buildIssue(appEnv, "2000AD 123 (1977).pdf", tc.bookmarks)
 			assert.Equal(t, 123, issue.IssueNumber)
 			assert.Equal(t, tc.expectedSeries, issue.Episodes[0].Series.Title)
 			assert.Equal(t, tc.expectedTitle, issue.Episodes[0].Title)

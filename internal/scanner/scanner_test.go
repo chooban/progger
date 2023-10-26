@@ -12,6 +12,11 @@ func TestGetProgNumber(t *testing.T) {
 		expectedNumber int
 	}{
 		{
+			name:           "Prog 123",
+			input:          "2000AD 123 (1977).pdf",
+			expectedNumber: 123,
+		},
+		{
 			name:           "Prog 2000",
 			input:          "2000AD 2000 (1977).pdf",
 			expectedNumber: 2000,

@@ -1,5 +1,3 @@
-github.com/GRbit/go-pcre v1.0.1 h1:8F7Wj1rxIq8ejKSXVVW2wE+4I4VnZbuOemrMk8kn3hc=
-github.com/GRbit/go-pcre v1.0.1/go.mod h1:0g7qVGbMpd2Odevd92x1RpaLpR3c3F/Gv2HEnI7CwEA=
 github.com/akamensky/argparse v1.4.0 h1:YGzvsTqCvbEZhL8zZu2AiA5nq805NZh75JNj4ajn1xc=
 github.com/akamensky/argparse v1.4.0/go.mod h1:S5kwC7IuDcEr5VeXtGPRVZ5o/FdhcMlQz4IZQuw64xA=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=

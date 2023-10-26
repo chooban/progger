@@ -3,13 +3,15 @@ package scanner
 import (
 	"errors"
 	"fmt"
-	"github.com/GRbit/go-pcre"
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
+	"github.com/chooban/progdl-go/internal/stringutils"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"io/fs"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -89,18 +91,21 @@ func ScanFile(appEnv env.AppEnv, fileName string) (db.Issue, error) {
 		return db.Issue{}, errors.New("failed to read bookmarks")
 	}
 
-	progNumber, _ := getProgNumber(fileName)
-	issue := buildEpisodes(appEnv, progNumber, bookmarks)
+	issue := buildIssue(appEnv, fileName, bookmarks)
 
 	return issue, nil
 }
 
 func getProgNumber(inFile string) (int, error) {
-	fileParts := strings.Split(inFile, string(os.PathSeparator))
-	regex := pcre.MustCompile(`([^()])(\d{4})\1`, 0)
-	matches := regex.NewMatcherString(fileParts[len(fileParts)-1], 0)
-	rawProgNumber := matches.Group(matches.Groups)
-	return strconv.Atoi(string(rawProgNumber))
+	filename := filepath.Base(inFile)
+	//regex := pcre.MustCompile(`([^()])(\d{,4})\1`, 0)
+	regex := regexp.MustCompile(`(\b[^()])(?P<issue>\d{1,4})(\b[^()])`)
+
+	namedResults := stringutils.FindNamedMatches(regex, filename)
+	if len(namedResults) > 0 {
+		return strconv.Atoi(stringutils.TrimNonAlphaNumeric(namedResults["issue"]))
+	}
+	return 0, errors.New("no number found in filename")
 }
 
 func getFiles(appEnv env.AppEnv, dir string) (pdfFiles []fs.DirEntry) {

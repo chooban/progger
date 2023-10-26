@@ -7,13 +7,15 @@ import (
 	"github.com/chooban/progdl-go/internal/stringutils"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
-func buildEpisodes(appEnv env.AppEnv, issueNumber int, bookmarks []pdfcpu.Bookmark) db.Issue {
+func buildIssue(appEnv env.AppEnv, filename string, bookmarks []pdfcpu.Bookmark) db.Issue {
 	log := appEnv.Log
+	issueNumber, _ := getProgNumber(filename)
 	allEpisodes := make([]RawEpisode, 0)
 	for _, b := range bookmarks {
 		part, series, title := extractDetailsFromPdfBookmark(b.Title)
@@ -49,6 +51,7 @@ func buildEpisodes(appEnv env.AppEnv, issueNumber int, bookmarks []pdfcpu.Bookma
 	issue := db.Issue{
 		Publication: db.Publication{Title: "2000 AD"},
 		IssueNumber: issueNumber,
+		Filename:    filepath.Base(filename),
 	}
 	issue.Episodes = fromRawEpisodes(appEnv, allEpisodes)
 

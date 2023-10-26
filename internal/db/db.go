@@ -24,6 +24,7 @@ type Issue struct {
 	Publication   Publication
 	IssueNumber   int `gorm:"CHECK:issue_number >= 0;uniqueIndex:idx_pub_issue"`
 	Episodes      []Episode
+	Filename      string
 }
 
 type Episode struct {
