@@ -49,21 +49,24 @@ func main() {
 		},
 		Known: env.ToSkip{
 			SeriesTitles: []string{
-				"ABC Warriors",
+				//"ABC Warriors",
+				//"Aquila",
+				//"Chimpsky's Law",
+				//"Counterfeit Girl",
+				//"Feral & Foe",
+				//"Hook-Jaw",
+				//"Lowborn High",
+				//"The Fall of Deadworld",
+				//"Scarlet Traces",
+				//"Sláine",
 				"Anderson, Psi-Division",
-				"Aquila",
-				"Chimpsky's Law",
-				"Counterfeit Girl",
-				"Feral & Foe",
-				"Hook-Jaw",
-				"Lowborn High",
-				"The Fall of Deadworld",
-				"Scarlet Traces",
-				"Sláine",
+				"Strontium Dug",
 			},
 		},
 	}
 	issues := scanner.ScanDir(appEnv, *d)
 
 	db.SaveIssues(appEnv, issues)
+
+	db.Suggestions(appEnv)
 }

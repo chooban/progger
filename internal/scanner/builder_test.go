@@ -213,6 +213,13 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			expectedTitle:  "Bulletopia Chapter Three",
 			//expectedTitle:  "Bulletopia Chapter Three: Ghostlands",
 		},
+		{
+			name:           "Hope 1",
+			input:          "Hope... In The Shadows - Reel One - Part 10",
+			expectedPart:   10,
+			expectedSeries: "Hope",
+			expectedTitle:  "In The Shadows: Reel One",
+		},
 	}
 
 	for _, tc := range testCases {

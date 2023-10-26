@@ -63,7 +63,7 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	episodeNumber = -1
 	bookmarkTitle = strings.ToLower(bookmarkTitle)
 
-	splitRegex := regexp.MustCompile("([:_\"]|(- ))")
+	splitRegex := regexp.MustCompile(`([:_"(...)]|(- ))`)
 	parts := splitRegex.Split(bookmarkTitle, -1)
 
 	if len(parts) == 3 {
