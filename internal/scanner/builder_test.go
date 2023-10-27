@@ -347,26 +347,43 @@ func TestShouldIncludeEpisode(t *testing.T) {
 }
 
 func TestFromRawEpisodes(t *testing.T) {
+	testCases := []struct {
+		name            string
+		rawEpisodes     []RawEpisode
+		expectedSeries  string
+		expectedTitle   string
+		expectedPart    int
+	}{
+		{
+			name: "Test Case 1",
+			rawEpisodes: []RawEpisode{
+				{
+					Series:    "Test Series",
+					Title:     "Test Title",
+					Part:      1,
+					FirstPage: 1,
+					LastPage:  10,
+				},
+			},
+			expectedSeries: "Test Series",
+			expectedTitle:  "Test Title",
+			expectedPart:   1,
+		},
+		// Add more test cases here
+	}
+
 	// Create a mock AppEnv
 	appEnv := createAppEnv()
 
-	// Create a mock RawEpisode
-	rawEpisodes := []RawEpisode{
-		{
-			Series:    "Test Series",
-			Title:     "Test Title",
-			Part:      1,
-			FirstPage: 1,
-			LastPage:  10,
-		},
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			issue := fromRawEpisodes(appEnv, tc.rawEpisodes)
+			ep := issue[0]
+			assert.Equal(t, tc.expectedSeries, ep.Series.Title)
+			assert.Equal(t, tc.expectedTitle, ep.Title)
+			assert.Equal(t, tc.expectedPart, ep.Part)
+		})
 	}
-
-	issue := fromRawEpisodes(appEnv, rawEpisodes)
-
-	ep := issue[0]
-	assert.Equal(t, "Test Series", ep.Series.Title)
-	assert.Equal(t, "Test Title", ep.Title)
-	assert.Equal(t, 1, ep.Part)
 }
 
 func discardingLogger() *zerolog.Logger {
