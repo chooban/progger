@@ -348,11 +348,9 @@ func TestShouldIncludeEpisode(t *testing.T) {
 
 func TestFromRawEpisodes(t *testing.T) {
 	testCases := []struct {
-		name            string
-		rawEpisodes     []RawEpisode
-		expectedSeries  string
-		expectedTitle   string
-		expectedPart    int
+		name             string
+		rawEpisodes      []RawEpisode
+		expectedEpisodes []db.Episode
 	}{
 		{
 			name: "Test Case 1",
@@ -365,23 +363,41 @@ func TestFromRawEpisodes(t *testing.T) {
 					LastPage:  10,
 				},
 			},
-			expectedSeries: "Test Series",
-			expectedTitle:  "Test Title",
-			expectedPart:   1,
+			expectedEpisodes: []db.Episode{
+				{
+					Series: db.Series{Title: "Test Series"},
+					Title:  "Test Title",
+					Part:   1,
+				},
+			},
+		}, {
+			name: "Nerve Centre",
+			rawEpisodes: []RawEpisode{
+				{
+					Series:    "Nerve Centre",
+					Title:     "Nerve Centre",
+					Part:      1,
+					FirstPage: 1,
+					LastPage:  10,
+				},
+			},
+			expectedEpisodes: []db.Episode{},
 		},
 		// Add more test cases here
 	}
 
-	// Create a mock AppEnv
 	appEnv := createAppEnv()
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			issue := fromRawEpisodes(appEnv, tc.rawEpisodes)
-			ep := issue[0]
-			assert.Equal(t, tc.expectedSeries, ep.Series.Title)
-			assert.Equal(t, tc.expectedTitle, ep.Title)
-			assert.Equal(t, tc.expectedPart, ep.Part)
+
+			for i, expectedExp := range tc.expectedEpisodes {
+				ep := issue[i]
+				assert.Equal(t, expectedExp.Series.Title, ep.Series.Title)
+				assert.Equal(t, expectedExp.Title, ep.Title)
+				assert.Equal(t, expectedExp.Part, ep.Part)
+			}
 		})
 	}
 }
