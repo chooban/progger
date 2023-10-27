@@ -1,6 +1,9 @@
 package db
 
-import "testing"
+import (
+	"github.com/chooban/progdl-go/internal/env"
+	"testing"
+)
 
 func TestGetTargetLevenshteinDistance(t *testing.T) {
 	testCases := []struct {
@@ -36,17 +39,15 @@ func TestGetTargetLevenshteinDistance(t *testing.T) {
 }
 
 func TestGetSuggestions(t *testing.T) {
-	// Create a mock AppEnv
 	appEnv := env.AppEnv{
 		Db:   nil,
 		Log:  nil,
 		Skip: env.ToSkip{},
-		Known: env.Known{
+		Known: env.ToSkip{
 			SeriesTitles: []string{"Known Title"},
 		},
 	}
 
-	// Create a mock suggestionsResults array
 	results := []suggestionsResults{
 		{
 			Title: "Known Title",
@@ -58,7 +59,6 @@ func TestGetSuggestions(t *testing.T) {
 		},
 	}
 
-	// Call getSuggestions with the mock data
 	getSuggestions(appEnv, results)
 
 	// Add assertions to check if the function behaves as expected
