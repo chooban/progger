@@ -1,7 +1,8 @@
 package db
 
 import (
-	"github.com/chooban/progdl-go/internal/env"
+	"fmt"
+	"slices"
 	"testing"
 )
 
@@ -26,6 +27,16 @@ func TestGetTargetLevenshteinDistance(t *testing.T) {
 			input:          "Anderson, Psi-Division",
 			expectedTarget: 5,
 		},
+		{
+			name:           "Brink",
+			input:          "Robohunter",
+			expectedTarget: 3,
+		},
+		{
+			name:           "Judge Dredd",
+			input:          "Judge Dredd",
+			expectedTarget: 4,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -39,27 +50,45 @@ func TestGetTargetLevenshteinDistance(t *testing.T) {
 }
 
 func TestGetSuggestions(t *testing.T) {
-	appEnv := env.AppEnv{
-		Db:   nil,
-		Log:  nil,
-		Skip: env.ToSkip{},
-		Known: env.ToSkip{
-			SeriesTitles: []string{"Known Title"},
-		},
-	}
+	appEnv := createAppEnv()
 
 	results := []suggestionsResults{
 		{
-			Title: "Known Title",
+			Title: "Judge Dredd",
+			Count: 10,
+		},
+		{
+			Title: "Judge Fredd",
 			Count: 1,
 		},
 		{
-			Title: "Unknown Title",
-			Count: 2,
+			Title: "Brink",
+			Count: 5,
+		},
+		{
+			Title: "Renk",
+			Count: 3,
+		},
+		{
+			Title: "Strontium Dug",
+			Count: 1,
+		},
+		{
+			Title: "Strontium Dog",
+			Count: 15,
 		},
 	}
 
-	getSuggestions(appEnv, results)
+	t.Run("Sanitising test", func(t *testing.T) {
+		suggestions := getSuggestions(appEnv, results)
+
+		if len(suggestions) != 2 {
+			t.Errorf(fmt.Sprintf("sanitising test: expected %d suggestions, got %d", 3, len(suggestions)))
+		}
+		if !slices.Contains(suggestions, Suggestion{From: "Judge Fredd", To: "Judge Dredd"}) {
+			t.Errorf(fmt.Sprintf("Suggestion to rename Judge Fredd not found"))
+		}
+	})
 
 	// Add assertions to check if the function behaves as expected
 	// This part is left as an exercise for the reader as it depends on the specific behavior of the function

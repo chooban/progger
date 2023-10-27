@@ -11,6 +11,11 @@ type suggestionsResults struct {
 	Count int
 }
 
+type Suggestion struct {
+	From string
+	To   string
+}
+
 func Suggestions(appEnv env.AppEnv) {
 	var results []suggestionsResults
 
@@ -23,7 +28,7 @@ func Suggestions(appEnv env.AppEnv) {
 	getSuggestions(appEnv, results)
 }
 
-func getSuggestions(appEnv env.AppEnv, results []suggestionsResults) {
+func getSuggestions(appEnv env.AppEnv, results []suggestionsResults) (suggestions []Suggestion) {
 	for _, k := range results {
 		for _, l := range results {
 			// If they match or the smaller series is a known title
@@ -35,12 +40,10 @@ func getSuggestions(appEnv env.AppEnv, results []suggestionsResults) {
 			if distance > targetDistance || (distance <= targetDistance && l.Count > k.Count) {
 				continue
 			}
-			var target = k.Title
-			var toChange = l.Title
-
-			appEnv.Log.Info().Msgf("Suggest changing '%s' to '%s'", toChange, target)
+			suggestions = append(suggestions, Suggestion{From: l.Title, To: k.Title})
 		}
 	}
+	return
 }
 
 // getTargetLevenshteinDistance returns the maximum Levenshtein distance
