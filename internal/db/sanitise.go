@@ -26,8 +26,9 @@ func Suggestions(appEnv env.AppEnv) {
 			if k == l || slices.Contains(appEnv.Known.SeriesTitles, l.Title) {
 				continue
 			}
+			targetDistance := getTargetLevenshteinDistance(l.Title)
 			distance := levenshtein.DistanceForStrings([]rune(k.Title), []rune(l.Title), levenshtein.DefaultOptions)
-			if distance > 5 || (distance <= 5 && l.Count > k.Count) {
+			if distance > targetDistance || (distance <= targetDistance && l.Count > k.Count) {
 				continue
 			}
 			var target = k.Title
@@ -35,5 +36,26 @@ func Suggestions(appEnv env.AppEnv) {
 
 			appEnv.Log.Info().Msgf("Suggest changing '%s' to '%s'", toChange, target)
 		}
+	}
+}
+
+// getTargetLevenshteinDistance returns the maximum Levenshtein distance
+// allowed between two titles when attempting to sanitise them.
+// The only parameter is the input string that you might want to change.
+// A string of 5 characters or fewer will return a score of 1, scaling
+// up to a maximum of 5 if the string is longer than 12 characters.
+func getTargetLevenshteinDistance(input string) int {
+	length := len(input)
+	switch {
+	case length <= 5:
+		return 1
+	case length <= 8:
+		return 2
+	case length <= 10:
+		return 3
+	case length <= 12:
+		return 4
+	default:
+		return 5
 	}
 }
