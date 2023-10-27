@@ -11,7 +11,7 @@ type suggestionsResults struct {
 	Count int
 }
 
-func GetSuggestionsResults(appEnv env.AppEnv) []suggestionsResults {
+func Suggestions(appEnv env.AppEnv) {
 	var results []suggestionsResults
 
 	appEnv.Db.Raw(
@@ -20,10 +20,10 @@ func GetSuggestionsResults(appEnv env.AppEnv) []suggestionsResults {
 			 group by series.title order by series.title ASC`,
 	).Scan(&results)
 
-	return results
+	getSuggestions(appEnv, results)
 }
 
-func Suggestions(appEnv env.AppEnv, results []suggestionsResults) {
+func getSuggestions(appEnv env.AppEnv, results []suggestionsResults) {
 	for _, k := range results {
 		for _, l := range results {
 			// If they match or the smaller series is a known title
