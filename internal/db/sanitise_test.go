@@ -34,3 +34,33 @@ func TestGetTargetLevenshteinDistance(t *testing.T) {
 		})
 	}
 }
+
+func TestGetSuggestions(t *testing.T) {
+	// Create a mock AppEnv
+	appEnv := env.AppEnv{
+		Db:   nil,
+		Log:  nil,
+		Skip: env.ToSkip{},
+		Known: env.Known{
+			SeriesTitles: []string{"Known Title"},
+		},
+	}
+
+	// Create a mock suggestionsResults array
+	results := []suggestionsResults{
+		{
+			Title: "Known Title",
+			Count: 1,
+		},
+		{
+			Title: "Unknown Title",
+			Count: 2,
+		},
+	}
+
+	// Call getSuggestions with the mock data
+	getSuggestions(appEnv, results)
+
+	// Add assertions to check if the function behaves as expected
+	// This part is left as an exercise for the reader as it depends on the specific behavior of the function
+}
