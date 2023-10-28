@@ -182,7 +182,7 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			input:          "Feature: Caballistics, INC.",
 			expectedPart:   1,
 			expectedSeries: "Feature",
-			expectedTitle:  "Caballistics, Inc",
+			expectedTitle:  "Caballistics, Inc.",
 		},
 		{
 			name:           "Tales from MC1",
@@ -219,6 +219,20 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			expectedPart:   10,
 			expectedSeries: "Hope",
 			expectedTitle:  "In The Shadows: Reel One",
+		},
+		{
+			name:           "Ace Trucking",
+			input:          "Ace Trucking Co.: The Festive Flip-Flop!",
+			expectedPart:   1,
+			expectedSeries: "Ace Trucking Co.",
+			expectedTitle:  "The Festive Flip-Flop!",
+		},
+		{
+			name:           "Nakka",
+			input:          "Tharg's 3rillers Present Nakka of the S.T.A.R.S: Part One",
+			expectedPart:   1,
+			expectedSeries: "Tharg's 3rillers Present Nakka of The S.t.a.r.s",
+			expectedTitle:  "",
 		},
 	}
 

@@ -49,16 +49,6 @@ func main() {
 		},
 		Known: env.ToSkip{
 			SeriesTitles: []string{
-				//"ABC Warriors",
-				//"Aquila",
-				//"Chimpsky's Law",
-				//"Counterfeit Girl",
-				//"Feral & Foe",
-				//"Hook-Jaw",
-				//"Lowborn High",
-				//"The Fall of Deadworld",
-				//"Scarlet Traces",
-				//"Sláine",
 				"Anderson, Psi-Division",
 				"Strontium Dug",
 			},

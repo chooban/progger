@@ -9,6 +9,7 @@ import (
 	"github.com/texttheater/golang-levenshtein/levenshtein"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -61,13 +62,14 @@ func buildIssue(appEnv env.AppEnv, filename string, bookmarks []pdfcpu.Bookmark)
 func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, series string, storyline string) {
 	// We don't want any zero parts. It's 1 if not specified
 	episodeNumber = -1
-	bookmarkTitle = strings.ToLower(bookmarkTitle)
 
-	splitRegex := regexp.MustCompile(`([:_"(...)]|(- ))`)
+	splitRegex := regexp.MustCompile(`([:_"]|(- )|\.{3})`)
 	parts := splitRegex.Split(bookmarkTitle, -1)
-
+	parts = slices.DeleteFunc(parts, func(s string) bool {
+		return s == ""
+	})
 	if len(parts) == 3 {
-		// Three episodeNumber split? Series, storyline, episodeNumber
+		// Three-way split? Series, storyline, episodeNumber
 		series = stringutils.CapitalizeWords(strings.TrimSpace(parts[0]))
 		storyline = stringutils.CapitalizeWords(strings.TrimSpace(parts[1]))
 		episodeNumber = extractPartNumberFromString(parts[2])
@@ -75,7 +77,7 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 		return
 	}
 
-	partFinder := regexp.MustCompile(`^.*(?P<whole>part (?P<episodeNumber>\w+)).*$`)
+	partFinder := regexp.MustCompile(`(?i)^.*(?P<whole>part (?P<episodeNumber>\w+)).*$`)
 	if partFinder.MatchString(bookmarkTitle) {
 		namedResults := stringutils.FindNamedMatches(partFinder, bookmarkTitle)
 		partString := namedResults["episodeNumber"]
@@ -83,7 +85,7 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 		if err == nil {
 			episodeNumber = maybePart
 		}
-		toReplace := regexp.MustCompile("\\s+part " + partString + "[^a-zA-Z0-9]*")
+		toReplace := regexp.MustCompile("(?i)\\s+part " + partString + "[^a-zA-Z0-9]*")
 		bookmarkTitle = toReplace.ReplaceAllString(bookmarkTitle, " ")
 	}
 
