@@ -68,5 +68,9 @@ func main() {
 
 	db.SaveIssues(appEnv, issues)
 
-	db.GetSuggestions(appEnv)
+	suggestions := db.GetSuggestions(appEnv)
+
+	for _, s := range suggestions {
+		db.ApplySuggestion(appEnv, s)
+	}
 }

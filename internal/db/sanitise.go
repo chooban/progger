@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"github.com/chooban/progdl-go/internal/env"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
 	"slices"
@@ -16,7 +17,7 @@ type Suggestion struct {
 	To   string
 }
 
-func GetSuggestions(appEnv env.AppEnv) {
+func GetSuggestions(appEnv env.AppEnv) []Suggestion {
 	var results []suggestionsResults
 
 	appEnv.Db.Raw(
@@ -25,7 +26,7 @@ func GetSuggestions(appEnv env.AppEnv) {
 			 group by series.title order by series.title ASC`,
 	).Scan(&results)
 
-	getSuggestions(appEnv, results)
+	return getSuggestions(appEnv, results)
 }
 
 // ApplySuggestion updates the database in appEnv.DB in line with the
@@ -35,20 +36,22 @@ func GetSuggestions(appEnv env.AppEnv) {
 // All episodes connectioned to the first should be updated to point to the
 // second series. The first series should then be deleted.
 func ApplySuggestion(appEnv env.AppEnv, suggestion Suggestion) {
-    var fromSeries, toSeries db.Series
-    var episodes []db.Episode
+	var fromSeries, toSeries Series
+	var episodes []Episode
 
-    // Find the series with the title suggestion.From
-    appEnv.Db.Where("title = ?", suggestion.From).First(&fromSeries)
+	appEnv.Log.Info().Msg(fmt.Sprintf("Moving all episodes linked to '%s' to '%s' instead", suggestion.From, suggestion.To))
 
-    // Find the series with the title suggestion.To
-    appEnv.Db.Where("title = ?", suggestion.To).First(&toSeries)
+	// Find the series with the title suggestion.From
+	appEnv.Db.Where("title = ?", suggestion.From).First(&fromSeries)
 
-    // Update all episodes connected to the first series to point to the second series
-    appEnv.Db.Model(&episodes).Where("series_id = ?", fromSeries.ID).Update("series_id", toSeries.ID)
+	// Find the series with the title suggestion.To
+	appEnv.Db.Where("title = ?", suggestion.To).First(&toSeries)
 
-    // Delete the first series
-    appEnv.Db.Delete(&fromSeries)
+	// Update all episodes connected to the first series to point to the second series
+	appEnv.Db.Model(&episodes).Where("series_id = ?", fromSeries.ID).Update("series_id", toSeries.ID)
+
+	// Delete the first series
+	appEnv.Db.Delete(&fromSeries)
 }
 
 func getSuggestions(appEnv env.AppEnv, results []suggestionsResults) (suggestions []Suggestion) {
