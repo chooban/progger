@@ -35,7 +35,20 @@ func GetSuggestions(appEnv env.AppEnv) {
 // All episodes connectioned to the first should be updated to point to the
 // second series. The first series should then be deleted.
 func ApplySuggestion(appEnv env.AppEnv, suggestion Suggestion) {
+    var fromSeries, toSeries db.Series
+    var episodes []db.Episode
 
+    // Find the series with the title suggestion.From
+    appEnv.Db.Where("title = ?", suggestion.From).First(&fromSeries)
+
+    // Find the series with the title suggestion.To
+    appEnv.Db.Where("title = ?", suggestion.To).First(&toSeries)
+
+    // Update all episodes connected to the first series to point to the second series
+    appEnv.Db.Model(&episodes).Where("series_id = ?", fromSeries.ID).Update("series_id", toSeries.ID)
+
+    // Delete the first series
+    appEnv.Db.Delete(&fromSeries)
 }
 
 func getSuggestions(appEnv env.AppEnv, results []suggestionsResults) (suggestions []Suggestion) {
