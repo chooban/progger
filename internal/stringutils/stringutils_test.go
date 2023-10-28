@@ -22,6 +22,16 @@ func TestParseTextNumber(t *testing.T) {
 		{"Eight", "eight", 8},
 		{"Nine", "nine", 9},
 		{"Ten", "ten", 10},
+		{"Eleven", "eleven", 11},
+		{"Twelve", "twelve", 12},
+		{"Thirteen", "thirteen", 13},
+		{"Fourteen", "fourteen", 14},
+		{"Fifteen", "fifteen", 15},
+		{"Sixteen", "sixteen", 16},
+		{"Seventeen", "seventeen", 17},
+		{"Eighteen", "eighteen", 18},
+		{"Nineteen", "nineteen", 19},
+		{"Twenty", "twenty", 20},
 		{"Invalid", "invalid", 0},
 	}
 
