@@ -68,5 +68,5 @@ func main() {
 
 	db.SaveIssues(appEnv, issues)
 
-	db.Suggestions(appEnv)
+	db.GetSuggestions(appEnv)
 }

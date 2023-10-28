@@ -16,7 +16,7 @@ type Suggestion struct {
 	To   string
 }
 
-func Suggestions(appEnv env.AppEnv) {
+func GetSuggestions(appEnv env.AppEnv) {
 	var results []suggestionsResults
 
 	appEnv.Db.Raw(
@@ -26,6 +26,16 @@ func Suggestions(appEnv env.AppEnv) {
 	).Scan(&results)
 
 	getSuggestions(appEnv, results)
+}
+
+// ApplySuggestion updates the database in appEnv.DB in line with the
+// instructions in the suggestion.
+// It should take the suggestion.From value and find a Series object
+// with that as a title. Then find a series with suggestion.To as a title.
+// All episodes connectioned to the first should be updated to point to the
+// second series. The first series should then be deleted.
+func ApplySuggestion(appEnv env.AppEnv, suggestion Suggestion) {
+
 }
 
 func getSuggestions(appEnv env.AppEnv, results []suggestionsResults) (suggestions []Suggestion) {
