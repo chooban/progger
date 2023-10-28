@@ -38,6 +38,26 @@ func ParseTextNumber(textNum string) (part int, err error) {
 		part = 9
 	case "ten":
 		part = 10
+	case "eleven":
+		part = 11
+	case "twelve":
+		part = 12
+	case "thirteen":
+		part = 13
+	case "fourteen":
+		part = 14
+	case "fifteen":
+		part = 15
+	case "sixteen":
+		part = 16
+	case "seventeen":
+		part = 17
+	case "eighteen":
+		part = 18
+	case "nineteen":
+		part = 19
+	case "twenty":
+		part = 20
 	default:
 		part = 0
 		err = errors.New("default value returned")
