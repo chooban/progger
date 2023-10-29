@@ -79,6 +79,8 @@ func TestCapitalizeWords(t *testing.T) {
 		{"Skip words", "world of goo", "World of Goo"},
 		{name: "MC-1", input: "mega-city one", expected: "Mega-City One"},
 		{name: "Robo-Hunter", input: "judge dredd vs robo-hunter", expected: "Judge Dredd vs Robo-Hunter"},
+		{name: "letter after number", input: "3rillers", expected: "3rillers"},
+		{name: "ABC", input: "Abc", expected: "ABC"},
 	}
 
 	for _, tc := range testCases {
