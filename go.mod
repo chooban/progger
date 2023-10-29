@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/akamensky/argparse v1.4.0
+	github.com/divan/num2words v0.0.0-20170904212200-57dba452f942
 	github.com/pdfcpu/pdfcpu v0.5.0
 	github.com/rs/zerolog v1.31.0
 	github.com/stretchr/testify v1.8.4
@@ -26,6 +27,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
+	github.com/smartystreets/goconvey v1.8.1 // indirect
 	golang.org/x/image v0.11.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

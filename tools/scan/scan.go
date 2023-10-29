@@ -58,9 +58,15 @@ func main() {
 
 	db.SaveIssues(appEnv, issues)
 
-	suggestions := db.GetSuggestions(appEnv)
+	suggestions := db.GetSeriesTitleRenameSuggestions(appEnv)
 
 	for _, s := range suggestions {
 		db.ApplySuggestion(appEnv, s)
+	}
+
+	suggestions = db.GetEpisodeTitleRenameSuggestions(appEnv)
+
+	for _, v := range suggestions {
+		appEnv.Log.Info().Msg(fmt.Sprintf("Suggest renaming '%s' to '%s'", v.From, v.To))
 	}
 }

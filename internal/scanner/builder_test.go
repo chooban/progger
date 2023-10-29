@@ -70,7 +70,7 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			input:          "Savage: Book 10: The Marze Murderer - Part 2",
 			expectedPart:   2,
 			expectedSeries: "Savage",
-			expectedTitle:  "Book 10: The Marze Murderer",
+			expectedTitle:  "Book Ten: The Marze Murderer",
 		},
 		{
 			name:           "A Dredd",
@@ -254,6 +254,20 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			expectedPart:   1,
 			expectedSeries: "Full Tilt Boogie",
 			expectedTitle:  "Full Tilt Boogie",
+		},
+		{
+			name:           "Brink (part in brackets)",
+			input:          "Brink - Mercury Retrograde (Part 12)",
+			expectedPart:   12,
+			expectedSeries: "Brink",
+			expectedTitle:  "Mercury Retrograde",
+		},
+		{
+			name:           "Scarlet Traces: Cold War: Book 2",
+			input:          "Scarlet Traces: Cold War: Book 2 - Part 12",
+			expectedPart:   12,
+			expectedSeries: "Scarlet Traces",
+			expectedTitle:  "Cold War: Book Two",
 		},
 	}
 

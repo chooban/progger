@@ -80,7 +80,7 @@ func TestGetSuggestions(t *testing.T) {
 	}
 
 	t.Run("Sanitising test", func(t *testing.T) {
-		suggestions := getSuggestions(appEnv, results)
+		suggestions := getSuggestions(appEnv, results, 0)
 
 		if len(suggestions) != 2 {
 			t.Errorf(fmt.Sprintf("sanitising test: expected %d suggestions, got %d", 3, len(suggestions)))

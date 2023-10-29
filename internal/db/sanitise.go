@@ -12,28 +12,57 @@ type suggestionsResults struct {
 	Count int
 }
 
+type SuggestionType int64
+
+const (
+	SeriesTitle SuggestionType = iota
+	EpisodeTitle
+)
+
 type Suggestion struct {
 	From string
 	To   string
+	Type SuggestionType
 }
 
-func GetSuggestions(appEnv env.AppEnv) []Suggestion {
-	var results []suggestionsResults
+func GetSeriesTitleRenameSuggestions(appEnv env.AppEnv) []Suggestion {
+	seriesRenames := getSeriesTitleCounts(appEnv)
 
-	appEnv.Db.Raw(
-		`select series.title, count(*) as count from series 
-			 join episodes on (episodes.series_id = series.id) 
-			 group by series.title order by series.title ASC`,
-	).Scan(&results)
+	return getSuggestions(appEnv, seriesRenames, SeriesTitle)
+}
 
-	return getSuggestions(appEnv, results)
+func GetEpisodeTitleRenameSuggestions(appEnv env.AppEnv) []Suggestion {
+	var allSeries []Series
+	appEnv.Db.Find(&allSeries)
+
+	var suggestions []Suggestion
+
+	for _, v := range allSeries {
+		var episodeCounts []suggestionsResults
+		appEnv.Log.Info().Msg(fmt.Sprintf("Looking for episodes for %s", v.Title))
+		appEnv.Db.Model(&Episode{}).
+			Select("title, count(*) as count").
+			Where("series_id = ?", v.ID).
+			Group("title").
+			Find(&episodeCounts)
+
+		if len(episodeCounts) < 2 {
+			// Not going to be any renaming if there's one series
+			continue
+		}
+		suggestions = append(suggestions, getSuggestions(appEnv, episodeCounts, EpisodeTitle)...)
+		//appEnv.Log.Info().Msg(fmt.Sprintf("%s: %+v", v.Title, episodeCounts))
+	}
+
+	//suggestions := getSuggestions(appEnv, seriesRenames, 0)
+	return suggestions
 }
 
 // ApplySuggestion updates the database in appEnv.DB in line with the
 // instructions in the suggestion.
 // It should take the suggestion.From value and find a Series object
 // with that as a title. Then find a series with suggestion.To as a title.
-// All episodes connectioned to the first should be updated to point to the
+// All episodes connected to the first should be updated to point to the
 // second series. The first series should then be deleted.
 func ApplySuggestion(appEnv env.AppEnv, suggestion Suggestion) {
 	var fromSeries, toSeries Series
@@ -54,7 +83,19 @@ func ApplySuggestion(appEnv env.AppEnv, suggestion Suggestion) {
 	appEnv.Db.Delete(&fromSeries)
 }
 
-func getSuggestions(appEnv env.AppEnv, results []suggestionsResults) (suggestions []Suggestion) {
+func getSeriesTitleCounts(appEnv env.AppEnv) []suggestionsResults {
+	var results []suggestionsResults
+
+	appEnv.Db.Raw(
+		`select series.title, count(*) as count from series 
+			 join episodes on (episodes.series_id = series.id) 
+			 group by series.title order by series.title ASC`,
+	).Scan(&results)
+
+	return results
+}
+
+func getSuggestions(appEnv env.AppEnv, results []suggestionsResults, suggestionType SuggestionType) (suggestions []Suggestion) {
 	for _, k := range results {
 		for _, l := range results {
 			// If they match or the smaller series is a known title
@@ -66,7 +107,11 @@ func getSuggestions(appEnv env.AppEnv, results []suggestionsResults) (suggestion
 			if distance > targetDistance || (distance <= targetDistance && l.Count > k.Count) {
 				continue
 			}
-			suggestions = append(suggestions, Suggestion{From: l.Title, To: k.Title})
+			suggestions = append(suggestions, Suggestion{
+				From: l.Title,
+				To:   k.Title,
+				Type: suggestionType,
+			})
 		}
 	}
 	return

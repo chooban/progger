@@ -5,6 +5,7 @@ import (
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
 	"github.com/chooban/progdl-go/internal/stringutils"
+	"github.com/divan/num2words"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
 	"path/filepath"
@@ -63,7 +64,15 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	// We don't want any zero parts. It's 1 if not specified
 	episodeNumber = -1
 
-	splitRegex := regexp.MustCompile(`([:_"]|(- )|\.{3})`)
+	// Very rarely, someone decides to use a number for a book when most are words
+	bookRegex := regexp.MustCompile(`(?i)book \d+`)
+	bookmarkTitle = bookRegex.ReplaceAllStringFunc(bookmarkTitle, func(s string) string {
+		parts := strings.Split(s, " ")
+		num, _ := strconv.Atoi(parts[1])
+		return fmt.Sprintf(":%s %s", parts[0], num2words.Convert(num))
+	})
+
+	splitRegex := regexp.MustCompile(`([:_"()]|(- )|\.{3})`)
 	parts := splitRegex.Split(bookmarkTitle, -1)
 	parts = slices.DeleteFunc(parts, func(s string) bool {
 		return strings.TrimSpace(s) == ""
