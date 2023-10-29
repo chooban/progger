@@ -67,7 +67,7 @@ func ParseTextNumber(textNum string) (part int, err error) {
 
 func TrimNonAlphaNumeric(input string) string {
 	patternTrailing := "[^a-zA-Z0-9!\\.]+$"
-	patternLeading := "^[^a-zA-Z0-9!]+"
+	patternLeading := "^[^a-zA-Z0-9']+"
 	re := regexp.MustCompile(patternTrailing)
 	reLeading := regexp.MustCompile(patternLeading)
 	return re.ReplaceAllString(reLeading.ReplaceAllString(input, ""), "")
@@ -75,9 +75,10 @@ func TrimNonAlphaNumeric(input string) string {
 
 func CapitalizeWords(sentence string) string {
 	skipWords := map[string]string{
-		"Of":       "of",
-		"Vs":       "vs",
-		"3Rillers": "3rillers",
+		"Of":        "of",
+		"Vs":        "vs",
+		"3Rillers":  "3rillers",
+		"s.t.a.r.s": "S.t.a.r.s",
 	}
 	capitalized := cases.Title(language.BritishEnglish).String(sentence)
 

@@ -66,7 +66,7 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	splitRegex := regexp.MustCompile(`([:_"]|(- )|\.{3})`)
 	parts := splitRegex.Split(bookmarkTitle, -1)
 	parts = slices.DeleteFunc(parts, func(s string) bool {
-		return s == ""
+		return strings.TrimSpace(s) == ""
 	})
 	if len(parts) == 3 {
 		// Three-way split? Series, storyline, episodeNumber
@@ -90,6 +90,9 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	}
 
 	titleSplit := splitRegex.Split(bookmarkTitle, -1)
+	titleSplit = slices.DeleteFunc(titleSplit, func(s string) bool {
+		return strings.TrimSpace(s) == ""
+	})
 	series = strings.TrimSpace(titleSplit[0])
 	if len(titleSplit) > 2 {
 		// Already set, so we must have had "Part Two" somewhere else. Just put it all back together and call
@@ -103,6 +106,9 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 		series = titleSplit[0]
 		if len(titleSplit) > 1 {
 			storyline = titleSplit[1]
+		} else {
+			// Assume eponymous
+			storyline = series
 		}
 	}
 

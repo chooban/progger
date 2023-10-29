@@ -49,14 +49,14 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			input:          "Hunted - Part 4",
 			expectedPart:   4,
 			expectedSeries: "Hunted",
-			expectedTitle:  "",
+			expectedTitle:  "Hunted",
 		},
 		{
 			name:           "Counterfeit Girl",
 			input:          "Counterfeit Girl - Part 3",
 			expectedPart:   3,
 			expectedSeries: "Counterfeit Girl",
-			expectedTitle:  "",
+			expectedTitle:  "Counterfeit Girl",
 		},
 		{
 			name:           "Nemesis",
@@ -168,7 +168,7 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			input:          "Cover",
 			expectedPart:   1,
 			expectedSeries: "Cover",
-			expectedTitle:  "",
+			expectedTitle:  "Cover",
 		},
 		{
 			name:           "Skip Tracer",
@@ -232,7 +232,28 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			input:          "Tharg's 3rillers Present Nakka of the S.T.A.R.S: Part One",
 			expectedPart:   1,
 			expectedSeries: "Tharg's 3rillers Present Nakka of The S.t.a.r.s",
-			expectedTitle:  "",
+			expectedTitle:  "Tharg's 3rillers Present Nakka of The S.t.a.r.s",
+		},
+		{
+			name:           "'Splorers",
+			input:          "'Splorers",
+			expectedPart:   1,
+			expectedSeries: "'Splorers",
+			expectedTitle:  "'Splorers",
+		},
+		{
+			name:           "Ampney",
+			input:          "Ampney Crucis Investigates... - Setting Son",
+			expectedPart:   1,
+			expectedSeries: "Ampney Crucis Investigates",
+			expectedTitle:  "Setting Son",
+		},
+		{
+			name:           "Full Tilt Boogie",
+			input:          "Full Tilt Boogie - Part 1",
+			expectedPart:   1,
+			expectedSeries: "Full Tilt Boogie",
+			expectedTitle:  "Full Tilt Boogie",
 		},
 	}
 
