@@ -155,7 +155,4 @@ func TestGetSuggestions(t *testing.T) {
 			}
 		})
 	}
-
-	// Add assertions to check if the function behaves as expected
-	// This part is left as an exercise for the reader as it depends on the specific behavior of the function
 }
