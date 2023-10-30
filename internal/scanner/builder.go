@@ -69,6 +69,10 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	bookmarkTitle = bookRegex.ReplaceAllStringFunc(bookmarkTitle, func(s string) string {
 		parts := strings.Split(s, " ")
 		num, _ := strconv.Atoi(parts[1])
+
+		// Put it back, but with an extra colon in there. Some of the `Book X` bookmarks don't have one, and this
+		// messes things up. If we put one in we might split twice, but then we remove the empty strings from the
+		// array.
 		return fmt.Sprintf(":%s %s", parts[0], num2words.Convert(num))
 	})
 

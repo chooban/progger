@@ -1,7 +1,7 @@
 package db
 
 import (
-	"fmt"
+	"github.com/chooban/progdl-go/internal/env"
 	"slices"
 	"testing"
 )
@@ -52,43 +52,109 @@ func TestGetTargetLevenshteinDistance(t *testing.T) {
 func TestGetSuggestions(t *testing.T) {
 	appEnv := createAppEnv()
 
-	results := []suggestionsResults{
+	testCases := []struct {
+		name           string
+		appEnv         env.AppEnv
+		input          []suggestionsResults
+		expectedOutput []Suggestion
+	}{
 		{
-			Title: "Judge Dredd",
-			Count: 10,
+			name:   "Sanitising test",
+			appEnv: appEnv,
+			input: []suggestionsResults{
+				{
+					Title: "Judge Dredd",
+					Count: 10,
+				},
+				{
+					Title: "Judge Fredd",
+					Count: 1,
+				},
+				{
+					Title: "Brink",
+					Count: 5,
+				},
+				{
+					Title: "Renk",
+					Count: 3,
+				},
+			},
+			expectedOutput: []Suggestion{
+				{From: "Judge Fredd", To: "Judge Dredd"},
+			},
 		},
 		{
-			Title: "Judge Fredd",
-			Count: 1,
+			name:   "Dynamic levenshtein distance for short titles",
+			appEnv: appEnv,
+			input: []suggestionsResults{
+				{
+					Title: "Brink",
+					Count: 5,
+				},
+				{
+					Title: "Renk",
+					Count: 3,
+				},
+			},
+			expectedOutput: []Suggestion{},
 		},
 		{
-			Title: "Brink",
-			Count: 5,
+			name:   "Strontium Dug",
+			appEnv: appEnv,
+			input: []suggestionsResults{
+				{
+					Title: "Strontium Dug",
+					Count: 1,
+				},
+				{
+					Title: "Strontium Dog",
+					Count: 15,
+				},
+			},
+			expectedOutput: []Suggestion{
+				{
+					From: "Strontium Dug",
+					To:   "Strontium Dog",
+				},
+			},
 		},
 		{
-			Title: "Renk",
-			Count: 3,
+			name: "Strontium Dug - preserved",
+			appEnv: func() env.AppEnv {
+				appEnv := createAppEnv()
+				appEnv.Known.SeriesTitles = []string{"Strontium Dug"}
+				return appEnv
+			}(),
+			input: []suggestionsResults{
+				{
+					Title: "Strontium Dug",
+					Count: 1,
+				},
+				{
+					Title: "Strontium Dog",
+					Count: 15,
+				},
+			},
+			expectedOutput: []Suggestion{},
 		},
-		{
-			Title: "Strontium Dug",
-			Count: 1,
-		},
-		{
-			Title: "Strontium Dog",
-			Count: 15,
-		},
+		// Add more test cases here
 	}
 
-	t.Run("Sanitising test", func(t *testing.T) {
-		suggestions := getSuggestions(appEnv, results, 0)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			suggestions := getSuggestions(tc.appEnv, tc.input, 0)
 
-		if len(suggestions) != 2 {
-			t.Errorf(fmt.Sprintf("sanitising test: expected %d suggestions, got %d", 3, len(suggestions)))
-		}
-		if !slices.Contains(suggestions, Suggestion{From: "Judge Fredd", To: "Judge Dredd"}) {
-			t.Errorf(fmt.Sprintf("Suggestion to rename Judge Fredd not found"))
-		}
-	})
+			if len(suggestions) != len(tc.expectedOutput) {
+				t.Errorf("%s: expected %d suggestions, got %d", tc.name, len(tc.expectedOutput), len(suggestions))
+			}
+
+			for _, expectedSuggestion := range tc.expectedOutput {
+				if !slices.Contains(suggestions, expectedSuggestion) {
+					t.Errorf("%s: expected suggestion %v not found", tc.name, expectedSuggestion)
+				}
+			}
+		})
+	}
 
 	// Add assertions to check if the function behaves as expected
 	// This part is left as an exercise for the reader as it depends on the specific behavior of the function
