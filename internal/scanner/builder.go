@@ -6,7 +6,6 @@ import (
 	"github.com/chooban/progdl-go/internal/env"
 	"github.com/chooban/progdl-go/internal/stringutils"
 	"github.com/divan/num2words"
-	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
 	"path/filepath"
 	"regexp"
@@ -15,7 +14,13 @@ import (
 	"strings"
 )
 
-func buildIssue(appEnv env.AppEnv, filename string, bookmarks []pdfcpu.Bookmark) db.Issue {
+type Bookmark struct {
+	Title    string
+	PageFrom int
+	PageThru int
+}
+
+func buildIssue(appEnv env.AppEnv, filename string, bookmarks []Bookmark) db.Issue {
 	log := appEnv.Log
 	issueNumber, _ := getProgNumber(filename)
 	allEpisodes := make([]RawEpisode, 0)

@@ -5,23 +5,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/scanner"
-	"github.com/rs/zerolog"
-	"os"
-	"time"
-
 	"github.com/akamensky/argparse"
 	"github.com/chooban/progdl-go/internal/db"
+	"github.com/chooban/progdl-go/internal/env"
+	"github.com/chooban/progdl-go/internal/scanner"
+	"os"
 )
 
 func main() {
-	writer := zerolog.ConsoleWriter{
-		Out:        os.Stdout,
-		TimeFormat: time.RFC3339,
-	}
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	logger := zerolog.New(writer)
 
 	parser := argparse.NewParser("scan", "Scans a directory for progs")
 	d := parser.String("d", "directory", &argparse.Options{Required: true, Help: "Directory to scan"})
@@ -35,25 +26,8 @@ func main() {
 		panic(err)
 	}
 
-	appEnv := env.AppEnv{
-		Db:  db.Init("progs.db"),
-		Log: &logger,
-		Skip: env.ToSkip{
-			SeriesTitles: []string{
-				"Interrogation",
-				"New Books",
-				"Obituary",
-				"Tribute",
-				"Untitled",
-			},
-		},
-		Known: env.ToSkip{
-			SeriesTitles: []string{
-				"Anderson, Psi-Division",
-				"Strontium Dug",
-			},
-		},
-	}
+	appEnv := env.NewAppEnv()
+	appEnv.Db = db.Init("progs.db")
 	issues := scanner.ScanDir(appEnv, *d)
 
 	db.SaveIssues(appEnv, issues)

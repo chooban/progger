@@ -6,8 +6,10 @@ import (
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
 	"github.com/chooban/progdl-go/internal/stringutils"
+	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
+	"github.com/rs/zerolog/log"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -65,35 +67,93 @@ func shouldIncludeIssue(issue db.Issue) bool {
 // ScanFile scans the given file in the specified directory and extracts episode details.
 // It returns a slice of RawEpisode structs containing the extracted details and an error if any occurred during the process.
 func ScanFile(appEnv env.AppEnv, fileName string) (db.Issue, error) {
-	log := appEnv.Log
-	pdfcpuConf := model.NewDefaultConfiguration()
-	pdfcpuConf.ValidationMode = model.ValidationNone
-
 	if !strings.HasSuffix(fileName, "pdf") {
 		return db.Issue{}, errors.New("only pdf files supported")
 	}
 
-	f, err := os.Open(fileName)
+	bookmarks, err := pdfcpuBookmarks(appEnv, fileName)
+	//bookmarks, err := tryWithPdfium(appEnv, fileName)
+	if err != nil {
+		return db.Issue{}, err
+	}
+	issue := buildIssue(appEnv, fileName, bookmarks)
+
+	return issue, nil
+}
+
+func pdfcpuBookmarks(appEnv env.AppEnv, filename string) ([]Bookmark, error) {
+	pdfcpuConf := model.NewDefaultConfiguration()
+	pdfcpuConf.ValidationMode = model.ValidationNone
+
+	f, err := os.Open(filename)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to open file")
 		os.Exit(1)
 	}
-	log.Debug().Msg("Reading " + f.Name())
 	defer func() {
 		if err := f.Close(); err != nil {
 			log.Error().Err(err).Msg("Error closing file")
 		}
 	}()
 
-	bookmarks, err := api.Bookmarks(f, pdfcpuConf)
+	pdfcpuBookmarks, err := api.Bookmarks(f, pdfcpuConf)
+	pageCount, err := api.PageCount(f, pdfcpuConf)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to read bookmarks")
-		return db.Issue{}, errors.New("failed to read bookmarks")
+		return nil, errors.New("failed to read bookmarks")
+	}
+	bookmarks := make([]Bookmark, len(pdfcpuBookmarks))
+	for i, v := range pdfcpuBookmarks {
+		b := Bookmark{
+			Title:    v.Title,
+			PageFrom: v.PageFrom,
+			PageThru: v.PageThru,
+		}
+		if b.PageThru == 0 {
+			b.PageThru = pageCount
+		}
+		bookmarks[i] = b
+	}
+	return bookmarks, nil
+}
+
+func tryWithPdfium(appEnv env.AppEnv, filename string) ([]Bookmark, error) {
+	// Open the PDF using PDFium (and claim a worker)
+	contents, err := os.ReadFile(filename)
+	doc, err := appEnv.Pdfium.OpenDocument(&requests.OpenDocument{
+		File: &contents,
+	})
+	if err != nil {
+		appEnv.Log.Err(err).Msg("Could not open file with pdfium")
+		return nil, errors.New("failed to read bookmarks")
 	}
 
-	issue := buildIssue(appEnv, fileName, bookmarks)
+	// Always close the document, this will release its resources.
+	defer appEnv.Pdfium.FPDF_CloseDocument(&requests.FPDF_CloseDocument{
+		Document: doc.Document,
+	})
 
-	return issue, nil
+	pdfiumBookmarks, err := appEnv.Pdfium.GetBookmarks(&requests.GetBookmarks{
+		Document: doc.Document,
+	})
+	pageCount, err := appEnv.Pdfium.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc.Document})
+	bookmarks := make([]Bookmark, len(pdfiumBookmarks.Bookmarks))
+
+	for i, v := range pdfiumBookmarks.Bookmarks {
+		b := Bookmark{
+			Title:    v.Title,
+			PageFrom: v.DestInfo.PageIndex + 1, // It's zero indexed
+		}
+
+		if i < len(bookmarks)-1 {
+			b.PageThru = pdfiumBookmarks.Bookmarks[i+1].DestInfo.PageIndex
+		} else {
+			b.PageThru = pageCount.PageCount
+		}
+		bookmarks[i] = b
+	}
+	//appEnv.Log.Info().Msg(fmt.Sprintf("%+v", bookmarks))
+	return bookmarks, nil
 }
 
 func getProgNumber(inFile string) (int, error) {
