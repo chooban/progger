@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/akamensky/argparse v1.4.0
 	github.com/divan/num2words v0.0.0-20170904212200-57dba452f942
+	github.com/dslipak/pdf v0.0.1
 	github.com/klippa-app/go-pdfium v1.8.2
 	github.com/pdfcpu/pdfcpu v0.5.0
 	github.com/rs/zerolog v1.31.0

@@ -57,6 +57,11 @@ func ScanDir(appEnv env.AppEnv, dir string) (issues []db.Issue) {
 		}
 	}
 
+	for _, e := range issues[0].Episodes {
+		appEnv.Log.Info().Msg("Attempting to get text")
+		getEpisodeText(appEnv, dir+string(os.PathSeparator)+issues[0].Filename, e.PageFrom, e.PageThru)
+	}
+
 	return issues
 }
 
@@ -71,8 +76,8 @@ func ScanFile(appEnv env.AppEnv, fileName string) (db.Issue, error) {
 		return db.Issue{}, errors.New("only pdf files supported")
 	}
 
-	bookmarks, err := pdfcpuBookmarks(appEnv, fileName)
-	//bookmarks, err := tryWithPdfium(appEnv, fileName)
+	//bookmarks, err := pdfcpuBookmarks(appEnv, fileName)
+	bookmarks, err := tryWithPdfium(appEnv, fileName)
 	if err != nil {
 		return db.Issue{}, err
 	}
@@ -156,9 +161,43 @@ func tryWithPdfium(appEnv env.AppEnv, filename string) ([]Bookmark, error) {
 	return bookmarks, nil
 }
 
+func getEpisodeText(appEnv env.AppEnv, filename string, pageFrom int, pageThru int) {
+	appEnv.Log.Info().Msg(fmt.Sprintf("Attempting to open %s", filename))
+	contents, err := os.ReadFile(filename)
+	doc, err := appEnv.Pdfium.OpenDocument(&requests.OpenDocument{
+		File: &contents,
+	})
+	if err != nil {
+		appEnv.Log.Err(err).Msg("Could not open file with pdfium")
+		return
+	}
+	// Always close the document, this will release its resources.
+	defer appEnv.Pdfium.FPDF_CloseDocument(&requests.FPDF_CloseDocument{
+		Document: doc.Document,
+	})
+
+	text, _ := appEnv.Pdfium.GetPageText(&requests.GetPageText{
+		Page: requests.Page{
+			ByIndex: &requests.PageByIndex{
+				Document: doc.Document,
+				Index:    pageFrom - 1,
+			},
+		},
+	})
+	appEnv.Log.Info().Msg(text.Text)
+	//text, _ := appEnv.Pdfium.GetPageTextStructured(&requests.GetPageTextStructured{
+	//	Page: requests.Page{
+	//		ByIndex: &requests.PageByIndex{
+	//			Document: doc.Document,
+	//			Index:    pageFrom - 1,
+	//		},
+	//	},
+	//})
+
+}
+
 func getProgNumber(inFile string) (int, error) {
 	filename := filepath.Base(inFile)
-	//regex := pcre.MustCompile(`([^()])(\d{,4})\1`, 0)
 	regex := regexp.MustCompile(`(\b[^()])(?P<issue>\d{1,4})(\b[^()])`)
 
 	namedResults := stringutils.FindNamedMatches(regex, filename)

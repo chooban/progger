@@ -28,19 +28,19 @@ func main() {
 
 	appEnv := env.NewAppEnv()
 	appEnv.Db = db.Init("progs.db")
-	issues := scanner.ScanDir(appEnv, *d)
+	scanner.ScanDir(appEnv, *d)
 
-	db.SaveIssues(appEnv, issues)
-
-	suggestions := db.GetSeriesTitleRenameSuggestions(appEnv)
-
-	for _, s := range suggestions {
-		db.ApplySuggestion(appEnv, s)
-	}
-
-	suggestions = db.GetEpisodeTitleRenameSuggestions(appEnv)
-
-	for _, v := range suggestions {
-		appEnv.Log.Info().Msg(fmt.Sprintf("Suggest renaming '%s' to '%s'", v.From, v.To))
-	}
+	//db.SaveIssues(appEnv, issues)
+	//
+	//suggestions := db.GetSeriesTitleRenameSuggestions(appEnv)
+	//
+	//for _, s := range suggestions {
+	//	db.ApplySuggestion(appEnv, s)
+	//}
+	//
+	//suggestions = db.GetEpisodeTitleRenameSuggestions(appEnv)
+	//
+	//for _, v := range suggestions {
+	//	appEnv.Log.Info().Msg(fmt.Sprintf("Suggest renaming '%s' to '%s'", v.From, v.To))
+	//}
 }
