@@ -22,25 +22,25 @@ func main() {
 		fmt.Print(parser.Usage(err))
 	}
 
-	if err := os.Remove("progs.db"); err != nil {
-		panic(err)
-	}
+	//if err := os.Remove("progs.db"); err != nil {
+	//	panic(err)
+	//}
 
 	appEnv := env.NewAppEnv()
 	appEnv.Db = db.Init("progs.db")
-	scanner.ScanDir(appEnv, *d)
+	issues := scanner.ScanDir(appEnv, *d)
 
-	//db.SaveIssues(appEnv, issues)
-	//
-	//suggestions := db.GetSeriesTitleRenameSuggestions(appEnv)
-	//
-	//for _, s := range suggestions {
-	//	db.ApplySuggestion(appEnv, s)
-	//}
-	//
-	//suggestions = db.GetEpisodeTitleRenameSuggestions(appEnv)
-	//
-	//for _, v := range suggestions {
-	//	appEnv.Log.Info().Msg(fmt.Sprintf("Suggest renaming '%s' to '%s'", v.From, v.To))
-	//}
+	db.SaveIssues(appEnv, issues)
+
+	suggestions := db.GetSeriesTitleRenameSuggestions(appEnv)
+
+	for _, s := range suggestions {
+		db.ApplySuggestion(appEnv, s)
+	}
+
+	suggestions = db.GetEpisodeTitleRenameSuggestions(appEnv)
+
+	for _, v := range suggestions {
+		appEnv.Log.Info().Msg(fmt.Sprintf("Suggest renaming '%s' to '%s'", v.From, v.To))
+	}
 }

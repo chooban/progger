@@ -208,10 +208,9 @@ func getProgNumber(inFile string) (int, error) {
 }
 
 func getFiles(appEnv env.AppEnv, dir string) (pdfFiles []fs.DirEntry) {
-	log := appEnv.Log
 	files, err := os.ReadDir(dir)
 	if err != nil {
-		log.Error().Err(err).Msg("Could not read directory")
+		appEnv.Log.Error().Err(err).Msg("Could not read directory")
 	}
 
 	pdfFiles = make([]fs.DirEntry, 0, 100)
