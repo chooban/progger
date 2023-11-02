@@ -7,9 +7,6 @@ import (
 	"github.com/chooban/progdl-go/internal/env"
 	"github.com/chooban/progdl-go/internal/stringutils"
 	"github.com/klippa-app/go-pdfium/requests"
-	"github.com/pdfcpu/pdfcpu/pkg/api"
-	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
-	"github.com/rs/zerolog/log"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -57,11 +54,6 @@ func ScanDir(appEnv env.AppEnv, dir string) (issues []db.Issue) {
 		}
 	}
 
-	for _, e := range issues[0].Episodes {
-		appEnv.Log.Info().Msg("Attempting to get text")
-		getEpisodeText(appEnv, dir+string(os.PathSeparator)+issues[0].Filename, e.PageFrom, e.PageThru)
-	}
-
 	return issues
 }
 
@@ -76,8 +68,7 @@ func ScanFile(appEnv env.AppEnv, fileName string) (db.Issue, error) {
 		return db.Issue{}, errors.New("only pdf files supported")
 	}
 
-	//bookmarks, err := pdfcpuBookmarks(appEnv, fileName)
-	bookmarks, err := tryWithPdfium(appEnv, fileName)
+	bookmarks, err := getBookmarks(appEnv, fileName)
 	if err != nil {
 		return db.Issue{}, err
 	}
@@ -86,43 +77,7 @@ func ScanFile(appEnv env.AppEnv, fileName string) (db.Issue, error) {
 	return issue, nil
 }
 
-func pdfcpuBookmarks(appEnv env.AppEnv, filename string) ([]Bookmark, error) {
-	pdfcpuConf := model.NewDefaultConfiguration()
-	pdfcpuConf.ValidationMode = model.ValidationNone
-
-	f, err := os.Open(filename)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to open file")
-		os.Exit(1)
-	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			log.Error().Err(err).Msg("Error closing file")
-		}
-	}()
-
-	pdfcpuBookmarks, err := api.Bookmarks(f, pdfcpuConf)
-	pageCount, err := api.PageCount(f, pdfcpuConf)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to read bookmarks")
-		return nil, errors.New("failed to read bookmarks")
-	}
-	bookmarks := make([]Bookmark, len(pdfcpuBookmarks))
-	for i, v := range pdfcpuBookmarks {
-		b := Bookmark{
-			Title:    v.Title,
-			PageFrom: v.PageFrom,
-			PageThru: v.PageThru,
-		}
-		if b.PageThru == 0 {
-			b.PageThru = pageCount
-		}
-		bookmarks[i] = b
-	}
-	return bookmarks, nil
-}
-
-func tryWithPdfium(appEnv env.AppEnv, filename string) ([]Bookmark, error) {
+func getBookmarks(appEnv env.AppEnv, filename string) ([]Bookmark, error) {
 	// Open the PDF using PDFium (and claim a worker)
 	contents, err := os.ReadFile(filename)
 	doc, err := appEnv.Pdfium.OpenDocument(&requests.OpenDocument{
@@ -133,7 +88,6 @@ func tryWithPdfium(appEnv env.AppEnv, filename string) ([]Bookmark, error) {
 		return nil, errors.New("failed to read bookmarks")
 	}
 
-	// Always close the document, this will release its resources.
 	defer appEnv.Pdfium.FPDF_CloseDocument(&requests.FPDF_CloseDocument{
 		Document: doc.Document,
 	})
@@ -157,43 +111,7 @@ func tryWithPdfium(appEnv env.AppEnv, filename string) ([]Bookmark, error) {
 		}
 		bookmarks[i] = b
 	}
-	//appEnv.Log.Info().Msg(fmt.Sprintf("%+v", bookmarks))
 	return bookmarks, nil
-}
-
-func getEpisodeText(appEnv env.AppEnv, filename string, pageFrom int, pageThru int) {
-	appEnv.Log.Info().Msg(fmt.Sprintf("Attempting to open %s", filename))
-	contents, err := os.ReadFile(filename)
-	doc, err := appEnv.Pdfium.OpenDocument(&requests.OpenDocument{
-		File: &contents,
-	})
-	if err != nil {
-		appEnv.Log.Err(err).Msg("Could not open file with pdfium")
-		return
-	}
-	// Always close the document, this will release its resources.
-	defer appEnv.Pdfium.FPDF_CloseDocument(&requests.FPDF_CloseDocument{
-		Document: doc.Document,
-	})
-
-	text, _ := appEnv.Pdfium.GetPageText(&requests.GetPageText{
-		Page: requests.Page{
-			ByIndex: &requests.PageByIndex{
-				Document: doc.Document,
-				Index:    pageFrom - 1,
-			},
-		},
-	})
-	appEnv.Log.Info().Msg(text.Text)
-	//text, _ := appEnv.Pdfium.GetPageTextStructured(&requests.GetPageTextStructured{
-	//	Page: requests.Page{
-	//		ByIndex: &requests.PageByIndex{
-	//			Document: doc.Document,
-	//			Index:    pageFrom - 1,
-	//		},
-	//	},
-	//})
-
 }
 
 func getProgNumber(inFile string) (int, error) {
@@ -224,7 +142,6 @@ func getFiles(appEnv env.AppEnv, dir string) (pdfFiles []fs.DirEntry) {
 }
 
 func scanWorker(appEnv env.AppEnv, wg *sync.WaitGroup, jobs <-chan string, results chan<- db.Issue) {
-	log := appEnv.Log
 	for {
 		j, isChannelOpen := <-jobs
 		if !isChannelOpen {
@@ -232,10 +149,10 @@ func scanWorker(appEnv env.AppEnv, wg *sync.WaitGroup, jobs <-chan string, resul
 		}
 		issue, err := ScanFile(appEnv, j)
 		if err != nil {
-			log.Error().Err(err).Msg(fmt.Sprintf("Failed to read file: %s", j))
+			appEnv.Log.Error().Err(err).Msg(fmt.Sprintf("Failed to read file: %s", j))
 		}
 		results <- issue
 	}
-	log.Debug().Msg("Shutting down worker")
+	appEnv.Log.Debug().Msg("Shutting down worker")
 	wg.Done()
 }
