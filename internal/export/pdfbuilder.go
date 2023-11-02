@@ -5,7 +5,6 @@ import (
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
 	"github.com/klippa-app/go-pdfium/requests"
-	"slices"
 )
 
 // BuildPdf will export a PDF of the provided series and optional
@@ -23,20 +22,14 @@ func BuildPdf(appEnv env.AppEnv, seriesTitle string, episodeTitle string) {
 		Order("e.title, part ASC").
 		Find(&episodes)
 
-	for _, v := range episodes {
-		appEnv.Log.Info().Msg(fmt.Sprintf("%s", v.Issue.Filename))
-	}
-
 	destination, err := appEnv.Pdfium.FPDF_CreateNewDocument(&requests.FPDF_CreateNewDocument{})
 	if err != nil {
 		appEnv.Log.Err(err).Msg("Could not create new document")
 	}
 
-	// XXX: This should be handled by inserting pages at the correct index
-	slices.Reverse(episodes)
+	pageCount := 0
 	for _, v := range episodes {
 		filename := fmt.Sprintf("/Users/ross/Documents/2000AD/%s", v.Issue.Filename)
-		appEnv.Log.Info().Msg(fmt.Sprintf("Loading pages from issue %d", v.Issue.IssueNumber))
 		source, err := appEnv.Pdfium.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
 			Path: &filename,
 		})
@@ -50,11 +43,14 @@ func BuildPdf(appEnv env.AppEnv, seriesTitle string, episodeTitle string) {
 			Source:      source.Document,
 			Destination: destination.Document,
 			PageRange:   &pageRange,
+			Index:       pageCount,
 		})
 		if err != nil {
-			appEnv.Log.Err(err).Msg("Could not load page")
+			appEnv.Log.Err(err).Msg("Could not import pages")
 			continue
 		}
+
+		pageCount = (v.PageThru - v.PageFrom) + 1
 	}
 
 	var output = "myfile.pdf"
