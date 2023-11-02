@@ -66,7 +66,7 @@ func SaveIssue(appEnv env.AppEnv, issue Issue) {
 		Publication{Title: issue.Publication.Title},
 	)
 	issue.PublicationID = issue.Publication.ID
-	txn.Omit(clause.Associations).Create(&issue)
+	txn.Omit(clause.Associations).FirstOrCreate(&issue)
 	for _, e := range issue.Episodes {
 		appEnv.Db.FirstOrCreate(&e.Series, Series{Title: e.Series.Title})
 		e.SeriesID = e.Series.ID
