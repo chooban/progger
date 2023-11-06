@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"github.com/chooban/progdl-go/internal"
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
 	"github.com/rs/zerolog"
@@ -463,14 +464,14 @@ func discardingLogger() *zerolog.Logger {
 func TestBuildEpisodes(t *testing.T) {
 	testCases := []struct {
 		name           string
-		bookmarks      []Bookmark
+		bookmarks      []internal.Bookmark
 		expectedSeries string
 		expectedTitle  string
 		expectedPart   int
 	}{
 		{
 			name: "Test Case 1",
-			bookmarks: []Bookmark{
+			bookmarks: []internal.Bookmark{
 				{
 					Title:    "Test Series: Test Title - Part 1",
 					PageFrom: 1,
@@ -483,7 +484,7 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "Renaming Deadworld",
-			bookmarks: []Bookmark{
+			bookmarks: []internal.Bookmark{
 				{
 					Title:    "The Fall of Deadwood - Jessica",
 					PageFrom: 1,
@@ -496,7 +497,7 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "Strontium Dog",
-			bookmarks: []Bookmark{
+			bookmarks: []internal.Bookmark{
 				{
 					Title:    "Strontium Dog - Series Title",
 					PageFrom: 1,
@@ -509,7 +510,7 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "Strontium Dug",
-			bookmarks: []Bookmark{
+			bookmarks: []internal.Bookmark{
 				{
 					Title:    "Strontium Dug - Series Title",
 					PageFrom: 1,
@@ -522,7 +523,7 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "ABC Warriors",
-			bookmarks: []Bookmark{
+			bookmarks: []internal.Bookmark{
 				{
 					Title:    "Abc Warriors - Series Title",
 					PageFrom: 1,
@@ -535,7 +536,7 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "The ABC Warriors",
-			bookmarks: []Bookmark{
+			bookmarks: []internal.Bookmark{
 				{
 					Title:    "The Abc Warriors - Series Title",
 					PageFrom: 1,

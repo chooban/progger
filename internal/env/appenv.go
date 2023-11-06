@@ -1,7 +1,7 @@
 package env
 
 import (
-	"github.com/klippa-app/go-pdfium"
+	"github.com/chooban/progdl-go/internal/pdf"
 	"github.com/rs/zerolog"
 	"gorm.io/gorm"
 	"os"
@@ -13,11 +13,11 @@ type ToSkip struct {
 }
 
 type AppEnv struct {
-	Db     *gorm.DB
-	Log    *zerolog.Logger
-	Pdfium pdfium.Pdfium
-	Skip   ToSkip
-	Known  ToSkip
+	Db    *gorm.DB
+	Log   *zerolog.Logger
+	Pdf   pdf.Reader
+	Skip  ToSkip
+	Known ToSkip
 }
 
 func NewAppEnv() AppEnv {
@@ -29,9 +29,9 @@ func NewAppEnv() AppEnv {
 	logger := zerolog.New(writer)
 
 	appEnv := AppEnv{
-		Db:     nil,
-		Log:    &logger,
-		Pdfium: instance,
+		Db:  nil,
+		Log: &logger,
+		Pdf: nil,
 		Skip: ToSkip{
 			SeriesTitles: []string{
 				"Interrogation",

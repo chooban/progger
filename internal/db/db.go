@@ -1,7 +1,6 @@
 package db
 
 import (
-	"github.com/chooban/progdl-go/internal/env"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -53,24 +52,23 @@ func Init(dbName string) *gorm.DB {
 	return gormdb
 }
 
-func SaveIssues(appEnv env.AppEnv, issues []Issue) {
+func SaveIssues(db *gorm.DB, issues []Issue) {
 	for _, issue := range issues {
-		SaveIssue(appEnv, issue)
+		SaveIssue(db, issue)
 	}
 }
 
-func SaveIssue(appEnv env.AppEnv, issue Issue) {
-	txn := appEnv.Db
-	txn.FirstOrCreate(
+func SaveIssue(db *gorm.DB, issue Issue) {
+	db.FirstOrCreate(
 		&issue.Publication,
 		Publication{Title: issue.Publication.Title},
 	)
 	issue.PublicationID = issue.Publication.ID
-	txn.Omit(clause.Associations).FirstOrCreate(&issue)
+	db.Omit(clause.Associations).FirstOrCreate(&issue)
 	for _, e := range issue.Episodes {
-		appEnv.Db.FirstOrCreate(&e.Series, Series{Title: e.Series.Title})
+		db.FirstOrCreate(&e.Series, Series{Title: e.Series.Title})
 		e.SeriesID = e.Series.ID
 		e.IssueID = issue.ID
-		txn.Create(&e)
+		db.Create(&e)
 	}
 }

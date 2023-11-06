@@ -1,9 +1,8 @@
 package db
 
 import (
-	"fmt"
-	"github.com/chooban/progdl-go/internal/env"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
+	"gorm.io/gorm"
 	"slices"
 )
 
@@ -25,21 +24,21 @@ type Suggestion struct {
 	Type SuggestionType
 }
 
-func GetSeriesTitleRenameSuggestions(appEnv env.AppEnv) []Suggestion {
-	seriesRenames := getSeriesTitleCounts(appEnv)
+func GetSeriesTitleRenameSuggestions(db *gorm.DB, knownTitles []string) []Suggestion {
+	seriesRenames := getSeriesTitleCounts(db)
 
-	return getSuggestions(appEnv, seriesRenames, SeriesTitle)
+	return getSuggestions(db, knownTitles, seriesRenames, SeriesTitle)
 }
 
-func GetEpisodeTitleRenameSuggestions(appEnv env.AppEnv) []Suggestion {
+func GetEpisodeTitleRenameSuggestions(db *gorm.DB, knownTitles []string) []Suggestion {
 	var allSeries []Series
-	appEnv.Db.Find(&allSeries)
+	db.Find(&allSeries)
 
 	var suggestions []Suggestion
 
 	for _, v := range allSeries {
 		var episodeCounts []suggestionsResults
-		appEnv.Db.Model(&Episode{}).
+		db.Model(&Episode{}).
 			Select("title, count(*) as count").
 			Where("series_id = ?", v.ID).
 			Group("title").
@@ -49,41 +48,41 @@ func GetEpisodeTitleRenameSuggestions(appEnv env.AppEnv) []Suggestion {
 			// Not going to be any renaming if there's one storyline
 			continue
 		}
-		suggestions = append(suggestions, getSuggestions(appEnv, episodeCounts, EpisodeTitle)...)
+		suggestions = append(suggestions, getSuggestions(db, knownTitles, episodeCounts, EpisodeTitle)...)
 	}
 
 	return suggestions
 }
 
-// ApplySuggestion updates the database in appEnv.DB in line with the
+// ApplySuggestion updates the database in db.DB in line with the
 // instructions in the suggestion.
 // It should take the suggestion.From value and find a Series object
 // with that as a title. Then find a series with suggestion.To as a title.
 // All episodes connected to the first should be updated to point to the
 // second series. The first series should then be deleted.
-func ApplySuggestion(appEnv env.AppEnv, suggestion Suggestion) {
+func ApplySuggestion(db *gorm.DB, suggestion Suggestion) {
 	var fromSeries, toSeries Series
 	var episodes []Episode
 
-	appEnv.Log.Info().Msg(fmt.Sprintf("Moving all episodes linked to '%s' to '%s' instead", suggestion.From, suggestion.To))
+	//db.Log.Info().Msg(fmt.Sprintf("Moving all episodes linked to '%s' to '%s' instead", suggestion.From, suggestion.To))
 
 	// Find the series with the title suggestion.From
-	appEnv.Db.Where("title = ?", suggestion.From).First(&fromSeries)
+	db.Where("title = ?", suggestion.From).First(&fromSeries)
 
 	// Find the series with the title suggestion.To
-	appEnv.Db.Where("title = ?", suggestion.To).First(&toSeries)
+	db.Where("title = ?", suggestion.To).First(&toSeries)
 
 	// Update all episodes connected to the first series to point to the second series
-	appEnv.Db.Model(&episodes).Where("series_id = ?", fromSeries.ID).Update("series_id", toSeries.ID)
+	db.Model(&episodes).Where("series_id = ?", fromSeries.ID).Update("series_id", toSeries.ID)
 
 	// Delete the first series
-	appEnv.Db.Delete(&fromSeries)
+	db.Delete(&fromSeries)
 }
 
-func getSeriesTitleCounts(appEnv env.AppEnv) []suggestionsResults {
+func getSeriesTitleCounts(db *gorm.DB) []suggestionsResults {
 	var results []suggestionsResults
 
-	appEnv.Db.Raw(
+	db.Raw(
 		`select series.title, count(*) as count from series 
 			 join episodes on (episodes.series_id = series.id) 
 			 group by series.title order by series.title ASC`,
@@ -92,11 +91,11 @@ func getSeriesTitleCounts(appEnv env.AppEnv) []suggestionsResults {
 	return results
 }
 
-func getSuggestions(appEnv env.AppEnv, results []suggestionsResults, suggestionType SuggestionType) (suggestions []Suggestion) {
+func getSuggestions(db *gorm.DB, knownTitles []string, results []suggestionsResults, suggestionType SuggestionType) (suggestions []Suggestion) {
 	for _, k := range results {
 		for _, l := range results {
 			// If they match or the smaller series is a known title
-			if k == l || slices.Contains(appEnv.Known.SeriesTitles, l.Title) {
+			if k == l || slices.Contains(knownTitles, l.Title) {
 				continue
 			}
 			targetDistance := getTargetLevenshteinDistance(l.Title)

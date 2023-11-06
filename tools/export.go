@@ -8,7 +8,7 @@ import (
 	"github.com/akamensky/argparse"
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/export"
+	"github.com/chooban/progdl-go/internal/pdf"
 	"os"
 )
 
@@ -16,7 +16,6 @@ func main() {
 	parser := argparse.NewParser("export", "Exports a PDF of selected series")
 
 	series := parser.String("s", "series", &argparse.Options{Required: true, Help: "Series name"})
-	episodeTitle := parser.String("e", "episodes", &argparse.Options{Required: false, Help: "Episode title"})
 
 	err := parser.Parse(os.Args)
 	if err != nil {
@@ -26,6 +25,16 @@ func main() {
 
 	appEnv := env.NewAppEnv()
 	appEnv.Db = db.Init("progs.db")
+	appEnv.Pdf = pdf.NewPdfiumReader(appEnv.Log)
 
-	export.BuildPdf(appEnv, *series, *episodeTitle)
+	var episodes []db.Episode
+
+	appEnv.Db.Preload("Issue").Table("episodes e").
+		Joins("join series s on s.id = e.series_id").
+		Joins("join issues i on e.issue_id = i.id").
+		Where("s.title = ? and e.issue_id > 0", series).
+		Order("e.title, part ASC").
+		Find(&episodes)
+
+	appEnv.Pdf.Build(episodes)
 }

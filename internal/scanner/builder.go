@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"fmt"
+	"github.com/chooban/progdl-go/internal"
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
 	"github.com/chooban/progdl-go/internal/stringutils"
@@ -14,13 +15,7 @@ import (
 	"strings"
 )
 
-type Bookmark struct {
-	Title    string
-	PageFrom int
-	PageThru int
-}
-
-func buildIssue(appEnv env.AppEnv, filename string, bookmarks []Bookmark) db.Issue {
+func buildIssue(appEnv env.AppEnv, filename string, bookmarks []internal.Bookmark) db.Issue {
 	log := appEnv.Log
 	issueNumber, _ := getProgNumber(filename)
 	allEpisodes := make([]RawEpisode, 0)

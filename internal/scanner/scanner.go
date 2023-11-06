@@ -6,7 +6,6 @@ import (
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
 	"github.com/chooban/progdl-go/internal/stringutils"
-	"github.com/klippa-app/go-pdfium/requests"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -68,50 +67,13 @@ func ScanFile(appEnv env.AppEnv, fileName string) (db.Issue, error) {
 		return db.Issue{}, errors.New("only pdf files supported")
 	}
 
-	bookmarks, err := getBookmarks(appEnv, fileName)
+	bookmarks, err := appEnv.Pdf.ReadBookmarks(fileName)
 	if err != nil {
 		return db.Issue{}, err
 	}
 	issue := buildIssue(appEnv, fileName, bookmarks)
 
 	return issue, nil
-}
-
-func getBookmarks(appEnv env.AppEnv, filename string) ([]Bookmark, error) {
-	// Open the PDF using PDFium (and claim a worker)
-	contents, err := os.ReadFile(filename)
-	doc, err := appEnv.Pdfium.OpenDocument(&requests.OpenDocument{
-		File: &contents,
-	})
-	if err != nil {
-		appEnv.Log.Err(err).Msg("Could not open file with pdfium")
-		return nil, errors.New("failed to read bookmarks")
-	}
-
-	defer appEnv.Pdfium.FPDF_CloseDocument(&requests.FPDF_CloseDocument{
-		Document: doc.Document,
-	})
-
-	pdfiumBookmarks, err := appEnv.Pdfium.GetBookmarks(&requests.GetBookmarks{
-		Document: doc.Document,
-	})
-	pageCount, err := appEnv.Pdfium.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc.Document})
-	bookmarks := make([]Bookmark, len(pdfiumBookmarks.Bookmarks))
-
-	for i, v := range pdfiumBookmarks.Bookmarks {
-		b := Bookmark{
-			Title:    v.Title,
-			PageFrom: v.DestInfo.PageIndex + 1, // It's zero indexed
-		}
-
-		if i < len(bookmarks)-1 {
-			b.PageThru = pdfiumBookmarks.Bookmarks[i+1].DestInfo.PageIndex
-		} else {
-			b.PageThru = pageCount.PageCount
-		}
-		bookmarks[i] = b
-	}
-	return bookmarks, nil
 }
 
 func getProgNumber(inFile string) (int, error) {

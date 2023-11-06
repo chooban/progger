@@ -1,7 +1,7 @@
 package db
 
 import (
-	"github.com/chooban/progdl-go/internal/env"
+	"gorm.io/gorm"
 	"slices"
 	"testing"
 )
@@ -50,17 +50,18 @@ func TestGetTargetLevenshteinDistance(t *testing.T) {
 }
 
 func TestGetSuggestions(t *testing.T) {
-	appEnv := createAppEnv()
+	db := createDb()
 
 	testCases := []struct {
 		name           string
-		appEnv         env.AppEnv
+		db             *gorm.DB
+		knownTitles    []string
 		input          []suggestionsResults
 		expectedOutput []Suggestion
 	}{
 		{
-			name:   "Sanitising test",
-			appEnv: appEnv,
+			name: "Sanitising test",
+			db:   db,
 			input: []suggestionsResults{
 				{
 					Title: "Judge Dredd",
@@ -84,8 +85,8 @@ func TestGetSuggestions(t *testing.T) {
 			},
 		},
 		{
-			name:   "Dynamic levenshtein distance for short titles",
-			appEnv: appEnv,
+			name: "Dynamic levenshtein distance for short titles",
+			db:   db,
 			input: []suggestionsResults{
 				{
 					Title: "Brink",
@@ -99,8 +100,8 @@ func TestGetSuggestions(t *testing.T) {
 			expectedOutput: []Suggestion{},
 		},
 		{
-			name:   "Strontium Dug",
-			appEnv: appEnv,
+			name: "Strontium Dug",
+			db:   db,
 			input: []suggestionsResults{
 				{
 					Title: "Strontium Dug",
@@ -119,12 +120,9 @@ func TestGetSuggestions(t *testing.T) {
 			},
 		},
 		{
-			name: "Strontium Dug - preserved",
-			appEnv: func() env.AppEnv {
-				appEnv := createAppEnv()
-				appEnv.Known.SeriesTitles = []string{"Strontium Dug"}
-				return appEnv
-			}(),
+			name:        "Strontium Dug - preserved",
+			db:          createDb(),
+			knownTitles: []string{"Strontium Dug"},
 			input: []suggestionsResults{
 				{
 					Title: "Strontium Dug",
@@ -142,7 +140,7 @@ func TestGetSuggestions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			suggestions := getSuggestions(tc.appEnv, tc.input, 0)
+			suggestions := getSuggestions(tc.db, tc.knownTitles, tc.input, 0)
 
 			if len(suggestions) != len(tc.expectedOutput) {
 				t.Errorf("%s: expected %d suggestions, got %d", tc.name, len(tc.expectedOutput), len(suggestions))
