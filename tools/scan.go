@@ -22,10 +22,6 @@ func main() {
 		fmt.Print(parser.Usage(err))
 	}
 
-	//if err := os.Remove("progs.db"); err != nil {
-	//	panic(err)
-	//}
-
 	appEnv := env.NewAppEnv()
 	appEnv.Db = db.Init("progs.db")
 	issues := scanner.ScanDir(appEnv, *d)

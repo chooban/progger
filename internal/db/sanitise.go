@@ -39,7 +39,6 @@ func GetEpisodeTitleRenameSuggestions(appEnv env.AppEnv) []Suggestion {
 
 	for _, v := range allSeries {
 		var episodeCounts []suggestionsResults
-		appEnv.Log.Info().Msg(fmt.Sprintf("Looking for episodes for %s", v.Title))
 		appEnv.Db.Model(&Episode{}).
 			Select("title, count(*) as count").
 			Where("series_id = ?", v.ID).
@@ -47,14 +46,12 @@ func GetEpisodeTitleRenameSuggestions(appEnv env.AppEnv) []Suggestion {
 			Find(&episodeCounts)
 
 		if len(episodeCounts) < 2 {
-			// Not going to be any renaming if there's one series
+			// Not going to be any renaming if there's one storyline
 			continue
 		}
 		suggestions = append(suggestions, getSuggestions(appEnv, episodeCounts, EpisodeTitle)...)
-		//appEnv.Log.Info().Msg(fmt.Sprintf("%s: %+v", v.Title, episodeCounts))
 	}
 
-	//suggestions := getSuggestions(appEnv, seriesRenames, 0)
 	return suggestions
 }
 
