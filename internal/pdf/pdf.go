@@ -13,7 +13,7 @@ import (
 )
 
 type Reader interface {
-	ReadBookmarks(filename string) ([]internal.Bookmark, error)
+	Bookmarks(filename string) ([]internal.Bookmark, error)
 	Build(episodes []db.Episode)
 	Credits(filename string, page int) (string, error)
 }
@@ -30,7 +30,7 @@ type PdfiumReader struct {
 	Instance pdfium.Pdfium
 }
 
-func (p *PdfiumReader) ReadBookmarks(filename string) ([]internal.Bookmark, error) {
+func (p *PdfiumReader) Bookmarks(filename string) ([]internal.Bookmark, error) {
 	// Open the PDF using PDFium (and claim a worker)
 	contents, err := os.ReadFile(filename)
 	doc, err := p.Instance.OpenDocument(&requests.OpenDocument{
