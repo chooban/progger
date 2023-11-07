@@ -194,6 +194,6 @@ func (p *PdfiumReader) Credits(filename string, pageNumber int) (contents string
 }
 
 // bbContains returns true if the textBb is contained completely within objBb
-func bbContains(objBb responses.FPDFPageObj_GetBounds, textBb responses.FPDFText_GetBoundedText) bool {
+func bbContains(objBb responses.FPDFPageObj_GetBounds, textBb responses.FPDFText_GetRect) bool {
 	return false
 }
