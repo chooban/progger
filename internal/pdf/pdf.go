@@ -137,23 +137,6 @@ func (p *PdfiumReader) Credits(filename string, pageNumber int) (contents string
 			ByReference: &pdfPage.Page,
 		}})
 
-	objCounts, err := p.Instance.FPDFPage_CountObjects(&requests.FPDFPage_CountObjects{Page: requests.Page{
-		ByReference: &pdfPage.Page,
-	}})
-	for i := 0; i < objCounts.Count; i++ {
-		pageobj, _ := p.Instance.FPDFPage_GetObject(&requests.FPDFPage_GetObject{
-			Page: requests.Page{
-				ByReference: &pdfPage.Page,
-			},
-			Index: i,
-		})
-
-		pageObjType, _ := p.Instance.FPDFPageObj_GetType(&requests.FPDFPageObj_GetType{PageObject: pageobj.PageObject})
-		bb, _ := p.Instance.FPDFPageObj_GetBounds(&requests.FPDFPageObj_GetBounds{PageObject: pageobj.PageObject})
-
-		p.Log.Info().Msg(fmt.Sprintf("Type: %+v. Bounding box: %+v", pageObjType.Type, bb))
-	}
-
 	counts, err := p.Instance.FPDFText_CountRects(&requests.FPDFText_CountRects{
 		TextPage:   textPage.TextPage,
 		StartIndex: 0,
@@ -173,7 +156,7 @@ func (p *PdfiumReader) Credits(filename string, pageNumber int) (contents string
 			Bottom:   rect.Bottom,
 		})
 		if strings.ToLower(text.Text) == "script" {
-			p.Log.Info().Msg(fmt.Sprintf("Found the script entry. %+v", rect))
+			//p.Log.Info().Msg(fmt.Sprintf("Found the script entry. %+v", rect))
 			height := rect.Bottom - rect.Top
 			width := rect.Right - rect.Left
 			creditsBox, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
@@ -183,11 +166,47 @@ func (p *PdfiumReader) Credits(filename string, pageNumber int) (contents string
 				Right:    rect.Right + width + width/2,
 				Bottom:   rect.Bottom + (18 * height),
 			})
-			p.Log.Info().Msg(creditsBox.Text)
+			//p.Log.Info().Msg(creditsBox.Text)
 
 			contents = strings.ReplaceAll(creditsBox.Text, "\r\n", " ")
 
-			p.Log.Info().Msg(contents)
+			// Try to find a page object that contains this text
+			objCounts, _ := p.Instance.FPDFPage_CountObjects(&requests.FPDFPage_CountObjects{Page: requests.Page{
+				ByReference: &pdfPage.Page,
+			}})
+			for i := 0; i < objCounts.Count; i++ {
+				pageobj, _ := p.Instance.FPDFPage_GetObject(&requests.FPDFPage_GetObject{
+					Page: requests.Page{
+						ByReference: &pdfPage.Page,
+					},
+					Index: i,
+				})
+
+				pageObjType, _ := p.Instance.FPDFPageObj_GetType(&requests.FPDFPageObj_GetType{PageObject: pageobj.PageObject})
+				bb, _ := p.Instance.FPDFPageObj_GetBounds(&requests.FPDFPageObj_GetBounds{PageObject: pageobj.PageObject})
+
+				if pageObjType.Type != 1 && pageObjType.Type != 3 {
+					if bbContains(*bb, *rect) {
+						//p.Log.Info().Msg(fmt.Sprintf("Type: %+v. Bounding box: %+v", pageObjType.Type, bb))
+						//p.Log.Info().Msg("Object contains text")
+						//p.Log.Info().Msg(fmt.Sprintf("Calculated bb was %+v", responses.FPDFPageObj_GetBounds{
+						//	Left:   float32(rect.Left - (width / 2)),
+						//	Top:    float32(rect.Top),
+						//	Right:  float32(rect.Right + width + width/2),
+						//	Bottom: float32(rect.Bottom + (18 * height)),
+						//}))
+						creditsBox, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
+							TextPage: textPage.TextPage,
+							Left:     rect.Left - (width / 2),
+							Top:      rect.Top,
+							Right:    rect.Right + width + width/2,
+							Bottom:   rect.Bottom + (18 * height),
+						})
+						p.Log.Info().Msg(strings.ReplaceAll(creditsBox.Text, "\r\n", " "))
+					}
+				}
+			}
+
 		}
 	}
 	return contents, nil
@@ -197,6 +216,6 @@ func (p *PdfiumReader) Credits(filename string, pageNumber int) (contents string
 func bbContains(objBb responses.FPDFPageObj_GetBounds, textBb responses.FPDFText_GetRect) bool {
 	return float32(textBb.Left) >= objBb.Left &&
 		float32(textBb.Right) <= objBb.Right &&
-		float32(textBb.Top) >= objBb.Top &&
-		float32(textBb.Bottom) <= objBb.Bottom
+		float32(textBb.Top) <= objBb.Top &&
+		float32(textBb.Bottom) >= objBb.Bottom
 }
