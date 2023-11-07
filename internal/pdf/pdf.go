@@ -9,11 +9,13 @@ import (
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/rs/zerolog"
 	"os"
+	"strings"
 )
 
 type Reader interface {
 	ReadBookmarks(filename string) ([]internal.Bookmark, error)
 	Build(episodes []db.Episode)
+	Credits(filename string, page int) (string, error)
 }
 
 func NewPdfiumReader(log *zerolog.Logger) *PdfiumReader {
@@ -114,5 +116,61 @@ func (p *PdfiumReader) Build(episodes []db.Episode) {
 	} else {
 		p.Log.Info().Msg(fmt.Sprintf("File saved to %s", *saveAsCopy.FilePath))
 	}
+}
 
+func (p *PdfiumReader) Credits(filename string, pageNumber int) (contents string, err error) {
+	source, err := p.Instance.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
+		Path: &filename,
+	})
+	pdfPage, err := p.Instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
+		Document: source.Document,
+		Index:    pageNumber - 1,
+	})
+	if err != nil {
+		p.Log.Err(err).Msg("Failed to load page")
+		panic(1)
+	}
+	textPage, err := p.Instance.FPDFText_LoadPage(&requests.FPDFText_LoadPage{
+		Page: requests.Page{
+			ByIndex:     nil,
+			ByReference: &pdfPage.Page,
+		}})
+
+	counts, err := p.Instance.FPDFText_CountRects(&requests.FPDFText_CountRects{
+		TextPage:   textPage.TextPage,
+		StartIndex: 0,
+		Count:      -1,
+	})
+
+	for i := 0; i < counts.Count; i++ {
+		rect, _ := p.Instance.FPDFText_GetRect(&requests.FPDFText_GetRect{
+			TextPage: textPage.TextPage,
+			Index:    i,
+		})
+		text, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
+			TextPage: textPage.TextPage,
+			Left:     rect.Left,
+			Top:      rect.Top,
+			Right:    rect.Right,
+			Bottom:   rect.Bottom,
+		})
+		if strings.ToLower(text.Text) == "script" {
+			p.Log.Info().Msg("Found the script box")
+			height := rect.Bottom - rect.Top
+			width := rect.Right - rect.Left
+			creditsBox, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
+				TextPage: textPage.TextPage,
+				Left:     rect.Left - (width / 2),
+				Top:      rect.Top,
+				Right:    rect.Right + width + width/2,
+				Bottom:   rect.Bottom + (18 * height),
+			})
+			p.Log.Info().Msg(creditsBox.Text)
+
+			contents = strings.ReplaceAll(creditsBox.Text, "\r\n", " ")
+
+			p.Log.Info().Msg(contents)
+		}
+	}
+	return contents, nil
 }

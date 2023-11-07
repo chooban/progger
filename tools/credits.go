@@ -6,10 +6,10 @@ package main
 import (
 	"fmt"
 	"github.com/akamensky/argparse"
+	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
-	"github.com/klippa-app/go-pdfium/requests"
+	"github.com/chooban/progdl-go/internal/pdf"
 	"os"
-	"strings"
 )
 
 func main() {
@@ -24,58 +24,13 @@ func main() {
 	}
 
 	appEnv := env.NewAppEnv()
+	appEnv.Db = db.Init("progs.db")
+	appEnv.Pdf = pdf.NewPdfiumReader(appEnv.Log)
 
 	appEnv.Log.Info().Msg(fmt.Sprintf("Loading page %d", *page))
 
-	source, err := appEnv.Pdfium.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
-		Path: filename,
-	})
-	pdfPage, err := appEnv.Pdfium.FPDF_LoadPage(&requests.FPDF_LoadPage{
-		Document: source.Document,
-		Index:    *page - 1,
-	})
-	if err != nil {
-		appEnv.Log.Err(err).Msg("Failed to load page")
-		panic(1)
-	}
-	textPage, err := appEnv.Pdfium.FPDFText_LoadPage(&requests.FPDFText_LoadPage{
-		Page: requests.Page{
-			ByIndex:     nil,
-			ByReference: &pdfPage.Page,
-		}})
+	credits, err := appEnv.Pdf.Credits(*filename, *page)
 
-	counts, err := appEnv.Pdfium.FPDFText_CountRects(&requests.FPDFText_CountRects{
-		TextPage:   textPage.TextPage,
-		StartIndex: 0,
-		Count:      -1,
-	})
-
-	for i := 0; i < counts.Count; i++ {
-		rect, _ := appEnv.Pdfium.FPDFText_GetRect(&requests.FPDFText_GetRect{
-			TextPage: textPage.TextPage,
-			Index:    i,
-		})
-		text, _ := appEnv.Pdfium.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
-			TextPage: textPage.TextPage,
-			Left:     rect.Left,
-			Top:      rect.Top,
-			Right:    rect.Right,
-			Bottom:   rect.Bottom,
-		})
-		if strings.ToLower(text.Text) == "script" {
-			appEnv.Log.Info().Msg("Found the script box")
-			height := rect.Bottom - rect.Top
-			width := rect.Right - rect.Left
-			creditsBox, _ := appEnv.Pdfium.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
-				TextPage: textPage.TextPage,
-				Left:     rect.Left - (width / 2),
-				Top:      rect.Top,
-				Right:    rect.Right + width + width/2,
-				Bottom:   rect.Bottom + (18 * height),
-			})
-			appEnv.Log.Info().Msg(creditsBox.Text)
-			appEnv.Log.Info().Msg(strings.ReplaceAll(creditsBox.Text, "\r\n", " "))
-		}
-	}
+	appEnv.Log.Info().Msg(fmt.Sprintf("Got credits of '%s'", credits))
 
 }
