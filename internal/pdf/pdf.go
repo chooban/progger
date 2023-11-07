@@ -7,6 +7,7 @@ import (
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/klippa-app/go-pdfium"
 	"github.com/klippa-app/go-pdfium/requests"
+	"github.com/klippa-app/go-pdfium/responses"
 	"github.com/rs/zerolog"
 	"os"
 	"strings"
@@ -68,7 +69,7 @@ func (p *PdfiumReader) Bookmarks(filename string) ([]internal.Bookmark, error) {
 
 }
 
-// BuildPdf will export a PDF of the provided series and optional
+// Build will export a PDF of the provided series and optional
 // episodes.
 // The parameters of seriesTitle and episodeTitle should be used to
 // query the database via appEnv.Db to retrieve all applicable episodes,
@@ -136,6 +137,23 @@ func (p *PdfiumReader) Credits(filename string, pageNumber int) (contents string
 			ByReference: &pdfPage.Page,
 		}})
 
+	objCounts, err := p.Instance.FPDFPage_CountObjects(&requests.FPDFPage_CountObjects{Page: requests.Page{
+		ByReference: &pdfPage.Page,
+	}})
+	for i := 0; i < objCounts.Count; i++ {
+		pageobj, _ := p.Instance.FPDFPage_GetObject(&requests.FPDFPage_GetObject{
+			Page: requests.Page{
+				ByReference: &pdfPage.Page,
+			},
+			Index: i,
+		})
+
+		pageObjType, _ := p.Instance.FPDFPageObj_GetType(&requests.FPDFPageObj_GetType{PageObject: pageobj.PageObject})
+		bb, _ := p.Instance.FPDFPageObj_GetBounds(&requests.FPDFPageObj_GetBounds{PageObject: pageobj.PageObject})
+
+		p.Log.Info().Msg(fmt.Sprintf("Type: %+v. Bounding box: %+v", pageObjType.Type, bb))
+	}
+
 	counts, err := p.Instance.FPDFText_CountRects(&requests.FPDFText_CountRects{
 		TextPage:   textPage.TextPage,
 		StartIndex: 0,
@@ -155,7 +173,7 @@ func (p *PdfiumReader) Credits(filename string, pageNumber int) (contents string
 			Bottom:   rect.Bottom,
 		})
 		if strings.ToLower(text.Text) == "script" {
-			p.Log.Info().Msg("Found the script box")
+			p.Log.Info().Msg(fmt.Sprintf("Found the script entry. %+v", rect))
 			height := rect.Bottom - rect.Top
 			width := rect.Right - rect.Left
 			creditsBox, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
@@ -173,4 +191,9 @@ func (p *PdfiumReader) Credits(filename string, pageNumber int) (contents string
 		}
 	}
 	return contents, nil
+}
+
+// bbContains returns true if the textBb is contained completely within objBb
+func bbContains(objBb responses.FPDFPageObj_GetBounds, textBb responses.FPDFText_GetBoundedText) bool {
+	return false
 }
