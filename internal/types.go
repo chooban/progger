@@ -5,3 +5,8 @@ type Bookmark struct {
 	PageFrom int
 	PageThru int
 }
+
+type EpisodeDetails struct {
+	Bookmark Bookmark
+	Credits  string
+}

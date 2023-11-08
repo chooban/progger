@@ -15,10 +15,14 @@ import (
 	"strings"
 )
 
-func buildIssue(appEnv env.AppEnv, filename string, bookmarks []internal.Bookmark) db.Issue {
+func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDetails) db.Issue {
 	log := appEnv.Log
 	issueNumber, _ := getProgNumber(filename)
 	allEpisodes := make([]RawEpisode, 0)
+	bookmarks := make([]internal.Bookmark, len(details))
+	for i, v := range details {
+		bookmarks[i] = v.Bookmark
+	}
 	for _, b := range bookmarks {
 		part, series, title := extractDetailsFromPdfBookmark(b.Title)
 

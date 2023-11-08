@@ -15,7 +15,7 @@ import (
 )
 
 type Reader interface {
-	Bookmarks(filename string) ([]internal.Bookmark, error)
+	Bookmarks(filename string) ([]internal.EpisodeDetails, error)
 	Build(episodes []db.Episode)
 	Credits(filename string, startPage int, endPage int) (string, error)
 }
@@ -32,8 +32,7 @@ type PdfiumReader struct {
 	Instance pdfium.Pdfium
 }
 
-func (p *PdfiumReader) Bookmarks(filename string) ([]internal.Bookmark, error) {
-	// Open the PDF using PDFium (and claim a worker)
+func (p *PdfiumReader) Bookmarks(filename string) ([]internal.EpisodeDetails, error) {
 	contents, err := os.ReadFile(filename)
 	doc, err := p.Instance.OpenDocument(&requests.OpenDocument{
 		File: &contents,
@@ -66,7 +65,16 @@ func (p *PdfiumReader) Bookmarks(filename string) ([]internal.Bookmark, error) {
 		}
 		bookmarks[i] = b
 	}
-	return bookmarks, nil
+	details := make([]internal.EpisodeDetails, len(bookmarks))
+
+	for i, v := range bookmarks {
+		credits, _ := p.Credits(filename, v.PageFrom, v.PageThru)
+		details[i] = internal.EpisodeDetails{
+			Bookmark: v,
+			Credits:  credits,
+		}
+	}
+	return details, nil
 }
 
 // Build will export a PDF of the provided series and optional
