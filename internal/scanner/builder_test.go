@@ -471,7 +471,7 @@ func TestBuildEpisodes(t *testing.T) {
 	}{
 		{
 			name: "Test Case 1",
-			bookmarks: []internal.Bookmark{
+			episodeDetails: internal.EpisodeDetails{
 				{
 					Title:    "Test Series: Test Title - Part 1",
 					PageFrom: 1,
@@ -484,7 +484,7 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "Renaming Deadworld",
-			bookmarks: []internal.Bookmark{
+			episodeDetails: internal.EpisodeDetails{
 				{
 					Title:    "The Fall of Deadwood - Jessica",
 					PageFrom: 1,
@@ -497,7 +497,7 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "Strontium Dog",
-			bookmarks: []internal.Bookmark{
+			episodeDetails: internal.EpisodeDetails{
 				{
 					Title:    "Strontium Dog - Series Title",
 					PageFrom: 1,
@@ -510,7 +510,7 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "Strontium Dug",
-			bookmarks: []internal.Bookmark{
+			episodeDetails: internal.EpisodeDetails{
 				{
 					Title:    "Strontium Dug - Series Title",
 					PageFrom: 1,
@@ -523,7 +523,7 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "ABC Warriors",
-			bookmarks: []internal.Bookmark{
+			episodeDetails: internal.EpisodeDetails{
 				{
 					Title:    "Abc Warriors - Series Title",
 					PageFrom: 1,
@@ -536,7 +536,7 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "The ABC Warriors",
-			bookmarks: []internal.Bookmark{
+			episodeDetails: internal.EpisodeDetails{
 				{
 					Title:    "The Abc Warriors - Series Title",
 					PageFrom: 1,
@@ -564,14 +564,14 @@ func TestBuildEpisodes(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Convert bookmarks to EpisodeDetails
-			details := make([]internal.EpisodeDetails, len(tc.bookmarks))
-			for i, b := range tc.bookmarks {
+			details := make([]internal.EpisodeDetails, len(tc.episodeDetails))
+			for i, b := range tc.episodeDetails {
 				details[i] = internal.EpisodeDetails{
 					Bookmark: b,
 					Credits:  "", // Assuming no credits information is needed for this test
 				}
 			}
-			issue := buildIssue(appEnv, "2000AD 123 (1977).pdf", details)
+			issue := buildIssue(appEnv, "2000AD 123 (1977).pdf", tc.episodeDetails)
 			assert.Equal(t, 123, issue.IssueNumber)
 			assert.Equal(t, tc.expectedSeries, issue.Episodes[0].Series.Title)
 			assert.Equal(t, tc.expectedTitle, issue.Episodes[0].Title)
