@@ -589,3 +589,34 @@ func TestBuildEpisodes(t *testing.T) {
 		})
 	}
 }
+func TestExtractCreatorsFromCredits(t *testing.T) {
+	testCases := []struct {
+		name           string
+		credits        string
+		expectedResult []internal.Creator
+	}{
+		{
+			name:    "Single Creator",
+			credits: "Script: John Wagner",
+			expectedResult: []internal.Creator{
+				{Name: "John Wagner", Role: "Script"},
+			},
+		},
+		{
+			name:    "Multiple Creators",
+			credits: "Script: John Wagner & Art: Carlos Ezquerra",
+			expectedResult: []internal.Creator{
+				{Name: "John Wagner", Role: "Script"},
+				{Name: "Carlos Ezquerra", Role: "Art"},
+			},
+		},
+		// Add more test cases as needed
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := extractCreatorsFromCredits(tc.credits)
+			assert.Equal(t, tc.expectedResult, result)
+		})
+	}
+}
