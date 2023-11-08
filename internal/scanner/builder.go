@@ -220,5 +220,26 @@ type Credits struct {
 }
 
 func extractCreatorsFromCredits(toParse string) Credits {
-	return Credits{}
+	credits := Credits{}
+	// Define regex patterns for different roles
+	scriptPattern := regexp.MustCompile(`(?i)Script\s+([^\s]+(?:\s+[^\s]+)*)`)
+	artPattern := regexp.MustCompile(`(?i)Art\s+([^\s]+(?:\s+[^\s]+)*)`)
+	coloursPattern := regexp.MustCompile(`(?i)Colours\s+([^\s]+(?:\s+[^\s]+)*)`)
+	lettersPattern := regexp.MustCompile(`(?i)Letters\s+([^\s]+(?:\s+[^\s]+)*)`)
+
+	// Extract and assign the creators to the corresponding fields
+	if matches := scriptPattern.FindStringSubmatch(toParse); matches != nil {
+		credits.Script = strings.Split(matches[1], ", ")
+	}
+	if matches := artPattern.FindStringSubmatch(toParse); matches != nil {
+		credits.Art = strings.Split(matches[1], ", ")
+	}
+	if matches := coloursPattern.FindStringSubmatch(toParse); matches != nil {
+		credits.Colours = strings.Split(matches[1], ", ")
+	}
+	if matches := lettersPattern.FindStringSubmatch(toParse); matches != nil {
+		credits.Letters = strings.Split(matches[1], ", ")
+	}
+
+	return credits
 }
