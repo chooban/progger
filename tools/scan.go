@@ -8,7 +8,7 @@ import (
 	"github.com/akamensky/argparse"
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/pdf"
+	"github.com/chooban/progdl-go/internal/pdfium"
 	"github.com/chooban/progdl-go/internal/scanner"
 	"os"
 )
@@ -25,19 +25,19 @@ func main() {
 
 	appEnv := env.NewAppEnv()
 	appEnv.Db = db.Init("progs.db")
-	appEnv.Pdf = pdf.NewPdfiumReader(appEnv.Log)
+	appEnv.Pdf = pdfium.NewPdfiumReader(appEnv.Log)
 
 	issues := scanner.ScanDir(appEnv, *d)
 
-	db.SaveIssues(appEnv, issues)
+	db.SaveIssues(appEnv.Db, issues)
 
-	suggestions := db.GetSeriesTitleRenameSuggestions(appEnv)
+	suggestions := db.GetSeriesTitleRenameSuggestions(appEnv.Db, appEnv.Known.SeriesTitles)
 
 	for _, s := range suggestions {
-		db.ApplySuggestion(appEnv, s)
+		db.ApplySuggestion(appEnv.Db, s)
 	}
 
-	suggestions = db.GetEpisodeTitleRenameSuggestions(appEnv)
+	suggestions = db.GetEpisodeTitleRenameSuggestions(appEnv.Db, appEnv.Known.SeriesTitles)
 
 	for _, v := range suggestions {
 		appEnv.Log.Info().Msg(fmt.Sprintf("Suggest renaming '%s' to '%s'", v.From, v.To))

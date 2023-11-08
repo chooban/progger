@@ -8,7 +8,7 @@ import (
 	"github.com/akamensky/argparse"
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/pdf"
+	"github.com/chooban/progdl-go/internal/pdfium"
 	"os"
 )
 
@@ -25,7 +25,7 @@ func main() {
 
 	appEnv := env.NewAppEnv()
 	appEnv.Db = db.Init("progs.db")
-	appEnv.Pdf = pdf.NewPdfiumReader(appEnv.Log)
+	appEnv.Pdf = pdfium.NewPdfiumReader(appEnv.Log)
 
 	var episodes []db.Episode
 

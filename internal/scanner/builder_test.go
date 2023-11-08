@@ -589,25 +589,26 @@ func TestBuildEpisodes(t *testing.T) {
 		})
 	}
 }
+
 func TestExtractCreatorsFromCredits(t *testing.T) {
 	testCases := []struct {
-		name           string
-		credits        string
-		Credits []internal.Creator
+		name    string
+		credits string
+		Credits Credits
 	}{
 		{
 			name:    "Single Creator",
-			credits: "Script: John Wagner",
-			Credits: []internal.Creator{
-				{Name: "John Wagner", Role: "Script"},
+			credits: "Script John Wagner",
+			Credits: Credits{
+				Script: []string{"John Wagner"},
 			},
 		},
 		{
 			name:    "Multiple Creators",
-			credits: "Script: John Wagner & Art: Carlos Ezquerra",
-			Credits: []internal.Creator{
-				{Name: "John Wagner", Role: "Script"},
-				{Name: "Carlos Ezquerra", Role: "Art"},
+			credits: "Script John Wagner Art Carlos Ezquerra",
+			Credits: Credits{
+				Script: []string{"John Wagner Art Carlos Ezquerra"},
+				Art:    []string{"Carlos Ezquerra"},
 			},
 		},
 		// Add more test cases as needed

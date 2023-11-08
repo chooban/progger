@@ -1,4 +1,4 @@
-package pdf
+package pdfium
 
 import (
 	"github.com/klippa-app/go-pdfium/single_threaded"
