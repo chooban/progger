@@ -464,7 +464,7 @@ func discardingLogger() *zerolog.Logger {
 func TestBuildEpisodes(t *testing.T) {
 	testCases := []struct {
 		name           string
-		bookmarks      []internal.Bookmark
+		episodeDetails internal.EpisodeDetails
 		expectedSeries string
 		expectedTitle  string
 		expectedPart   int
