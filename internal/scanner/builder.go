@@ -211,3 +211,14 @@ func extractPartNumberFromString(toParse string) (part int) {
 	}
 	return
 }
+
+type Credits struct {
+	Script  []string
+	Art     []string
+	Colours []string
+	Letters []string
+}
+
+func extractCreatorsFromCredits(toParse string) Credits {
+	return Credits{}
+}
