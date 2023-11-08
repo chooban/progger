@@ -6,6 +6,7 @@ import (
 	"github.com/chooban/progdl-go/internal"
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/klippa-app/go-pdfium"
+	"github.com/klippa-app/go-pdfium/references"
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/klippa-app/go-pdfium/responses"
 	"github.com/rs/zerolog"
@@ -16,7 +17,7 @@ import (
 type Reader interface {
 	Bookmarks(filename string) ([]internal.Bookmark, error)
 	Build(episodes []db.Episode)
-	Credits(filename string, page int) (string, error)
+	Credits(filename string, startPage int, endPage int) (string, error)
 }
 
 func NewPdfiumReader(log *zerolog.Logger) *PdfiumReader {
@@ -66,7 +67,6 @@ func (p *PdfiumReader) Bookmarks(filename string) ([]internal.Bookmark, error) {
 		bookmarks[i] = b
 	}
 	return bookmarks, nil
-
 }
 
 // Build will export a PDF of the provided series and optional
@@ -119,97 +119,85 @@ func (p *PdfiumReader) Build(episodes []db.Episode) {
 	}
 }
 
-func (p *PdfiumReader) Credits(filename string, pageNumber int) (contents string, err error) {
+func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (contents string, err error) {
 	source, err := p.Instance.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
 		Path: &filename,
 	})
-	pdfPage, err := p.Instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
-		Document: source.Document,
-		Index:    pageNumber - 1,
-	})
-	if err != nil {
-		p.Log.Err(err).Msg("Failed to load page")
-		panic(1)
-	}
-	textPage, err := p.Instance.FPDFText_LoadPage(&requests.FPDFText_LoadPage{
-		Page: requests.Page{
-			ByIndex:     nil,
-			ByReference: &pdfPage.Page,
-		}})
-
-	counts, err := p.Instance.FPDFText_CountRects(&requests.FPDFText_CountRects{
-		TextPage:   textPage.TextPage,
-		StartIndex: 0,
-		Count:      -1,
-	})
-
-	for i := 0; i < counts.Count; i++ {
-		rect, _ := p.Instance.FPDFText_GetRect(&requests.FPDFText_GetRect{
-			TextPage: textPage.TextPage,
-			Index:    i,
-		})
-		text, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
-			TextPage: textPage.TextPage,
-			Left:     rect.Left,
-			Top:      rect.Top,
-			Right:    rect.Right,
-			Bottom:   rect.Bottom,
-		})
-		if strings.ToLower(text.Text) == "script" {
-			//p.Log.Info().Msg(fmt.Sprintf("Found the script entry. %+v", rect))
-			height := rect.Bottom - rect.Top
-			width := rect.Right - rect.Left
-			creditsBox, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
-				TextPage: textPage.TextPage,
-				Left:     rect.Left - (width / 2),
-				Top:      rect.Top,
-				Right:    rect.Right + width + width/2,
-				Bottom:   rect.Bottom + (18 * height),
-			})
-			//p.Log.Info().Msg(creditsBox.Text)
-
-			contents = strings.ReplaceAll(creditsBox.Text, "\r\n", " ")
-
-			// Try to find a page object that contains this text
-			objCounts, _ := p.Instance.FPDFPage_CountObjects(&requests.FPDFPage_CountObjects{Page: requests.Page{
+	var pdfPage *responses.FPDF_LoadPage
+	for pageIndex := startPage; pageIndex <= endPage; pageIndex++ {
+		if pdfPage, err = p.Instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
+			Document: source.Document,
+			Index:    startPage - 1,
+		}); err != nil {
+			p.Log.Err(err).Msg("Failed to load pageIndex")
+			return "", errors.New("failed to load pageIndex")
+		}
+		textPage, _ := p.Instance.FPDFText_LoadPage(&requests.FPDFText_LoadPage{
+			Page: requests.Page{
+				ByIndex:     nil,
 				ByReference: &pdfPage.Page,
 			}})
-			for i := 0; i < objCounts.Count; i++ {
-				pageobj, _ := p.Instance.FPDFPage_GetObject(&requests.FPDFPage_GetObject{
-					Page: requests.Page{
-						ByReference: &pdfPage.Page,
-					},
-					Index: i,
-				})
 
-				pageObjType, _ := p.Instance.FPDFPageObj_GetType(&requests.FPDFPageObj_GetType{PageObject: pageobj.PageObject})
-				bb, _ := p.Instance.FPDFPageObj_GetBounds(&requests.FPDFPageObj_GetBounds{PageObject: pageobj.PageObject})
+		textCounts, _ := p.Instance.FPDFText_CountRects(&requests.FPDFText_CountRects{
+			TextPage:   textPage.TextPage,
+			StartIndex: 0,
+			Count:      -1,
+		})
 
-				if pageObjType.Type != 1 && pageObjType.Type != 3 {
-					if bbContains(*bb, *rect) {
-						//p.Log.Info().Msg(fmt.Sprintf("Type: %+v. Bounding box: %+v", pageObjType.Type, bb))
-						//p.Log.Info().Msg("Object contains text")
-						//p.Log.Info().Msg(fmt.Sprintf("Calculated bb was %+v", responses.FPDFPageObj_GetBounds{
-						//	Left:   float32(rect.Left - (width / 2)),
-						//	Top:    float32(rect.Top),
-						//	Right:  float32(rect.Right + width + width/2),
-						//	Bottom: float32(rect.Bottom + (18 * height)),
-						//}))
-						creditsBox, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
-							TextPage: textPage.TextPage,
-							Left:     rect.Left - (width / 2),
-							Top:      rect.Top,
-							Right:    rect.Right + width + width/2,
-							Bottom:   rect.Bottom + (18 * height),
-						})
-						p.Log.Info().Msg(strings.ReplaceAll(creditsBox.Text, "\r\n", " "))
-					}
+		for textRectIndex := 0; textRectIndex < textCounts.Count; textRectIndex++ {
+			rect, _ := p.Instance.FPDFText_GetRect(&requests.FPDFText_GetRect{
+				TextPage: textPage.TextPage,
+				Index:    textRectIndex,
+			})
+			text, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
+				TextPage: textPage.TextPage,
+				Left:     rect.Left,
+				Top:      rect.Top,
+				Right:    rect.Right,
+				Bottom:   rect.Bottom,
+			})
+			if strings.ToLower(text.Text) == "script" {
+				// Try to find a pageIndex object that contains this text
+				if pathBB, err := p.findSurroundingPath(&pdfPage.Page, rect); err == nil {
+					creditsText, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
+						TextPage: textPage.TextPage,
+						Left:     float64(pathBB.Left),
+						Top:      float64(pathBB.Top),
+						Right:    float64(pathBB.Right),
+						Bottom:   float64(pathBB.Left),
+					})
+					contents = strings.ReplaceAll(creditsText.Text, "\r\n", " ")
 				}
 			}
-
 		}
 	}
 	return contents, nil
+}
+
+func (p *PdfiumReader) findSurroundingPath(pageRef *references.FPDF_PAGE, textRect *responses.FPDFText_GetRect) (*responses.FPDFPageObj_GetBounds, error) {
+	objCounts, _ := p.Instance.FPDFPage_CountObjects(&requests.FPDFPage_CountObjects{Page: requests.Page{
+		ByReference: pageRef,
+	}})
+	for i := 0; i < objCounts.Count; i++ {
+		pageObj, _ := p.Instance.FPDFPage_GetObject(&requests.FPDFPage_GetObject{
+			Page: requests.Page{
+				ByReference: pageRef,
+			},
+			Index: i,
+		})
+
+		pageObjType, _ := p.Instance.FPDFPageObj_GetType(&requests.FPDFPageObj_GetType{PageObject: pageObj.PageObject})
+		bb, _ := p.Instance.FPDFPageObj_GetBounds(&requests.FPDFPageObj_GetBounds{PageObject: pageObj.PageObject})
+		if pageObjType.Type != 1 && pageObjType.Type != 3 && bbContains(*bb, *textRect) {
+			return bb, nil
+		}
+	}
+	return &responses.FPDFPageObj_GetBounds{
+		Left:   0,
+		Right:  0,
+		Top:    0,
+		Bottom: 0,
+	}, errors.New("could not find surrounding path")
 }
 
 // bbContains returns true if the textBb is contained completely within objBb

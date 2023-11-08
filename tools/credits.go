@@ -29,7 +29,7 @@ func main() {
 
 	appEnv.Log.Info().Msg(fmt.Sprintf("Loading page %d", *page))
 
-	credits, err := appEnv.Pdf.Credits(*filename, *page)
+	credits, err := appEnv.Pdf.Credits(*filename, *page, *page)
 
 	appEnv.Log.Info().Msg(fmt.Sprintf("Got credits of '%s'", credits))
 
