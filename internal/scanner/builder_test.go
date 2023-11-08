@@ -563,7 +563,15 @@ func TestBuildEpisodes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			issue := buildIssue(appEnv, "2000AD 123 (1977).pdf", tc.bookmarks)
+			// Convert bookmarks to EpisodeDetails
+			details := make([]internal.EpisodeDetails, len(tc.bookmarks))
+			for i, b := range tc.bookmarks {
+				details[i] = internal.EpisodeDetails{
+					Bookmark: b,
+					Credits:  "", // Assuming no credits information is needed for this test
+				}
+			}
+			issue := buildIssue(appEnv, "2000AD 123 (1977).pdf", details)
 			assert.Equal(t, 123, issue.IssueNumber)
 			assert.Equal(t, tc.expectedSeries, issue.Episodes[0].Series.Title)
 			assert.Equal(t, tc.expectedTitle, issue.Episodes[0].Title)
