@@ -593,19 +593,19 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 	testCases := []struct {
 		name           string
 		credits        string
-		expectedResult []internal.Creator
+		Credits []internal.Creator
 	}{
 		{
 			name:    "Single Creator",
 			credits: "Script: John Wagner",
-			expectedResult: []internal.Creator{
+			Credits: []internal.Creator{
 				{Name: "John Wagner", Role: "Script"},
 			},
 		},
 		{
 			name:    "Multiple Creators",
 			credits: "Script: John Wagner & Art: Carlos Ezquerra",
-			expectedResult: []internal.Creator{
+			Credits: []internal.Creator{
 				{Name: "John Wagner", Role: "Script"},
 				{Name: "Carlos Ezquerra", Role: "Art"},
 			},
@@ -616,7 +616,7 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := extractCreatorsFromCredits(tc.credits)
-			assert.Equal(t, tc.expectedResult, result)
+			assert.Equal(t, tc.Credits, result)
 		})
 	}
 }
