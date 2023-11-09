@@ -601,7 +601,6 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 			credits: "Script John Wagner",
 			Credits: Credits{
 				Script: []string{"John Wagner"},
-				Art:    []string{""},
 			},
 		},
 		{

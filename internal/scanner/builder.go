@@ -213,12 +213,7 @@ func extractPartNumberFromString(toParse string) (part int) {
 	return
 }
 
-type Credits struct {
-	Script  []string
-	Art     []string
-	Colours []string
-	Letters []string
-}
+type Credits = map[Role][]string
 
 type Role int64
 
@@ -261,10 +256,27 @@ const (
 )
 
 func extractCreatorsFromCredits(toParse string) (credits Credits) {
-	credits.Script = []string{extractCreators(toParse, Script)}
-	credits.Art = []string{extractCreators(toParse, Art)}
-	credits.Colours = []string{extractCreators(toParse, Colours)}
-	credits.Letters = []string{extractCreators(toParse, Letters)}
+	credits = Credits{}
+
+	var currentRole = Unknown
+	var tokens = strings.Split(toParse, " ")
+	currentCreatorString := make([]string, 0)
+	for _, t := range tokens {
+		r, err := NewRole(strings.ToLower(t))
+		if currentRole != Unknown && err != nil {
+			currentCreatorString = append(currentCreatorString, stringutils.CapitalizeWords(t))
+		} else if r != currentRole && err == nil {
+			if currentRole == Unknown {
+				currentRole = r
+				continue
+			}
+			credits[currentRole] = []string{strings.TrimSpace(strings.Join(currentCreatorString, " "))}
+			currentCreatorString = currentCreatorString[:0]
+			currentRole = r
+		}
+	}
+	credits[currentRole] = []string{strings.TrimSpace(strings.Join(currentCreatorString, " "))}
+
 	return credits
 }
 
