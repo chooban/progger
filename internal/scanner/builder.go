@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"errors"
 	"fmt"
 	"github.com/chooban/progdl-go/internal"
 	"github.com/chooban/progdl-go/internal/db"
@@ -219,27 +220,69 @@ type Credits struct {
 	Letters []string
 }
 
-func extractCreatorsFromCredits(toParse string) Credits {
-	credits := Credits{}
-	// Define regex patterns for different roles
-	scriptPattern := regexp.MustCompile(`(?i)Script\s+([^,]+)`)
-	artPattern := regexp.MustCompile(`(?i)Art\s+([^,]+)`)
-	coloursPattern := regexp.MustCompile(`(?i)Colours\s+([^,]+)`)
-	lettersPattern := regexp.MustCompile(`(?i)Letters\s+([^,]+)`)
+type Role int64
 
-	// Extract and assign the creators to the corresponding fields
-	if matches := scriptPattern.FindStringSubmatch(toParse); matches != nil {
-		credits.Script = strings.Split(matches[1], ", ")
+func NewRole(s string) (Role, error) {
+	switch strings.ToLower(s) {
+	case "script":
+		return Script, nil
+	case "art":
+		return Art, nil
+	case "colours":
+		return Colours, nil
+	case "letters":
+		return Letters, nil
 	}
-	if matches := artPattern.FindStringSubmatch(toParse); matches != nil {
-		credits.Art = strings.Split(matches[1], ", ")
-	}
-	if matches := coloursPattern.FindStringSubmatch(toParse); matches != nil {
-		credits.Colours = strings.Split(matches[1], ", ")
-	}
-	if matches := lettersPattern.FindStringSubmatch(toParse); matches != nil {
-		credits.Letters = strings.Split(matches[1], ", ")
-	}
+	return Unknown, errors.New("role not found")
+}
 
+func (r Role) String() string {
+	switch r {
+	case Unknown:
+		return "unknown"
+	case Script:
+		return "script"
+	case Art:
+		return "art"
+	case Colours:
+		return "colours"
+	case Letters:
+		return "letters"
+	}
+	return ""
+}
+
+const (
+	Unknown Role = iota
+	Script
+	Art
+	Colours
+	Letters
+)
+
+func extractCreatorsFromCredits(toParse string) (credits Credits) {
+	credits.Script = []string{extractCreators(toParse, Script)}
+	credits.Art = []string{extractCreators(toParse, Art)}
 	return credits
+}
+
+func extractCreators(toParse string, role Role) (creators string) {
+	splits := strings.SplitAfter(toParse, role.String())
+	var idx = 1
+	if len(splits) == 1 {
+		idx = 0
+	}
+	afterRole := strings.Split(splits[idx], " ")
+	var take = false
+	for _, v := range afterRole {
+		r, err := NewRole(strings.ToLower(v))
+		if take && err != nil {
+			creators = creators + " " + v
+		} else if r != role && err == nil {
+			take = false
+		} else if r == role {
+			take = true
+		}
+	}
+	return strings.TrimSpace(creators)
 }
