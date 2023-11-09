@@ -612,6 +612,16 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 				Art:    []string{"Carlos Ezquerra"},
 			},
 		},
+		{
+			name:    "Too many words",
+			credits: "PROTEUS VEX CRAWLSPACE PART ELEVEN SCRIPT MIKE CARROLL COLOURS JIM BOSWELL ART  JAKE LYNCH LETTERS  SIMON BOWLAND",
+			Credits: Credits{
+				Script:  []string{"Mike Carroll"},
+				Art:     []string{"Jake Lynch"},
+				Colours: []string{"Jim Boswell"},
+				Letters: []string{"Simon Bowland"},
+			},
+		},
 		// Add more test cases as needed
 	}
 

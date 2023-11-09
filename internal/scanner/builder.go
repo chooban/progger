@@ -263,10 +263,12 @@ const (
 func extractCreatorsFromCredits(toParse string) (credits Credits) {
 	credits.Script = []string{extractCreators(toParse, Script)}
 	credits.Art = []string{extractCreators(toParse, Art)}
+	credits.Colours = []string{extractCreators(toParse, Colours)}
+	credits.Letters = []string{extractCreators(toParse, Letters)}
 	return credits
 }
 
-func extractCreators(toParse string, role Role) (creators string) {
+func extractCreators(toParse string, role Role) string {
 	splits := strings.SplitAfter(toParse, role.String())
 	var idx = 1
 	if len(splits) == 1 {
@@ -274,15 +276,16 @@ func extractCreators(toParse string, role Role) (creators string) {
 	}
 	afterRole := strings.Split(splits[idx], " ")
 	var take = false
+	var creatorsToReturn = []string{}
 	for _, v := range afterRole {
 		r, err := NewRole(strings.ToLower(v))
 		if take && err != nil {
-			creators = creators + " " + v
+			creatorsToReturn = append(creatorsToReturn, stringutils.CapitalizeWords(v))
 		} else if r != role && err == nil {
 			take = false
 		} else if r == role {
 			take = true
 		}
 	}
-	return strings.TrimSpace(creators)
+	return strings.TrimSpace(strings.Join(creatorsToReturn, " "))
 }
