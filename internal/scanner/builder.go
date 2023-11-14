@@ -147,9 +147,9 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 func fromRawEpisodes(appEnv env.AppEnv, rawEpisodes []RawEpisode) []db.Episode {
 	episodes := make([]db.Episode, 0, len(rawEpisodes))
 	for _, rawEpisode := range rawEpisodes {
-		writers := make([]db.Creator, len(rawEpisode.Script))
+		writers := make([]*db.Creator, len(rawEpisode.Script))
 		for i, v := range rawEpisode.Script {
-			writers[i] = db.Creator{Name: v}
+			writers[i] = &db.Creator{Name: v}
 		}
 		ep := db.Episode{
 			Title:    rawEpisode.Title,

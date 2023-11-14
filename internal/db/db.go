@@ -1,6 +1,7 @@
 package db
 
 import (
+	"fmt"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -37,7 +38,7 @@ type Episode struct {
 	Series   Series
 	PageFrom int
 	PageThru int
-	Script   []Creator `gorm:"many2many:episode_writers"`
+	Script   []*Creator `gorm:"many2many:episode_writers"`
 }
 
 type Creator struct {
@@ -97,16 +98,16 @@ func SaveIssue(db *gorm.DB, issue Issue) {
 	}
 
 	for _, e := range issue.Episodes {
-		//for _, w := range e.Script {
-		//	db.Where(&Creator{Name: w.Name}).FirstOrCreate(&w, Creator{Name: w.Name})
-		//	fmt.Printf("Writer ID: %d\n", w.ID)
-		//}
+		for _, w := range e.Script {
+			db.Where(&Creator{Name: w.Name}).FirstOrCreate(&w, Creator{Name: w.Name})
+		}
 		db.Where(&Series{Title: e.Series.Title}).FirstOrCreate(&e.Series, Series{Title: e.Series.Title})
 		e.SeriesID = e.Series.ID
 		e.IssueID = issue.ID
-		db.Session(&gorm.Session{FullSaveAssociations: true}).Create(&e)
-		db.Save(&e)
+		db.Create(&e)
 
-		//db.Model(&e).Association("Script").Append(&e.Script)
+		if err := db.Model(&e).Association("Script").Append(&e.Script); err != nil {
+			fmt.Println(err)
+		}
 	}
 }
