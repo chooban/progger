@@ -22,11 +22,15 @@ type RawEpisode struct {
 	Part      int
 	FirstPage int
 	LastPage  int
+	Script    []string
+	Art       []string
+	Colours   []string
+	Letters   []string
 }
 
 // ScanDir scans the given directory for PDF files and extracts episode details from each file.
 // It returns a slice of RawEpisode structs containing the extracted details.
-func ScanDir(appEnv env.AppEnv, dir string) (issues []db.Issue) {
+func ScanDir(appEnv env.AppEnv, dir string, scanCount int) (issues []db.Issue) {
 	files := getFiles(appEnv, dir)
 
 	jobs := make(chan string, 10)
@@ -39,8 +43,11 @@ func ScanDir(appEnv env.AppEnv, dir string) (issues []db.Issue) {
 		go scanWorker(appEnv, &wg, jobs, results)
 	}
 
-	for _, file := range files {
+	for i, file := range files {
 		jobs <- dir + string(os.PathSeparator) + file.Name()
+		if scanCount > 0 && i > scanCount {
+			break
+		}
 	}
 
 	close(jobs)

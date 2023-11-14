@@ -5,6 +5,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"log"
+	"time"
 )
 
 type Publication struct {
@@ -36,6 +37,19 @@ type Episode struct {
 	Series   Series
 	PageFrom int
 	PageThru int
+	Script   []Creator `gorm:"many2many:episode_writers"`
+}
+
+type Creator struct {
+	gorm.Model
+	Name string `gorm:"uniqueIndex"`
+}
+
+type EpisodeWriter struct {
+	EpisodeID uint `gorm:"primaryKey"`
+	CreatorID uint `gorm:"primaryKey"`
+	CreatedAt time.Time
+	DeletedAt gorm.DeletedAt
 }
 
 func Init(dbName string) *gorm.DB {
@@ -44,9 +58,13 @@ func Init(dbName string) *gorm.DB {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	err = gormdb.AutoMigrate(&Issue{}, &Episode{}, &Series{}, &Publication{})
+	err = gormdb.AutoMigrate(&Issue{}, &Episode{}, &Series{}, &Publication{}, &Creator{}, &EpisodeWriter{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
+	}
+
+	if err := gormdb.SetupJoinTable(&Episode{}, "Script", &EpisodeWriter{}); err != nil {
+		log.Fatalf("Failed to setup join table: %v", err)
 	}
 
 	return gormdb
@@ -64,11 +82,31 @@ func SaveIssue(db *gorm.DB, issue Issue) {
 		Publication{Title: issue.Publication.Title},
 	)
 	issue.PublicationID = issue.Publication.ID
-	db.Omit(clause.Associations).FirstOrCreate(&issue)
+	res := db.
+		Where(&Issue{PublicationID: issue.PublicationID}).
+		Attrs(&Issue{IssueNumber: issue.IssueNumber}).
+		Omit(clause.Associations).
+		FirstOrCreate(&issue, &Issue{
+			PublicationID: issue.PublicationID,
+			IssueNumber:   issue.IssueNumber,
+			Filename:      issue.Filename,
+		})
+
+	if res.RowsAffected == 0 {
+		return
+	}
+
 	for _, e := range issue.Episodes {
-		db.FirstOrCreate(&e.Series, Series{Title: e.Series.Title})
+		//for _, w := range e.Script {
+		//	db.Where(&Creator{Name: w.Name}).FirstOrCreate(&w, Creator{Name: w.Name})
+		//	fmt.Printf("Writer ID: %d\n", w.ID)
+		//}
+		db.Where(&Series{Title: e.Series.Title}).FirstOrCreate(&e.Series, Series{Title: e.Series.Title})
 		e.SeriesID = e.Series.ID
 		e.IssueID = issue.ID
-		db.Create(&e)
+		db.Session(&gorm.Session{FullSaveAssociations: true}).Create(&e)
+		db.Save(&e)
+
+		//db.Model(&e).Association("Script").Append(&e.Script)
 	}
 }

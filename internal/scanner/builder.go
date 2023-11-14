@@ -20,11 +20,9 @@ func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDe
 	log := appEnv.Log
 	issueNumber, _ := getProgNumber(filename)
 	allEpisodes := make([]RawEpisode, 0)
-	bookmarks := make([]internal.Bookmark, len(details))
-	for i, v := range details {
-		bookmarks[i] = v.Bookmark
-	}
-	for _, b := range bookmarks {
+
+	for _, d := range details {
+		b := d.Bookmark
 		part, series, title := extractDetailsFromPdfBookmark(b.Title)
 
 		if series == "" {
@@ -47,12 +45,18 @@ func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDe
 			}
 		}
 
+		credits := extractCreatorsFromCredits(d.Credits)
+
 		allEpisodes = append(allEpisodes, RawEpisode{
 			Title:     title,
 			Series:    series,
 			Part:      part,
 			FirstPage: b.PageFrom,
 			LastPage:  b.PageThru,
+			Script:    credits[Script],
+			Art:       credits[Art],
+			Colours:   credits[Colours],
+			Letters:   credits[Letters],
 		})
 	}
 	issue := db.Issue{
@@ -143,12 +147,17 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 func fromRawEpisodes(appEnv env.AppEnv, rawEpisodes []RawEpisode) []db.Episode {
 	episodes := make([]db.Episode, 0, len(rawEpisodes))
 	for _, rawEpisode := range rawEpisodes {
+		writers := make([]db.Creator, len(rawEpisode.Script))
+		for i, v := range rawEpisode.Script {
+			writers[i] = db.Creator{Name: v}
+		}
 		ep := db.Episode{
 			Title:    rawEpisode.Title,
 			Part:     rawEpisode.Part,
 			Series:   db.Series{Title: rawEpisode.Series},
 			PageFrom: rawEpisode.FirstPage,
 			PageThru: rawEpisode.LastPage,
+			Script:   writers,
 		}
 		if shouldIncludeEpisode(appEnv, ep) {
 			episodes = append(episodes, ep)
@@ -262,42 +271,33 @@ func extractCreatorsFromCredits(toParse string) (credits Credits) {
 	var tokens = strings.Split(toParse, " ")
 	currentCreatorString := make([]string, 0)
 	for _, t := range tokens {
+		if t == "" {
+			continue
+		}
 		r, err := NewRole(strings.ToLower(t))
 		if currentRole != Unknown && err != nil {
-			currentCreatorString = append(currentCreatorString, stringutils.CapitalizeWords(t))
+			currentCreatorString = append(currentCreatorString, strings.TrimSpace(t))
 		} else if r != currentRole && err == nil {
 			if currentRole == Unknown {
 				currentRole = r
 				continue
 			}
-			credits[currentRole] = []string{strings.TrimSpace(strings.Join(currentCreatorString, " "))}
+			credits[currentRole] = []string{
+				stringutils.CapitalizeWords(
+					strings.TrimSpace(
+						strings.Join(currentCreatorString, " "),
+					),
+				)}
 			currentCreatorString = currentCreatorString[:0]
 			currentRole = r
 		}
 	}
-	credits[currentRole] = []string{strings.TrimSpace(strings.Join(currentCreatorString, " "))}
+	credits[currentRole] = []string{
+		stringutils.CapitalizeWords(
+			strings.TrimSpace(
+				strings.Join(currentCreatorString, " "),
+			),
+		)}
 
 	return credits
-}
-
-func extractCreators(toParse string, role Role) string {
-	splits := strings.SplitAfter(toParse, role.String())
-	var idx = 1
-	if len(splits) == 1 {
-		idx = 0
-	}
-	afterRole := strings.Split(splits[idx], " ")
-	var take = false
-	var creatorsToReturn = []string{}
-	for _, v := range afterRole {
-		r, err := NewRole(strings.ToLower(v))
-		if take && err != nil {
-			creatorsToReturn = append(creatorsToReturn, stringutils.CapitalizeWords(v))
-		} else if r != role && err == nil {
-			take = false
-		} else if r == role {
-			take = true
-		}
-	}
-	return strings.TrimSpace(strings.Join(creatorsToReturn, " "))
 }

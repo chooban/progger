@@ -7,13 +7,14 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"io"
+	"os"
 	"testing"
 	"time"
 )
 
 func createAppEnv() env.AppEnv {
 	writer := zerolog.ConsoleWriter{
-		Out:        io.Discard,
+		Out:        os.Stdout,
 		TimeFormat: time.RFC3339,
 	}
 	logger := zerolog.New(writer)
@@ -598,7 +599,7 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 	}{
 		{
 			name:    "Single Creator",
-			credits: "Script John Wagner",
+			credits: "Script John  Wagner",
 			Credits: Credits{
 				Script: []string{"John Wagner"},
 			},

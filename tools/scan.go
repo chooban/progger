@@ -17,6 +17,7 @@ func main() {
 
 	parser := argparse.NewParser("scan", "Scans a directory for progs")
 	d := parser.String("d", "directory", &argparse.Options{Required: true, Help: "Directory to scan"})
+	c := parser.Int("c", "count", &argparse.Options{Required: false, Help: "Number of issues to scan"})
 
 	err := parser.Parse(os.Args)
 	if err != nil {
@@ -27,7 +28,7 @@ func main() {
 	appEnv.Db = db.Init("progs.db")
 	appEnv.Pdf = pdfium.NewPdfiumReader(appEnv.Log)
 
-	issues := scanner.ScanDir(appEnv, *d)
+	issues := scanner.ScanDir(appEnv, *d, *c)
 
 	db.SaveIssues(appEnv.Db, issues)
 
