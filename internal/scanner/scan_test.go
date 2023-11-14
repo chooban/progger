@@ -10,6 +10,11 @@ import (
 	"testing"
 )
 
+type EpisodeWriter struct {
+	Title string
+	Name  string
+}
+
 func TestScanAndSave(t *testing.T) {
 	integrationTest(t)
 	appEnv := createAppEnv()
@@ -28,14 +33,17 @@ func TestScanAndSave(t *testing.T) {
 		var publications []db.Publication
 		var foundIssues []db.Issue
 		var episodes []db.Episode
+		var writers []EpisodeWriter
 
 		appEnv.Db.Find(&publications)
 		appEnv.Db.Find(&foundIssues)
 		appEnv.Db.Find(&episodes)
+		appEnv.Db.Raw("SELECT title, name FROM episodes e, creators c, episode_writers ew where e.id = ew.episode_id and c.id = ew.creator_id").Scan(&writers)
 
 		assert.Equal(t, 1, len(publications), "Expected %d publications, found %d", 1, len(publications))
 		assert.Equal(t, 2, len(foundIssues), "Expected %d issues, found %d", 2, len(foundIssues))
 		assert.Equal(t, 14, len(episodes), "Expected %d episodes, found %d", 14, len(episodes))
+		assert.Equal(t, 10, len(writers), "Expected %d writers, found %d", 10, len(writers))
 
 		// Do a second scan to ensure we don't duplicate any data
 		issues = ScanDir(appEnv, secondDataDir, -1)
@@ -46,10 +54,12 @@ func TestScanAndSave(t *testing.T) {
 		appEnv.Db.Find(&publications)
 		appEnv.Db.Find(&foundIssues)
 		appEnv.Db.Find(&episodes)
+		appEnv.Db.Raw("SELECT title, name FROM episodes e, creators c, episode_writers ew where e.id = ew.episode_id and c.id = ew.creator_id").Scan(&writers)
 
 		assert.Equal(t, 1, len(publications), "Expected %d publications, found %d", 1, len(publications))
 		assert.Equal(t, 3, len(foundIssues), "Expected %d issues, found %d", 3, len(foundIssues))
 		assert.Equal(t, 20, len(episodes), "Expected %d episodes, found %d", 20, len(episodes))
+		assert.Equal(t, 14, len(writers), "Expected %d writers, found %d", 14, len(writers))
 	})
 }
 
