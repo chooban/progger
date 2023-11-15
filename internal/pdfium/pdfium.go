@@ -62,10 +62,13 @@ func (p *PdfiumReader) Bookmarks(filename string) ([]internal.EpisodeDetails, er
 	details := make([]internal.EpisodeDetails, len(bookmarks))
 
 	for i, v := range bookmarks {
-		credits, _ := p.Credits(filename, v.PageFrom, v.PageThru)
-		details[i] = internal.EpisodeDetails{
-			Bookmark: v,
-			Credits:  credits,
+		if credits, err := p.Credits(filename, v.PageFrom, v.PageThru); err == nil {
+			details[i] = internal.EpisodeDetails{
+				Bookmark: v,
+				Credits:  credits,
+			}
+		} else {
+			p.Log.Warn().Msg("Failed to extract creators")
 		}
 	}
 	return details, nil

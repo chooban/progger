@@ -45,6 +45,7 @@ func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDe
 			}
 		}
 
+		log.Debug().Msg(fmt.Sprintf("Credits for %s: %s", title, d.Credits))
 		credits := extractCreatorsFromCredits(d.Credits)
 
 		allEpisodes = append(allEpisodes, RawEpisode{
@@ -144,13 +145,22 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	return
 }
 
+func creators(names []string) (creators []*db.Creator) {
+	creators = make([]*db.Creator, len(names))
+	for i, v := range names {
+		creators[i] = &db.Creator{Name: v}
+	}
+	return
+}
+
 func fromRawEpisodes(appEnv env.AppEnv, rawEpisodes []RawEpisode) []db.Episode {
 	episodes := make([]db.Episode, 0, len(rawEpisodes))
 	for _, rawEpisode := range rawEpisodes {
-		writers := make([]*db.Creator, len(rawEpisode.Script))
-		for i, v := range rawEpisode.Script {
-			writers[i] = &db.Creator{Name: v}
-		}
+		writers := creators(rawEpisode.Script)
+		artists := creators(rawEpisode.Art)
+		colourists := creators(rawEpisode.Colours)
+		letterists := creators(rawEpisode.Letters)
+
 		ep := db.Episode{
 			Title:    rawEpisode.Title,
 			Part:     rawEpisode.Part,
@@ -158,6 +168,9 @@ func fromRawEpisodes(appEnv env.AppEnv, rawEpisodes []RawEpisode) []db.Episode {
 			PageFrom: rawEpisode.FirstPage,
 			PageThru: rawEpisode.LastPage,
 			Script:   writers,
+			Art:      artists,
+			Colours:  colourists,
+			Letters:  letterists,
 		}
 		if shouldIncludeEpisode(appEnv, ep) {
 			episodes = append(episodes, ep)

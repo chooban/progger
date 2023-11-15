@@ -39,6 +39,9 @@ type Episode struct {
 	PageFrom int
 	PageThru int
 	Script   []*Creator `gorm:"many2many:episode_writers"`
+	Art      []*Creator `gorm:"many2many:episode_artists"`
+	Colours  []*Creator `gorm:"many2many:episode_colourists"`
+	Letters  []*Creator `gorm:"many2many:episode_letterers"`
 }
 
 type Creator struct {
@@ -53,13 +56,43 @@ type EpisodeWriter struct {
 	DeletedAt gorm.DeletedAt
 }
 
+type EpisodeArtist struct {
+	EpisodeID uint `gorm:"primaryKey"`
+	CreatorID uint `gorm:"primaryKey"`
+	CreatedAt time.Time
+	DeletedAt gorm.DeletedAt
+}
+
+type EpisodeColourist struct {
+	EpisodeID uint `gorm:"primaryKey"`
+	CreatorID uint `gorm:"primaryKey"`
+	CreatedAt time.Time
+	DeletedAt gorm.DeletedAt
+}
+type EpisodeLetterer struct {
+	EpisodeID uint `gorm:"primaryKey"`
+	CreatorID uint `gorm:"primaryKey"`
+	CreatedAt time.Time
+	DeletedAt gorm.DeletedAt
+}
+
 func Init(dbName string) *gorm.DB {
 	gormdb, err := gorm.Open(sqlite.Open(dbName), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	err = gormdb.AutoMigrate(&Issue{}, &Episode{}, &Series{}, &Publication{}, &Creator{}, &EpisodeWriter{})
+	err = gormdb.AutoMigrate(
+		&Issue{},
+		&Episode{},
+		&Series{},
+		&Publication{},
+		&Creator{},
+		&EpisodeWriter{},
+		&EpisodeArtist{},
+		&EpisodeColourist{},
+		&EpisodeLetterer{},
+	)
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
