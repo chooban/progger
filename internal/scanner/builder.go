@@ -175,7 +175,7 @@ func fromRawEpisodes(appEnv env.AppEnv, rawEpisodes []RawEpisode) []db.Episode {
 		if shouldIncludeEpisode(appEnv, ep) {
 			episodes = append(episodes, ep)
 		} else {
-			appEnv.Log.Info().Msg(fmt.Sprintf("Skipping. Series: %s. Episode: %s", ep.Series.Title, ep.Title))
+			appEnv.Log.Debug().Msg(fmt.Sprintf("Skipping. Series: %s. Episode: %s", ep.Series.Title, ep.Title))
 		}
 	}
 	return episodes
@@ -210,7 +210,7 @@ func shouldIncludeEpisode(appEnv env.AppEnv, episode db.Episode) bool {
 	for _, s := range pagesToSkip {
 		for _, t := range []string{episode.Title, episode.Series.Title} {
 			if stringutils.ContainsI(t, s) || levenshtein.DistanceForStrings([]rune(s), []rune(t), levenshtein.DefaultOptions) < 5 {
-				log.Info().Msg(fmt.Sprintf("%s contains, or is close to, %s", t, s))
+				log.Debug().Msg(fmt.Sprintf("%s contains, or is close to, %s", t, s))
 				return false
 			}
 		}
@@ -295,12 +295,14 @@ func extractCreatorsFromCredits(toParse string) (credits Credits) {
 				currentRole = r
 				continue
 			}
-			credits[currentRole] = []string{
+			credits[currentRole] = strings.Split(
 				stringutils.CapitalizeWords(
 					strings.TrimSpace(
 						strings.Join(currentCreatorString, " "),
 					),
-				)}
+				),
+				"&",
+			)
 			currentCreatorString = currentCreatorString[:0]
 			currentRole = r
 		}

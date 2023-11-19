@@ -605,6 +605,13 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 			},
 		},
 		{
+			name:    "Multiple writers",
+			credits: "Script John Wagner & Alan Grant",
+			Credits: Credits{
+				Script: []string{"John Wagner", "Alan Grant"},
+			},
+		},
+		{
 			name:    "Multiple Creators",
 			credits: "Script John Wagner Art Carlos Ezquerra",
 			Credits: Credits{

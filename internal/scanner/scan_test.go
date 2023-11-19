@@ -3,7 +3,7 @@ package scanner
 import (
 	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/pdfium"
-	_ "github.com/chooban/progdl-go/testing_init"
+	"github.com/chooban/progdl-go/testing_init"
 	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
@@ -16,7 +16,7 @@ type EpisodeWriter struct {
 }
 
 func TestScanAndSave(t *testing.T) {
-	integrationTest(t)
+	testing_init.IntegrationTest(t)
 	appEnv := createAppEnv()
 	appEnv.Db = db.Init("file:test.db?cache=shared&mode=memory")
 	appEnv.Pdf = pdfium.NewPdfiumReader(appEnv.Log)
@@ -67,11 +67,4 @@ func TestScanAndSave(t *testing.T) {
 		assert.Equal(t, 20, len(episodes), "Expected %d episodes, found %d", 20, len(episodes))
 		assert.Equal(t, 14, len(writers), "Expected %d writers, found %d", 14, len(writers))
 	})
-}
-
-func integrationTest(t *testing.T) {
-	t.Helper()
-	if os.Getenv("INTEGRATION") == "" {
-		t.Skip("skipping integration tests, set environment variable INTEGRATION")
-	}
 }

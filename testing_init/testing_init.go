@@ -4,6 +4,7 @@ import (
 	"os"
 	"path"
 	"runtime"
+	"testing"
 )
 
 func init() {
@@ -12,5 +13,12 @@ func init() {
 	err := os.Chdir(dir)
 	if err != nil {
 		panic(err)
+	}
+}
+
+func IntegrationTest(t *testing.T) {
+	t.Helper()
+	if os.Getenv("INTEGRATION") == "" {
+		t.Skip("skipping integration tests, set environment variable INTEGRATION")
 	}
 }
