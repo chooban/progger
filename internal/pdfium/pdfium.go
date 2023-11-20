@@ -156,9 +156,9 @@ func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (cre
 			Count:      -1,
 		})
 
-		var scriptRect *responses.FPDFText_GetRect
-		var lettersRect *responses.FPDFText_GetRect
-
+		var (
+			scriptRect *responses.FPDFText_GetRect
+		)
 		for textRectIndex := 0; textRectIndex < rects.Count; textRectIndex++ {
 			rect, _ := p.Instance.FPDFText_GetRect(&requests.FPDFText_GetRect{
 				TextPage: textPage.TextPage,
@@ -180,28 +180,32 @@ func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (cre
 			p.Log.Debug().Msg("Didn't find script")
 			continue
 		}
-		if lettersRect == nil {
-			lettersRect = &responses.FPDFText_GetRect{
-				Left:   scriptRect.Left,
-				Top:    scriptRect.Top,
-				Right:  scriptRect.Right,
-				Bottom: scriptRect.Bottom - 75,
+		var (
+			left       = scriptRect.Left - ((scriptRect.Right - scriptRect.Left) * 1.1)
+			right      = scriptRect.Right + ((scriptRect.Right - scriptRect.Left) * 1.1)
+			top        = scriptRect.Top
+			bottom     = scriptRect.Bottom - 20
+			rawCredits = "script"
+		)
+
+		for bottom >= 0 {
+			creditsText, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
+				TextPage: textPage.TextPage,
+				Left:     left,
+				Right:    right,
+				Bottom:   bottom,
+				Top:      top,
+			})
+			p.Log.Debug().Msg(fmt.Sprintf("Credits text: %s", creditsText.Text))
+			if creditsText.Text != rawCredits {
+				rawCredits = creditsText.Text
+				bottom -= 20
+				continue
 			}
+			break
 		}
-		var left = math.Min(scriptRect.Left, lettersRect.Left)
-		var right = math.Max(scriptRect.Right, lettersRect.Right)
-		var top = math.Max(scriptRect.Top, lettersRect.Top)
-		var bottom = math.Min(scriptRect.Bottom, lettersRect.Bottom)
 
-		creditsText, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
-			TextPage: textPage.TextPage,
-			Left:     left - ((right - left) * 1.1),
-			Right:    right + ((right - left) * 1.1),
-			Bottom:   bottom,
-			Top:      top,
-		})
-
-		tokenized := strings.Fields(strings.ToLower(strings.ReplaceAll(creditsText.Text, "\r\n", " ")))
+		tokenized := strings.Fields(strings.ToLower(strings.ReplaceAll(rawCredits, "\r\n", " ")))
 		earliestIdx := math.MaxInt16
 		latestIdx := math.MinInt16
 		for _, v := range creditTypes {

@@ -131,8 +131,20 @@ func SaveIssue(db *gorm.DB, issue Issue) {
 	}
 
 	for _, e := range issue.Episodes {
-		for _, w := range e.Script {
-			db.Where(&Creator{Name: w.Name}).FirstOrCreate(&w, Creator{Name: w.Name})
+		creators := [][]*Creator{
+			e.Script,
+			e.Letters,
+			e.Colours,
+			e.Art,
+		}
+		//for _, w := range e.Script {
+		//	//db.Where(&Creator{Name: w.Name}).FirstOrCreate(&w, Creator{Name: w.Name})
+		//	db.Where("INSTR(?, name)", w.Name).FirstOrCreate(&w, Creator{Name: w.Name})
+		//}
+		for _, roleCreators := range creators {
+			for _, c := range roleCreators {
+				db.Where("INSTR(?, name)", c.Name).FirstOrCreate(&c, Creator{Name: c.Name})
+			}
 		}
 		db.Where(&Series{Title: e.Series.Title}).FirstOrCreate(&e.Series, Series{Title: e.Series.Title})
 		e.SeriesID = e.Series.ID

@@ -97,7 +97,13 @@ func TestPdfiumReader_Credits(t *testing.T) {
 			name:        "Slaine - 2215",
 			filename:    "2000AD 2215 (1977).pdf",
 			page:        14,
-			wantCredits: "script pat mills art leonardo manco letters annie parkhouse it’s",
+			wantCredits: "script pat mills art leonardo manco letters annie parkhouse",
+		},
+		{
+			name:        "Dredd - 2317",
+			filename:    "2000AD 2317 (1977).pdf",
+			page:        3,
+			wantCredits: "script rob williams & arthur wyatt colours dylan teague art paul marshall letters annie parkhouse",
 		},
 	}
 	for _, tc := range testCases {

@@ -295,24 +295,24 @@ func extractCreatorsFromCredits(toParse string) (credits Credits) {
 				currentRole = r
 				continue
 			}
-			credits[currentRole] = strings.Split(
-				stringutils.CapitalizeWords(
-					strings.TrimSpace(
-						strings.Join(currentCreatorString, " "),
-					),
-				),
-				"&",
-			)
+			credits[currentRole] = normaliseCreators(currentCreatorString)
+
+			// Zero the string
 			currentCreatorString = currentCreatorString[:0]
 			currentRole = r
 		}
 	}
-	credits[currentRole] = []string{
-		stringutils.CapitalizeWords(
-			strings.TrimSpace(
-				strings.Join(currentCreatorString, " "),
-			),
-		)}
+	credits[currentRole] = normaliseCreators(currentCreatorString)
 
 	return credits
+}
+
+func normaliseCreators(input []string) []string {
+	tokens := strings.Split(stringutils.CapitalizeWords(strings.Join(input, " ")), "&")
+
+	creators := make([]string, 0)
+	for _, v := range tokens {
+		creators = append(creators, strings.TrimSpace(v))
+	}
+	return creators
 }
