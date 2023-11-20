@@ -46,10 +46,10 @@ func TestScanAndSave(t *testing.T) {
 		assert.Equal(t, 1, len(publications), "Expected %d publications, found %d", 1, len(publications))
 		assert.Equal(t, 2, len(foundIssues), "Expected %d issues, found %d", 2, len(foundIssues))
 		assert.Equal(t, 14, len(episodes), "Expected %d episodes, found %d", 14, len(episodes))
-		assert.Equal(t, 10, len(writers), "Expected %d writers, found %d", 10, len(writers))
-		assert.Equal(t, 9, len(artists), "Expected %d artists, found %d", 9, len(artists))
-		assert.Equal(t, 6, len(colourists), "Expected %d colourists, found %d", 6, len(colourists))
-		assert.Equal(t, 6, len(letterers), "Expected %d letterers, found %d", 6, len(letterers))
+		assert.Equal(t, 14, len(writers), "Expected %d writers, found %d", 14, len(writers))
+		assert.Equal(t, 14, len(artists), "Expected %d artists, found %d", 14, len(artists))
+		assert.Equal(t, 7, len(colourists), "Expected %d colourists, found %d", 7, len(colourists))
+		assert.Equal(t, 14, len(letterers), "Expected %d letterers, found %d", 14, len(letterers))
 
 		// Do a second scan to ensure we don't duplicate any data
 		issues = ScanDir(appEnv, secondDataDir, -1)
@@ -65,6 +65,6 @@ func TestScanAndSave(t *testing.T) {
 		assert.Equal(t, 1, len(publications), "Expected %d publications, found %d", 1, len(publications))
 		assert.Equal(t, 3, len(foundIssues), "Expected %d issues, found %d", 3, len(foundIssues))
 		assert.Equal(t, 20, len(episodes), "Expected %d episodes, found %d", 20, len(episodes))
-		assert.Equal(t, 14, len(writers), "Expected %d writers, found %d", 14, len(writers))
+		assert.Equal(t, 18, len(writers), "Expected %d writers, found %d", 18, len(writers))
 	})
 }
