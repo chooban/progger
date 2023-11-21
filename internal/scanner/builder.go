@@ -23,6 +23,8 @@ func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDe
 
 	for _, d := range details {
 		b := d.Bookmark
+		appEnv.Log.Debug().Msg(fmt.Sprintf("Extracting details from %+v", d))
+		appEnv.Log.Debug().Msg(fmt.Sprintf("Extracting details from %s", b.Title))
 		part, series, title := extractDetailsFromPdfBookmark(b.Title)
 
 		if series == "" {

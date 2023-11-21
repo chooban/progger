@@ -74,6 +74,7 @@ func ScanFile(appEnv env.AppEnv, fileName string) (db.Issue, error) {
 		return db.Issue{}, errors.New("only pdf files supported")
 	}
 
+	appEnv.Log.Debug().Msg(fmt.Sprintf("Scanning %s", fileName))
 	episodeDetails, err := appEnv.Pdf.Bookmarks(fileName)
 	if err != nil {
 		return db.Issue{}, err

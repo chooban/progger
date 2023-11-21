@@ -105,6 +105,12 @@ func TestPdfiumReader_Credits(t *testing.T) {
 			page:        3,
 			wantCredits: "script rob williams & arthur wyatt colours dylan teague art paul marshall letters annie parkhouse",
 		},
+		{
+			name:        "Anderson - 2183",
+			filename:    "2000AD 2183 (1977).pdf",
+			page:        23,
+			wantCredits: "art paul davidson script cavan scott colours len o’grady letters simon bowland",
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {

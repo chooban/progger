@@ -70,7 +70,10 @@ func (p *PdfiumReader) Bookmarks(filename string) ([]internal.EpisodeDetails, er
 				Credits:  credits,
 			}
 		} else {
-			p.Log.Warn().Msg("Failed to extract creators")
+			p.Log.Warn().Msg(fmt.Sprintf("Failed to extract creators for %s", v.Title))
+			details[i] = internal.EpisodeDetails{
+				Bookmark: v,
+			}
 		}
 	}
 	return details, nil
@@ -136,6 +139,9 @@ func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (cre
 	}
 	var creditTypes = []string{"script", "art", "colours", "letters"}
 	var pdfPage *responses.FPDF_LoadPage
+	var textPage *responses.FPDFText_LoadPage
+	var scriptRect *responses.FPDFText_GetRect
+
 	for pageIndex := startPage; pageIndex <= endPage; pageIndex++ {
 		if pdfPage, err = p.Instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
 			Document: source.Document,
@@ -144,118 +150,90 @@ func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (cre
 			p.Log.Err(err).Msg(fmt.Sprintf("Failed to load page %d", pageIndex))
 			return "", errors.New("failed to load page")
 		}
-		textPage, _ := p.Instance.FPDFText_LoadPage(&requests.FPDFText_LoadPage{
-			Page: requests.Page{
-				ByIndex:     nil,
-				ByReference: &pdfPage.Page,
-			}})
 
-		rects, _ := p.Instance.FPDFText_CountRects(&requests.FPDFText_CountRects{
-			TextPage:   textPage.TextPage,
-			StartIndex: 0,
-			Count:      -1,
-		})
-
-		var (
-			scriptRect *responses.FPDFText_GetRect
-		)
-		for textRectIndex := 0; textRectIndex < rects.Count; textRectIndex++ {
-			rect, _ := p.Instance.FPDFText_GetRect(&requests.FPDFText_GetRect{
-				TextPage: textPage.TextPage,
-				Index:    textRectIndex,
-			})
-			text, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
-				TextPage: textPage.TextPage,
-				Left:     rect.Left,
-				Top:      rect.Top,
-				Right:    rect.Right,
-				Bottom:   rect.Bottom,
-			})
-			if strings.ToLower(text.Text) == "script" {
-				p.Log.Debug().Msg(fmt.Sprintf("Found script at %+v", rect))
-				scriptRect = rect
-			}
-		}
-		if scriptRect == nil {
-			p.Log.Debug().Msg("Didn't find script")
-			continue
-		}
-		var (
-			left       = scriptRect.Left - ((scriptRect.Right - scriptRect.Left) * 1.1)
-			right      = scriptRect.Right + ((scriptRect.Right - scriptRect.Left) * 1.1)
-			top        = scriptRect.Top
-			bottom     = scriptRect.Bottom - 20
-			rawCredits = "script"
-		)
-
-		for bottom >= 0 {
-			creditsText, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
-				TextPage: textPage.TextPage,
-				Left:     left,
-				Right:    right,
-				Bottom:   bottom,
-				Top:      top,
-			})
-			p.Log.Debug().Msg(fmt.Sprintf("Credits text: %s", creditsText.Text))
-			if creditsText.Text != rawCredits {
-				rawCredits = creditsText.Text
-				bottom -= 20
-				continue
-			}
+		textPage, scriptRect = p.findScriptRect(pdfPage.Page)
+		if scriptRect != nil {
+			p.Log.Debug().Msg("Didn't find script on the page")
 			break
 		}
+	}
+	if scriptRect == nil {
+		return "", errors.New("no script found in range")
+	}
+	var (
+		left       = scriptRect.Left - ((scriptRect.Right - scriptRect.Left) * 1.1)
+		right      = scriptRect.Right + ((scriptRect.Right - scriptRect.Left) * 1.1)
+		top        = scriptRect.Top + 20
+		bottom     = scriptRect.Bottom - 20
+		rawCredits = "script"
+	)
 
-		tokenized := strings.Fields(strings.ToLower(strings.ReplaceAll(rawCredits, "\r\n", " ")))
-		earliestIdx := math.MaxInt16
-		latestIdx := math.MinInt16
-		for _, v := range creditTypes {
-			cIdx := slices.Index(tokenized, v)
-			if cIdx >= 0 {
-				earliestIdx = min(cIdx, earliestIdx)
-				latestIdx = max(cIdx, latestIdx)
-			}
+	for bottom >= 0 {
+		creditsText, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
+			TextPage: textPage.TextPage,
+			Left:     left,
+			Right:    right,
+			Bottom:   bottom,
+			Top:      top,
+		})
+		p.Log.Debug().Msg(fmt.Sprintf("Credits text: %s", creditsText.Text))
+		if creditsText.Text != rawCredits {
+			rawCredits = creditsText.Text
+			bottom -= 20
+			continue
 		}
-		if earliestIdx >= 0 && earliestIdx < len(tokenized) {
-			tmpCredits := tokenized[earliestIdx:min(latestIdx+4, len(tokenized))]
+		break
+	}
 
-			p.Log.Debug().Msg(strings.Join(tmpCredits, " "))
-			if len(credits) == 0 {
-				credits = strings.Join(tmpCredits, " ")
-			} else if len(tmpCredits) < len(credits) {
-				credits = strings.Join(tmpCredits, " ")
-			}
+	tokenized := strings.Fields(strings.ToLower(strings.ReplaceAll(rawCredits, "\r\n", " ")))
+	earliestIdx := math.MaxInt16
+	latestIdx := math.MinInt16
+	for _, v := range creditTypes {
+		cIdx := slices.Index(tokenized, v)
+		if cIdx >= 0 {
+			earliestIdx = min(cIdx, earliestIdx)
+			latestIdx = max(cIdx, latestIdx)
 		}
 	}
+	tmpCredits := tokenized[earliestIdx:min(latestIdx+4, len(tokenized))]
+
+	credits = strings.Join(tmpCredits, " ")
 
 	return credits, nil
 }
 
-func (p *PdfiumReader) findSurroundingPath(pageRef *references.FPDF_PAGE, textRect *responses.FPDFText_GetRect, textToFind string) []*responses.FPDFPageObj_GetBounds {
-	var boxes []*responses.FPDFPageObj_GetBounds
-	objCounts, _ := p.Instance.FPDFPage_CountObjects(&requests.FPDFPage_CountObjects{Page: requests.Page{
-		ByReference: pageRef,
-	}})
-	for i := 0; i < objCounts.Count; i++ {
-		pageObj, _ := p.Instance.FPDFPage_GetObject(&requests.FPDFPage_GetObject{
-			Page: requests.Page{
-				ByReference: pageRef,
-			},
-			Index: i,
+func (p *PdfiumReader) findScriptRect(pageRef references.FPDF_PAGE) (*responses.FPDFText_LoadPage, *responses.FPDFText_GetRect) {
+	var (
+		textPage   *responses.FPDFText_LoadPage
+		scriptRect *responses.FPDFText_GetRect
+	)
+	textPage, _ = p.Instance.FPDFText_LoadPage(&requests.FPDFText_LoadPage{
+		Page: requests.Page{
+			ByReference: &pageRef,
+			ByIndex:     nil,
+		},
+	})
+	rects, _ := p.Instance.FPDFText_CountRects(&requests.FPDFText_CountRects{
+		TextPage:   textPage.TextPage,
+		StartIndex: 0,
+		Count:      -1,
+	})
+	for textRectIndex := 0; textRectIndex < rects.Count; textRectIndex++ {
+		rect, _ := p.Instance.FPDFText_GetRect(&requests.FPDFText_GetRect{
+			TextPage: textPage.TextPage,
+			Index:    textRectIndex,
 		})
-
-		pageObjType, _ := p.Instance.FPDFPageObj_GetType(&requests.FPDFPageObj_GetType{PageObject: pageObj.PageObject})
-		bb, _ := p.Instance.FPDFPageObj_GetBounds(&requests.FPDFPageObj_GetBounds{PageObject: pageObj.PageObject})
-		if bbContains(*bb, *textRect) && pageObjType.Type == 2 {
-			boxes = append(boxes, bb)
+		text, _ := p.Instance.FPDFText_GetBoundedText(&requests.FPDFText_GetBoundedText{
+			TextPage: textPage.TextPage,
+			Left:     rect.Left,
+			Top:      rect.Top,
+			Right:    rect.Right,
+			Bottom:   rect.Bottom,
+		})
+		if strings.ToLower(text.Text) == "script" {
+			p.Log.Debug().Msg(fmt.Sprintf("Found script at %+v", rect))
+			scriptRect = rect
 		}
 	}
-	return boxes
-}
-
-// bbContains returns true if the textBb is contained completely within objBb
-func bbContains(objBb responses.FPDFPageObj_GetBounds, textBb responses.FPDFText_GetRect) bool {
-	return float32(textBb.Left) >= objBb.Left &&
-		float32(textBb.Right) <= objBb.Right &&
-		float32(textBb.Top) <= objBb.Top &&
-		float32(textBb.Bottom) >= objBb.Bottom
+	return textPage, scriptRect
 }
