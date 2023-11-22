@@ -17,3 +17,4 @@ testdata:
 	cp ~/Documents/2000AD/2000AD\ 2272\ \(1977\).pdf test/testdata/creators/
 	cp ~/Documents/2000AD/2000AD\ 2317\ \(1977\).pdf test/testdata/creators/
 	cp ~/Documents/2000AD/2000AD\ 2337\ \(1977\).pdf test/testdata/creators/
+	cp ~/Documents/2000AD/2000AD\ 2348\ \(1977\).pdf test/testdata/creators/

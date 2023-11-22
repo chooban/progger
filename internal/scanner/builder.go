@@ -23,8 +23,8 @@ func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDe
 
 	for _, d := range details {
 		b := d.Bookmark
-		appEnv.Log.Debug().Msg(fmt.Sprintf("Extracting details from %+v", d))
-		appEnv.Log.Debug().Msg(fmt.Sprintf("Extracting details from %s", b.Title))
+		//log.Debug().Msg(fmt.Sprintf("Extracting details from %+v", d))
+		log.Debug().Msg(fmt.Sprintf("Extracting details from %s", b.Title))
 		part, series, title := extractDetailsFromPdfBookmark(b.Title)
 
 		if series == "" {
@@ -47,20 +47,24 @@ func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDe
 			}
 		}
 
-		log.Debug().Msg(fmt.Sprintf("Credits for %s: %s", title, d.Credits))
-		credits := extractCreatorsFromCredits(d.Credits)
+		if shouldIncludeEpisode(appEnv, series, title) {
+			rawCredits, _ := appEnv.Pdf.Credits(filename, d.Bookmark.PageFrom, d.Bookmark.PageThru)
+			credits := extractCreatorsFromCredits(rawCredits)
 
-		allEpisodes = append(allEpisodes, RawEpisode{
-			Title:     title,
-			Series:    series,
-			Part:      part,
-			FirstPage: b.PageFrom,
-			LastPage:  b.PageThru,
-			Script:    credits[Script],
-			Art:       credits[Art],
-			Colours:   credits[Colours],
-			Letters:   credits[Letters],
-		})
+			allEpisodes = append(allEpisodes, RawEpisode{
+				Title:     title,
+				Series:    series,
+				Part:      part,
+				FirstPage: b.PageFrom,
+				LastPage:  b.PageThru,
+				Script:    credits[Script],
+				Art:       credits[Art],
+				Colours:   credits[Colours],
+				Letters:   credits[Letters],
+			})
+		} else {
+			appEnv.Log.Debug().Msg(fmt.Sprintf("Skipping. Series: %s. Episode: %s", series, title))
+		}
 	}
 	issue := db.Issue{
 		Publication: db.Publication{Title: "2000 AD"},
@@ -174,16 +178,12 @@ func fromRawEpisodes(appEnv env.AppEnv, rawEpisodes []RawEpisode) []db.Episode {
 			Colours:  colourists,
 			Letters:  letterists,
 		}
-		if shouldIncludeEpisode(appEnv, ep) {
-			episodes = append(episodes, ep)
-		} else {
-			appEnv.Log.Debug().Msg(fmt.Sprintf("Skipping. Series: %s. Episode: %s", ep.Series.Title, ep.Title))
-		}
+		episodes = append(episodes, ep)
 	}
 	return episodes
 }
 
-func shouldIncludeEpisode(appEnv env.AppEnv, episode db.Episode) bool {
+func shouldIncludeEpisode(appEnv env.AppEnv, seriesTitle string, episodeTitle string) bool {
 	pagesToSkip := []string{
 		"Star scan",
 		"Normal Opti",
@@ -200,17 +200,18 @@ func shouldIncludeEpisode(appEnv env.AppEnv, episode db.Episode) bool {
 		"Insight profile",
 		"How to draw",
 		"Feature",
+		"Brimful of thrills",
 	}
 	log := appEnv.Log
 
 	for _, s := range appEnv.Skip.SeriesTitles {
-		if episode.Series.Title == s {
+		if seriesTitle == s {
 			log.Info().Msg(fmt.Sprintf("Skipping series %s", s))
 			return false
 		}
 	}
 	for _, s := range pagesToSkip {
-		for _, t := range []string{episode.Title, episode.Series.Title} {
+		for _, t := range []string{episodeTitle, seriesTitle} {
 			if stringutils.ContainsI(t, s) || levenshtein.DistanceForStrings([]rune(s), []rune(t), levenshtein.DefaultOptions) < 5 {
 				log.Debug().Msg(fmt.Sprintf("%s contains, or is close to, %s", t, s))
 				return false

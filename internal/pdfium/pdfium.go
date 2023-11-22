@@ -64,16 +64,8 @@ func (p *PdfiumReader) Bookmarks(filename string) ([]internal.EpisodeDetails, er
 	details := make([]internal.EpisodeDetails, len(bookmarks))
 
 	for i, v := range bookmarks {
-		if credits, err := p.Credits(filename, v.PageFrom, v.PageThru); err == nil {
-			details[i] = internal.EpisodeDetails{
-				Bookmark: v,
-				Credits:  credits,
-			}
-		} else {
-			p.Log.Warn().Msg(fmt.Sprintf("Failed to extract creators for %s", v.Title))
-			details[i] = internal.EpisodeDetails{
-				Bookmark: v,
-			}
+		details[i] = internal.EpisodeDetails{
+			Bookmark: v,
 		}
 	}
 	return details, nil
@@ -133,28 +125,34 @@ func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (cre
 	source, err := p.Instance.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
 		Path: &filename,
 	})
+
+	defer func() {
+		p.Instance.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: source.Document})
+	}()
+
 	if err != nil {
 		p.Log.Err(err).Msg("Could not open file")
 		return "", err
 	}
 	var creditTypes = []string{"script", "art", "colours", "letters"}
-	var pdfPage *responses.FPDF_LoadPage
 	var textPage *responses.FPDFText_LoadPage
 	var scriptRect *responses.FPDFText_GetRect
 
 	for pageIndex := startPage; pageIndex <= endPage; pageIndex++ {
-		if pdfPage, err = p.Instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
+		p.Log.Debug().Msg(fmt.Sprintf("Scanning page %d of %s", pageIndex, filename))
+		if pdfPage, err := p.Instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
 			Document: source.Document,
-			Index:    startPage - 1,
+			Index:    pageIndex - 1,
 		}); err != nil {
 			p.Log.Err(err).Msg(fmt.Sprintf("Failed to load page %d", pageIndex))
 			return "", errors.New("failed to load page")
-		}
-
-		textPage, scriptRect = p.findScriptRect(pdfPage.Page)
-		if scriptRect != nil {
-			p.Log.Debug().Msg("Didn't find script on the page")
-			break
+		} else {
+			if textPage, scriptRect = p.findScriptRect(pdfPage.Page); scriptRect != nil {
+				p.Instance.FPDF_ClosePage(&requests.FPDF_ClosePage{
+					Page: pdfPage.Page,
+				})
+				break
+			}
 		}
 	}
 	if scriptRect == nil {
@@ -176,7 +174,6 @@ func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (cre
 			Bottom:   bottom,
 			Top:      top,
 		})
-		p.Log.Debug().Msg(fmt.Sprintf("Credits text: %s", creditsText.Text))
 		if creditsText.Text != rawCredits {
 			rawCredits = creditsText.Text
 			bottom -= 20
