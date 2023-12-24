@@ -80,6 +80,15 @@ func ScanFile(appEnv env.AppEnv, fileName string) (db.Issue, error) {
 		return db.Issue{}, err
 	}
 
+	for i, _ := range episodeDetails {
+		details := episodeDetails[i]
+		credits, err := appEnv.Pdf.Credits(fileName, details.Bookmark.PageFrom, details.Bookmark.PageThru)
+		if err != nil {
+			continue
+		}
+		episodeDetails[i].Credits = credits
+	}
+
 	issue := buildIssue(appEnv, fileName, episodeDetails)
 
 	return issue, nil

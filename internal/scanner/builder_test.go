@@ -388,7 +388,7 @@ func TestShouldIncludeEpisode(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := shouldIncludeEpisode(appEnv, tc.input)
+			got := shouldIncludeEpisode(appEnv, tc.input.Series.Title, tc.input.Title)
 			if got != tc.shouldInclude {
 				t.Errorf("shouldIncludeEpisode(%v) = %v; want %v", tc.input.Series.Title+", "+tc.input.Title, got, tc.shouldInclude)
 			}

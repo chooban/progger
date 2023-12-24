@@ -23,7 +23,6 @@ func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDe
 
 	for _, d := range details {
 		b := d.Bookmark
-		//log.Debug().Msg(fmt.Sprintf("Extracting details from %+v", d))
 		log.Debug().Msg(fmt.Sprintf("Extracting details from %s", b.Title))
 		part, series, title := extractDetailsFromPdfBookmark(b.Title)
 
@@ -48,8 +47,9 @@ func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDe
 		}
 
 		if shouldIncludeEpisode(appEnv, series, title) {
-			rawCredits, _ := appEnv.Pdf.Credits(filename, d.Bookmark.PageFrom, d.Bookmark.PageThru)
-			credits := extractCreatorsFromCredits(rawCredits)
+			appEnv.Log.Debug().Msg(fmt.Sprintf("Extracting creators from %s", d.Credits))
+			credits := extractCreatorsFromCredits(d.Credits)
+			appEnv.Log.Debug().Msg(fmt.Sprintf("%+v", credits[Script]))
 
 			allEpisodes = append(allEpisodes, RawEpisode{
 				Title:     title,

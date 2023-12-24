@@ -8,4 +8,5 @@ type Bookmark struct {
 
 type EpisodeDetails struct {
 	Bookmark Bookmark
+	Credits  string
 }
