@@ -3,7 +3,6 @@ package scanner
 import (
 	"errors"
 	"fmt"
-	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
 	"github.com/chooban/progdl-go/internal/stringutils"
 	"io/fs"
@@ -15,26 +14,13 @@ import (
 	"sync"
 )
 
-// A RawEpisode represents information extracted from a PDF bookmark. It is not a database record
-type RawEpisode struct {
-	Series    string
-	Title     string
-	Part      int
-	FirstPage int
-	LastPage  int
-	Script    []string
-	Art       []string
-	Colours   []string
-	Letters   []string
-}
-
 // ScanDir scans the given directory for PDF files and extracts episode details from each file.
-// It returns a slice of RawEpisode structs containing the extracted details.
-func ScanDir(appEnv env.AppEnv, dir string, scanCount int) (issues []db.Issue) {
+// It returns a slice of Episode structs containing the extracted details.
+func ScanDir(appEnv env.AppEnv, dir string, scanCount int) (issues []Issue) {
 	files := getFiles(appEnv, dir)
 
 	jobs := make(chan string, 10)
-	results := make(chan db.Issue, len(files))
+	results := make(chan Issue, len(files))
 
 	var wg sync.WaitGroup
 
@@ -63,21 +49,21 @@ func ScanDir(appEnv env.AppEnv, dir string, scanCount int) (issues []db.Issue) {
 	return issues
 }
 
-func shouldIncludeIssue(issue db.Issue) bool {
+func shouldIncludeIssue(issue Issue) bool {
 	return issue.IssueNumber != 0
 }
 
 // ScanFile scans the given file in the specified directory and extracts episode details.
-// It returns a slice of RawEpisode structs containing the extracted details and an error if any occurred during the process.
-func ScanFile(appEnv env.AppEnv, fileName string) (db.Issue, error) {
+// It returns a slice of Episode structs containing the extracted details and an error if any occurred during the process.
+func ScanFile(appEnv env.AppEnv, fileName string) (Issue, error) {
 	if !strings.HasSuffix(fileName, "pdf") {
-		return db.Issue{}, errors.New("only pdf files supported")
+		return Issue{}, errors.New("only pdf files supported")
 	}
 
 	appEnv.Log.Debug().Msg(fmt.Sprintf("Scanning %s", fileName))
 	episodeDetails, err := appEnv.Pdf.Bookmarks(fileName)
 	if err != nil {
-		return db.Issue{}, err
+		return Issue{}, err
 	}
 
 	for i, _ := range episodeDetails {
@@ -121,7 +107,7 @@ func getFiles(appEnv env.AppEnv, dir string) (pdfFiles []fs.DirEntry) {
 	return
 }
 
-func scanWorker(appEnv env.AppEnv, wg *sync.WaitGroup, jobs <-chan string, results chan<- db.Issue) {
+func scanWorker(appEnv env.AppEnv, wg *sync.WaitGroup, jobs <-chan string, results chan<- Issue) {
 	for {
 		j, isChannelOpen := <-jobs
 		if !isChannelOpen {

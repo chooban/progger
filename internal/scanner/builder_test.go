@@ -396,62 +396,6 @@ func TestShouldIncludeEpisode(t *testing.T) {
 	}
 }
 
-func TestFromRawEpisodes(t *testing.T) {
-	testCases := []struct {
-		name             string
-		rawEpisodes      []RawEpisode
-		expectedEpisodes []db.Episode
-	}{
-		{
-			name: "Test Case 1",
-			rawEpisodes: []RawEpisode{
-				{
-					Series:    "Test Series",
-					Title:     "Test Title",
-					Part:      1,
-					FirstPage: 1,
-					LastPage:  10,
-				},
-			},
-			expectedEpisodes: []db.Episode{
-				{
-					Series: db.Series{Title: "Test Series"},
-					Title:  "Test Title",
-					Part:   1,
-				},
-			},
-		}, {
-			name: "Nerve Centre",
-			rawEpisodes: []RawEpisode{
-				{
-					Series:    "Nerve Centre",
-					Title:     "Nerve Centre",
-					Part:      1,
-					FirstPage: 1,
-					LastPage:  10,
-				},
-			},
-			expectedEpisodes: []db.Episode{},
-		},
-		// Add more test cases here
-	}
-
-	appEnv := createAppEnv()
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			issue := fromRawEpisodes(appEnv, tc.rawEpisodes)
-
-			for i, expectedExp := range tc.expectedEpisodes {
-				ep := issue[i]
-				assert.Equal(t, expectedExp.Series.Title, ep.Series.Title)
-				assert.Equal(t, expectedExp.Title, ep.Title)
-				assert.Equal(t, expectedExp.Part, ep.Part)
-			}
-		})
-	}
-}
-
 func discardingLogger() *zerolog.Logger {
 	writer := zerolog.ConsoleWriter{
 		Out:        io.Discard,
@@ -584,7 +528,7 @@ func TestBuildEpisodes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			issue := buildIssue(appEnv, "2000AD 123 (1977).pdf", tc.episodeDetails)
 			assert.Equal(t, 123, issue.IssueNumber)
-			assert.Equal(t, tc.expectedSeries, issue.Episodes[0].Series.Title)
+			assert.Equal(t, tc.expectedSeries, issue.Episodes[0].Series)
 			assert.Equal(t, tc.expectedTitle, issue.Episodes[0].Title)
 			assert.Equal(t, tc.expectedPart, issue.Episodes[0].Part)
 		})

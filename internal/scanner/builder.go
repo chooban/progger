@@ -1,10 +1,8 @@
 package scanner
 
 import (
-	"errors"
 	"fmt"
 	"github.com/chooban/progdl-go/internal"
-	"github.com/chooban/progdl-go/internal/db"
 	"github.com/chooban/progdl-go/internal/env"
 	"github.com/chooban/progdl-go/internal/stringutils"
 	"github.com/divan/num2words"
@@ -16,10 +14,10 @@ import (
 	"strings"
 )
 
-func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDetails) db.Issue {
+func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDetails) Issue {
 	log := appEnv.Log
 	issueNumber, _ := getProgNumber(filename)
-	allEpisodes := make([]RawEpisode, 0)
+	allEpisodes := make([]Episode, 0)
 
 	for _, d := range details {
 		b := d.Bookmark
@@ -51,27 +49,25 @@ func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDe
 			credits := extractCreatorsFromCredits(d.Credits)
 			appEnv.Log.Debug().Msg(fmt.Sprintf("%+v", credits[Script]))
 
-			allEpisodes = append(allEpisodes, RawEpisode{
+			allEpisodes = append(allEpisodes, Episode{
 				Title:     title,
 				Series:    series,
 				Part:      part,
 				FirstPage: b.PageFrom,
 				LastPage:  b.PageThru,
-				Script:    credits[Script],
-				Art:       credits[Art],
-				Colours:   credits[Colours],
-				Letters:   credits[Letters],
+				Credits:   credits,
 			})
 		} else {
 			appEnv.Log.Debug().Msg(fmt.Sprintf("Skipping. Series: %s. Episode: %s", series, title))
 		}
 	}
-	issue := db.Issue{
-		Publication: db.Publication{Title: "2000 AD"},
+	issue := Issue{
+		Publication: "2000 AD",
 		IssueNumber: issueNumber,
 		Filename:    filepath.Base(filename),
+		Episodes:    allEpisodes,
 	}
-	issue.Episodes = fromRawEpisodes(appEnv, allEpisodes)
+	//issue.Episodes = fromRawEpisodes(appEnv, allEpisodes)
 
 	return issue
 }
@@ -151,38 +147,6 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	return
 }
 
-func creators(names []string) (creators []*db.Creator) {
-	creators = make([]*db.Creator, len(names))
-	for i, v := range names {
-		creators[i] = &db.Creator{Name: v}
-	}
-	return
-}
-
-func fromRawEpisodes(appEnv env.AppEnv, rawEpisodes []RawEpisode) []db.Episode {
-	episodes := make([]db.Episode, 0, len(rawEpisodes))
-	for _, rawEpisode := range rawEpisodes {
-		writers := creators(rawEpisode.Script)
-		artists := creators(rawEpisode.Art)
-		colourists := creators(rawEpisode.Colours)
-		letterists := creators(rawEpisode.Letters)
-
-		ep := db.Episode{
-			Title:    rawEpisode.Title,
-			Part:     rawEpisode.Part,
-			Series:   db.Series{Title: rawEpisode.Series},
-			PageFrom: rawEpisode.FirstPage,
-			PageThru: rawEpisode.LastPage,
-			Script:   writers,
-			Art:      artists,
-			Colours:  colourists,
-			Letters:  letterists,
-		}
-		episodes = append(episodes, ep)
-	}
-	return episodes
-}
-
 func shouldIncludeEpisode(appEnv env.AppEnv, seriesTitle string, episodeTitle string) bool {
 	pagesToSkip := []string{
 		"Star scan",
@@ -237,48 +201,6 @@ func extractPartNumberFromString(toParse string) (part int) {
 	}
 	return
 }
-
-type Credits = map[Role][]string
-
-type Role int64
-
-func NewRole(s string) (Role, error) {
-	switch strings.ToLower(s) {
-	case "script":
-		return Script, nil
-	case "art":
-		return Art, nil
-	case "colours":
-		return Colours, nil
-	case "letters":
-		return Letters, nil
-	}
-	return Unknown, errors.New("role not found")
-}
-
-func (r Role) String() string {
-	switch r {
-	case Unknown:
-		return "unknown"
-	case Script:
-		return "script"
-	case Art:
-		return "art"
-	case Colours:
-		return "colours"
-	case Letters:
-		return "letters"
-	}
-	return ""
-}
-
-const (
-	Unknown Role = iota
-	Script
-	Art
-	Colours
-	Letters
-)
 
 func extractCreatorsFromCredits(toParse string) (credits Credits) {
 	credits = Credits{}

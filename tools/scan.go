@@ -44,3 +44,35 @@ func main() {
 		appEnv.Log.Info().Msg(fmt.Sprintf("Suggest renaming '%s' to '%s'", v.From, v.To))
 	}
 }
+
+func creators(names []string) (creators []*db.Creator) {
+	creators = make([]*db.Creator, len(names))
+	for i, v := range names {
+		creators[i] = &db.Creator{Name: v}
+	}
+	return
+}
+
+func fromRawEpisodes(appEnv env.AppEnv, rawEpisodes []scanner.Episode) []db.Episode {
+	episodes := make([]db.Episode, 0, len(rawEpisodes))
+	for _, rawEpisode := range rawEpisodes {
+		writers := creators(rawEpisode.Credits[scanner.Script])
+		artists := creators(rawEpisode.Credits[scanner.Art])
+		colourists := creators(rawEpisode.Credits[scanner.Colours])
+		letterists := creators(rawEpisode.Credits[scanner.Letters])
+
+		ep := db.Episode{
+			Title:    rawEpisode.Title,
+			Part:     rawEpisode.Part,
+			Series:   db.Series{Title: rawEpisode.Series},
+			PageFrom: rawEpisode.FirstPage,
+			PageThru: rawEpisode.LastPage,
+			Script:   writers,
+			Art:      artists,
+			Colours:  colourists,
+			Letters:  letterists,
+		}
+		episodes = append(episodes, ep)
+	}
+	return episodes
+}
