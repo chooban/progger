@@ -3,8 +3,7 @@ package pdfium
 import (
 	"errors"
 	"fmt"
-	"github.com/chooban/progdl-go/internal"
-	"github.com/chooban/progdl-go/internal/db"
+	"github.com/chooban/progger/scan/internal/pdf"
 	"github.com/klippa-app/go-pdfium"
 	"github.com/klippa-app/go-pdfium/references"
 	"github.com/klippa-app/go-pdfium/requests"
@@ -28,7 +27,7 @@ type PdfiumReader struct {
 	Instance pdfium.Pdfium
 }
 
-func (p *PdfiumReader) Bookmarks(filename string) ([]internal.EpisodeDetails, error) {
+func (p *PdfiumReader) Bookmarks(filename string) ([]pdf.EpisodeDetails, error) {
 	contents, err := os.ReadFile(filename)
 	doc, err := p.Instance.OpenDocument(&requests.OpenDocument{
 		File: &contents,
@@ -46,10 +45,10 @@ func (p *PdfiumReader) Bookmarks(filename string) ([]internal.EpisodeDetails, er
 		Document: doc.Document,
 	})
 	pageCount, err := p.Instance.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc.Document})
-	bookmarks := make([]internal.Bookmark, len(pdfiumBookmarks.Bookmarks))
+	bookmarks := make([]pdf.Bookmark, len(pdfiumBookmarks.Bookmarks))
 
 	for i, v := range pdfiumBookmarks.Bookmarks {
-		b := internal.Bookmark{
+		b := pdf.Bookmark{
 			Title:    v.Title,
 			PageFrom: v.DestInfo.PageIndex + 1, // It's zero indexed
 		}
@@ -61,65 +60,61 @@ func (p *PdfiumReader) Bookmarks(filename string) ([]internal.EpisodeDetails, er
 		}
 		bookmarks[i] = b
 	}
-	details := make([]internal.EpisodeDetails, len(bookmarks))
+	details := make([]pdf.EpisodeDetails, len(bookmarks))
 
 	for i, v := range bookmarks {
-		details[i] = internal.EpisodeDetails{
+		details[i] = pdf.EpisodeDetails{
 			Bookmark: v,
 		}
 	}
 	return details, nil
 }
 
-// Build will export a PDF of the provided series and optional
-// episodes.
-// The parameters of seriesTitle and episodeTitle should be used to
-// query the database via appEnv.Db to retrieve all applicable episodes,
-// ordered by issue number.
-func (p *PdfiumReader) Build(episodes []db.Episode) {
-
-	destination, err := p.Instance.FPDF_CreateNewDocument(&requests.FPDF_CreateNewDocument{})
-	if err != nil {
-		p.Log.Err(err).Msg("Could not create new document")
-	}
-
-	pageCount := 0
-	for _, v := range episodes {
-		filename := fmt.Sprintf("/Users/ross/Documents/2000AD/%s", v.Issue.Filename)
-		source, err := p.Instance.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
-			Path: &filename,
-		})
-		if err != nil {
-			p.Log.Err(err).Msg(fmt.Sprintf("Could not open PDF: %s", filename))
-			continue
-		}
-
-		pageRange := fmt.Sprintf("%d-%d", v.PageFrom, v.PageThru)
-		_, err = p.Instance.FPDF_ImportPages(&requests.FPDF_ImportPages{
-			Source:      source.Document,
-			Destination: destination.Document,
-			PageRange:   &pageRange,
-			Index:       pageCount,
-		})
-		if err != nil {
-			p.Log.Err(err).Msg("Could not import pages")
-			continue
-		}
-
-		pageCount = (v.PageThru - v.PageFrom) + 1
-	}
-
-	var output = "myfile.pdf"
-	if saveAsCopy, err := p.Instance.FPDF_SaveAsCopy(&requests.FPDF_SaveAsCopy{
-		Flags:    1,
-		Document: destination.Document,
-		FilePath: &output,
-	}); err != nil {
-		p.Log.Err(err).Msg("Could not save document")
-	} else {
-		p.Log.Info().Msg(fmt.Sprintf("File saved to %s", *saveAsCopy.FilePath))
-	}
-}
+// Build will export a PDF of the provided episodes.
+//func (p *PdfiumReader) Build(episodes []types.Episode) {
+//
+//	destination, err := p.Instance.FPDF_CreateNewDocument(&requests.FPDF_CreateNewDocument{})
+//	if err != nil {
+//		p.Log.Err(err).Msg("Could not create new document")
+//	}
+//
+//	pageCount := 0
+//	for _, v := range episodes {
+//		filename := fmt.Sprintf("/Users/ross/Documents/2000AD/%s", v.Issue.Filename)
+//		source, err := p.Instance.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
+//			Path: &filename,
+//		})
+//		if err != nil {
+//			p.Log.Err(err).Msg(fmt.Sprintf("Could not open PDF: %s", filename))
+//			continue
+//		}
+//
+//		pageRange := fmt.Sprintf("%d-%d", v.PageFrom, v.PageThru)
+//		_, err = p.Instance.FPDF_ImportPages(&requests.FPDF_ImportPages{
+//			Source:      source.Document,
+//			Destination: destination.Document,
+//			PageRange:   &pageRange,
+//			Index:       pageCount,
+//		})
+//		if err != nil {
+//			p.Log.Err(err).Msg("Could not import pages")
+//			continue
+//		}
+//
+//		pageCount = (v.PageThru - v.PageFrom) + 1
+//	}
+//
+//	var output = "myfile.pdf"
+//	if saveAsCopy, err := p.Instance.FPDF_SaveAsCopy(&requests.FPDF_SaveAsCopy{
+//		Flags:    1,
+//		Document: destination.Document,
+//		FilePath: &output,
+//	}); err != nil {
+//		p.Log.Err(err).Msg("Could not save document")
+//	} else {
+//		p.Log.Info().Msg(fmt.Sprintf("File saved to %s", *saveAsCopy.FilePath))
+//	}
+//}
 
 func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (credits string, err error) {
 	source, err := p.Instance.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
@@ -134,6 +129,8 @@ func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (cre
 		p.Log.Err(err).Msg("Could not open file")
 		return "", err
 	}
+
+	p.Log.Debug().Msg(fmt.Sprintf("Reading %s", filename))
 	var creditTypes = []string{"script", "art", "colours", "letters"}
 	var textPage *responses.FPDFText_LoadPage
 	var scriptRect *responses.FPDFText_GetRect

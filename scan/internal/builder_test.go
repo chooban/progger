@@ -1,9 +1,9 @@
-package scanner
+package internal
 
 import (
-	"github.com/chooban/progdl-go/internal"
-	"github.com/chooban/progdl-go/internal/db"
-	"github.com/chooban/progdl-go/internal/env"
+	"github.com/chooban/progger/scan/env"
+	"github.com/chooban/progger/scan/internal/pdf"
+	"github.com/chooban/progger/scan/types"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"io"
@@ -20,7 +20,6 @@ func createAppEnv() env.AppEnv {
 	logger := zerolog.New(writer)
 	appEnv := env.AppEnv{
 		Log: &logger,
-		Db:  nil,
 		Known: env.ToSkip{SeriesTitles: []string{
 			"Strontium Dog",
 			"Strontium Dug",
@@ -285,97 +284,91 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 func TestShouldIncludeEpisode(t *testing.T) {
 	testCases := []struct {
 		name          string
-		input         db.Episode
+		input         types.Episode
 		shouldInclude bool
 	}{
 		{
 			name:          "Cover",
-			input:         db.Episode{Title: "Cover"},
+			input:         types.Episode{Title: "Cover"},
 			shouldInclude: false,
 		},
 		{
 			name:          "Nerve Centre",
-			input:         db.Episode{Title: "Nerve Centre"},
+			input:         types.Episode{Title: "Nerve Centre"},
 			shouldInclude: false,
 		},
 		{
 			name:          "Nerve Center",
-			input:         db.Episode{Title: "Nerve Center"},
+			input:         types.Episode{Title: "Nerve Center"},
 			shouldInclude: false,
 		},
 		{
 			name:          "Input",
-			input:         db.Episode{Title: "Input"},
+			input:         types.Episode{Title: "Input"},
 			shouldInclude: false,
 		},
 		{
 			name:          "Art stars",
-			input:         db.Episode{Title: "2000AD Art stars winner"},
+			input:         types.Episode{Title: "2000AD Art stars winner"},
 			shouldInclude: false,
 		},
 		{
 			name: "Joko's Nerve Centre",
-			input: db.Episode{
-				Title: "",
-				Series: db.Series{
-					Title: "Joko-jargo's Nerve Centre",
-				},
+			input: types.Episode{
+				Title:  "",
+				Series: "Joko-jargo's Nerve Centre",
 			},
 			shouldInclude: false,
 		},
 		{
 			name: "Alan Grant Pin up",
-			input: db.Episode{
-				Title: "Alan Grant Pin up",
-				Series: db.Series{
-					Title: "Alan Grant Pin up",
-				},
+			input: types.Episode{
+				Title:  "Alan Grant Pin up",
+				Series: "Alan Grant Pin up",
 			},
 			shouldInclude: false,
 		},
 		{
 			name: "Dredd Pin up",
-			input: db.Episode{
-				Title: "Dredd Pin-up",
-				Series: db.Series{
-					Title: "Dredd Pin-up",
-				},
+			input: types.Episode{
+				Title:  "Dredd Pin-up",
+				Series: "Dredd Pin-up",
 			},
 			shouldInclude: false,
 		},
 		{
 			name:          "Regular Episode",
-			input:         db.Episode{Title: "Regular Episode"},
+			input:         types.Episode{Title: "Regular Episode"},
 			shouldInclude: true,
 		},
 		{
 			name:          "Cover in name",
-			input:         db.Episode{Title: "The Radyar Recovery"},
+			input:         types.Episode{Title: "The Radyar Recovery"},
 			shouldInclude: true,
 		},
 		{
 			name: "Skip tracer",
-			input: db.Episode{
+			input: types.Episode{
 				Title:  "Nimrod",
-				Series: db.Series{Title: "Skip Tracer"},
+				Series: "Skip Tracer",
 				Part:   4,
 			},
 			shouldInclude: true,
 		},
 		{
 			name: "Feature",
-			input: db.Episode{
+			input: types.Episode{
 				Title:  "Caballistics, Inc",
-				Series: db.Series{Title: "Feature"},
+				Series: "Feature",
 				Part:   1,
 			},
 			shouldInclude: false,
 		},
 		{
 			name: "Interrogation",
-			input: db.Episode{
+			input: types.Episode{
 				Title:  "Doug Church",
-				Series: db.Series{Title: "Interrogation"},
+				Series: "Interrogation",
 				Part:   1,
 			},
 		},
@@ -388,9 +381,9 @@ func TestShouldIncludeEpisode(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := shouldIncludeEpisode(appEnv, tc.input.Series.Title, tc.input.Title)
+			got := shouldIncludeEpisode(appEnv, tc.input.Series, tc.input.Title)
 			if got != tc.shouldInclude {
-				t.Errorf("shouldIncludeEpisode(%v) = %v; want %v", tc.input.Series.Title+", "+tc.input.Title, got, tc.shouldInclude)
+				t.Errorf("shouldIncludeEpisode(%v) = %v; want %v", tc.input.Series+", "+tc.input.Title, got, tc.shouldInclude)
 			}
 		})
 	}
@@ -409,16 +402,16 @@ func discardingLogger() *zerolog.Logger {
 func TestBuildEpisodes(t *testing.T) {
 	testCases := []struct {
 		name           string
-		episodeDetails []internal.EpisodeDetails
+		episodeDetails []pdf.EpisodeDetails
 		expectedSeries string
 		expectedTitle  string
 		expectedPart   int
 	}{
 		{
 			name: "Test Case 1",
-			episodeDetails: []internal.EpisodeDetails{
+			episodeDetails: []pdf.EpisodeDetails{
 				{
-					Bookmark: internal.Bookmark{
+					Bookmark: pdf.Bookmark{
 						Title:    "Test Series: Test Title - Part 1",
 						PageFrom: 1,
 						PageThru: 10,
@@ -432,9 +425,9 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "Renaming Deadworld",
-			episodeDetails: []internal.EpisodeDetails{
+			episodeDetails: []pdf.EpisodeDetails{
 				{
-					Bookmark: internal.Bookmark{
+					Bookmark: pdf.Bookmark{
 						Title:    "The Fall of Deadwood - Jessica",
 						PageFrom: 1,
 						PageThru: 10,
@@ -448,9 +441,9 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "Strontium Dog",
-			episodeDetails: []internal.EpisodeDetails{
+			episodeDetails: []pdf.EpisodeDetails{
 				{
-					Bookmark: internal.Bookmark{
+					Bookmark: pdf.Bookmark{
 						Title:    "Strontium Dog - Series Title",
 						PageFrom: 1,
 						PageThru: 10,
@@ -464,9 +457,9 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "Strontium Dug",
-			episodeDetails: []internal.EpisodeDetails{
+			episodeDetails: []pdf.EpisodeDetails{
 				{
-					Bookmark: internal.Bookmark{
+					Bookmark: pdf.Bookmark{
 						Title:    "Strontium Dug - Series Title",
 						PageFrom: 1,
 						PageThru: 10,
@@ -480,9 +473,9 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "ABC Warriors",
-			episodeDetails: []internal.EpisodeDetails{
+			episodeDetails: []pdf.EpisodeDetails{
 				{
-					Bookmark: internal.Bookmark{
+					Bookmark: pdf.Bookmark{
 						Title:    "Abc Warriors - Series Title",
 						PageFrom: 1,
 						PageThru: 10,
@@ -496,9 +489,9 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "The ABC Warriors",
-			episodeDetails: []internal.EpisodeDetails{
+			episodeDetails: []pdf.EpisodeDetails{
 				{
-					Bookmark: internal.Bookmark{
+					Bookmark: pdf.Bookmark{
 						Title:    "The Abc Warriors - Series Title",
 						PageFrom: 1,
 						PageThru: 10,
@@ -515,7 +508,7 @@ func TestBuildEpisodes(t *testing.T) {
 
 	appEnv := env.AppEnv{
 		Log: discardingLogger(),
-		Db:  nil,
+		//Db:  nil,
 		Known: env.ToSkip{SeriesTitles: []string{
 			"ABC Warriors",
 			"Strontium Dog",
@@ -526,7 +519,7 @@ func TestBuildEpisodes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			issue := buildIssue(appEnv, "2000AD 123 (1977).pdf", tc.episodeDetails)
+			issue := BuildIssue(appEnv, "2000AD 123 (1977).pdf", tc.episodeDetails)
 			assert.Equal(t, 123, issue.IssueNumber)
 			assert.Equal(t, tc.expectedSeries, issue.Episodes[0].Series)
 			assert.Equal(t, tc.expectedTitle, issue.Episodes[0].Title)
@@ -539,38 +532,38 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 	testCases := []struct {
 		name    string
 		credits string
-		Credits Credits
+		Credits types.Credits
 	}{
 		{
 			name:    "Single Creator",
 			credits: "Script John  Wagner",
-			Credits: Credits{
-				Script: []string{"John Wagner"},
+			Credits: types.Credits{
+				types.Script: []string{"John Wagner"},
 			},
 		},
 		{
 			name:    "Multiple writers",
 			credits: "Script John Wagner & Alan Grant",
-			Credits: Credits{
-				Script: []string{"John Wagner", "Alan Grant"},
+			Credits: types.Credits{
+				types.Script: []string{"John Wagner", "Alan Grant"},
 			},
 		},
 		{
 			name:    "Multiple Creators",
 			credits: "Script John Wagner Art Carlos Ezquerra",
-			Credits: Credits{
-				Script: []string{"John Wagner"},
-				Art:    []string{"Carlos Ezquerra"},
+			Credits: types.Credits{
+				types.Script: []string{"John Wagner"},
+				types.Art:    []string{"Carlos Ezquerra"},
 			},
 		},
 		{
 			name:    "Too many words",
 			credits: "PROTEUS VEX CRAWLSPACE PART ELEVEN SCRIPT MIKE CARROLL COLOURS JIM BOSWELL ART  JAKE LYNCH LETTERS  SIMON BOWLAND",
-			Credits: Credits{
-				Script:  []string{"Mike Carroll"},
-				Art:     []string{"Jake Lynch"},
-				Colours: []string{"Jim Boswell"},
-				Letters: []string{"Simon Bowland"},
+			Credits: types.Credits{
+				types.Script:  []string{"Mike Carroll"},
+				types.Art:     []string{"Jake Lynch"},
+				types.Colours: []string{"Jim Boswell"},
+				types.Letters: []string{"Simon Bowland"},
 			},
 		},
 		// Add more test cases as needed
@@ -578,7 +571,7 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := extractCreatorsFromCredits(tc.credits)
+			result := ExtractCreatorsFromCredits(tc.credits)
 			assert.Equal(t, tc.Credits, result)
 		})
 	}

@@ -2,7 +2,6 @@ package env
 
 import (
 	"github.com/rs/zerolog"
-	"gorm.io/gorm"
 	"os"
 	"time"
 )
@@ -12,7 +11,7 @@ type ToSkip struct {
 }
 
 type AppEnv struct {
-	Db  *gorm.DB
+	//Db    *gorm.DB
 	Log *zerolog.Logger
 	//Pdf   pdf.Reader
 	Skip  ToSkip
@@ -28,7 +27,7 @@ func NewAppEnv() AppEnv {
 	logger := zerolog.New(writer)
 
 	appEnv := AppEnv{
-		Db:  nil,
+		//Db:  nil,
 		Log: &logger,
 		//Pdf: nil,
 		Skip: ToSkip{

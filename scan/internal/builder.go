@@ -1,10 +1,12 @@
-package scanner
+package internal
 
 import (
+	"errors"
 	"fmt"
-	"github.com/chooban/progdl-go/internal"
-	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/stringutils"
+	"github.com/chooban/progger/scan/env"
+	"github.com/chooban/progger/scan/internal/pdf"
+	"github.com/chooban/progger/scan/internal/stringutils"
+	"github.com/chooban/progger/scan/types"
 	"github.com/divan/num2words"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
 	"path/filepath"
@@ -14,10 +16,21 @@ import (
 	"strings"
 )
 
-func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDetails) Issue {
+func getProgNumber(inFile string) (int, error) {
+	filename := filepath.Base(inFile)
+	regex := regexp.MustCompile(`(\b[^()])(?P<issue>\d{1,4})(\b[^()])`)
+
+	namedResults := stringutils.FindNamedMatches(regex, filename)
+	if len(namedResults) > 0 {
+		return strconv.Atoi(stringutils.TrimNonAlphaNumeric(namedResults["issue"]))
+	}
+	return 0, errors.New("no number found in filename")
+}
+
+func BuildIssue(appEnv env.AppEnv, filename string, details []pdf.EpisodeDetails) types.Issue {
 	log := appEnv.Log
 	issueNumber, _ := getProgNumber(filename)
-	allEpisodes := make([]Episode, 0)
+	allEpisodes := make([]types.Episode, 0)
 
 	for _, d := range details {
 		b := d.Bookmark
@@ -46,10 +59,10 @@ func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDe
 
 		if shouldIncludeEpisode(appEnv, series, title) {
 			appEnv.Log.Debug().Msg(fmt.Sprintf("Extracting creators from %s", d.Credits))
-			credits := extractCreatorsFromCredits(d.Credits)
-			appEnv.Log.Debug().Msg(fmt.Sprintf("%+v", credits[Script]))
+			credits := ExtractCreatorsFromCredits(d.Credits)
+			appEnv.Log.Debug().Msg(fmt.Sprintf("%+v", credits[types.Script]))
 
-			allEpisodes = append(allEpisodes, Episode{
+			allEpisodes = append(allEpisodes, types.Episode{
 				Title:     title,
 				Series:    series,
 				Part:      part,
@@ -61,7 +74,7 @@ func buildIssue(appEnv env.AppEnv, filename string, details []internal.EpisodeDe
 			appEnv.Log.Debug().Msg(fmt.Sprintf("Skipping. Series: %s. Episode: %s", series, title))
 		}
 	}
-	issue := Issue{
+	issue := types.Issue{
 		Publication: "2000 AD",
 		IssueNumber: issueNumber,
 		Filename:    filepath.Base(filename),
@@ -202,21 +215,21 @@ func extractPartNumberFromString(toParse string) (part int) {
 	return
 }
 
-func extractCreatorsFromCredits(toParse string) (credits Credits) {
-	credits = Credits{}
+func ExtractCreatorsFromCredits(toParse string) (credits types.Credits) {
+	credits = types.Credits{}
 
-	var currentRole = Unknown
+	var currentRole = types.Unknown
 	var tokens = strings.Split(toParse, " ")
 	currentCreatorString := make([]string, 0)
 	for _, t := range tokens {
 		if t == "" {
 			continue
 		}
-		r, err := NewRole(strings.ToLower(t))
-		if currentRole != Unknown && err != nil {
+		r, err := types.NewRole(strings.ToLower(t))
+		if currentRole != types.Unknown && err != nil {
 			currentCreatorString = append(currentCreatorString, strings.TrimSpace(t))
 		} else if r != currentRole && err == nil {
-			if currentRole == Unknown {
+			if currentRole == types.Unknown {
 				currentRole = r
 				continue
 			}

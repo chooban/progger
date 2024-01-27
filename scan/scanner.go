@@ -1,26 +1,25 @@
-package scanner
+package scan
 
 import (
 	"errors"
 	"fmt"
-	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/stringutils"
+	"github.com/chooban/progger/scan/env"
+	"github.com/chooban/progger/scan/internal"
+	"github.com/chooban/progger/scan/internal/pdfium"
+	"github.com/chooban/progger/scan/types"
 	"io/fs"
 	"os"
-	"path/filepath"
-	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 )
 
-// ScanDir scans the given directory for PDF files and extracts episode details from each file.
+// Dir scans the given directory for PDF files and extracts episode details from each file.
 // It returns a slice of Episode structs containing the extracted details.
-func ScanDir(appEnv env.AppEnv, dir string, scanCount int) (issues []Issue) {
+func Dir(appEnv env.AppEnv, dir string, scanCount int) (issues []types.Issue) {
 	files := getFiles(appEnv, dir)
 
 	jobs := make(chan string, 10)
-	results := make(chan Issue, len(files))
+	results := make(chan types.Issue, len(files))
 
 	var wg sync.WaitGroup
 
@@ -49,46 +48,47 @@ func ScanDir(appEnv env.AppEnv, dir string, scanCount int) (issues []Issue) {
 	return issues
 }
 
-func shouldIncludeIssue(issue Issue) bool {
-	return issue.IssueNumber != 0
-}
-
-// ScanFile scans the given file in the specified directory and extracts episode details.
+// File scans the given file in the specified directory and extracts episode details.
 // It returns a slice of Episode structs containing the extracted details and an error if any occurred during the process.
-func ScanFile(appEnv env.AppEnv, fileName string) (Issue, error) {
+func File(appEnv env.AppEnv, fileName string) (types.Issue, error) {
 	if !strings.HasSuffix(fileName, "pdf") {
-		return Issue{}, errors.New("only pdf files supported")
+		return types.Issue{}, errors.New("only pdf files supported")
 	}
 
 	appEnv.Log.Debug().Msg(fmt.Sprintf("Scanning %s", fileName))
-	episodeDetails, err := appEnv.Pdf.Bookmarks(fileName)
+	p := pdfium.NewPdfiumReader(appEnv.Log)
+	episodeDetails, err := p.Bookmarks(fileName)
 	if err != nil {
-		return Issue{}, err
+		return types.Issue{}, err
 	}
 
 	for i, _ := range episodeDetails {
 		details := episodeDetails[i]
-		credits, err := appEnv.Pdf.Credits(fileName, details.Bookmark.PageFrom, details.Bookmark.PageThru)
+		credits, err := p.Credits(fileName, details.Bookmark.PageFrom, details.Bookmark.PageThru)
 		if err != nil {
 			continue
 		}
 		episodeDetails[i].Credits = credits
 	}
 
-	issue := buildIssue(appEnv, fileName, episodeDetails)
+	issue := internal.BuildIssue(appEnv, fileName, episodeDetails)
 
 	return issue, nil
 }
 
-func getProgNumber(inFile string) (int, error) {
-	filename := filepath.Base(inFile)
-	regex := regexp.MustCompile(`(\b[^()])(?P<issue>\d{1,4})(\b[^()])`)
-
-	namedResults := stringutils.FindNamedMatches(regex, filename)
-	if len(namedResults) > 0 {
-		return strconv.Atoi(stringutils.TrimNonAlphaNumeric(namedResults["issue"]))
+func Credits(appEnv env.AppEnv, fileName string, startingPage int, endingPage int) (types.Credits, error) {
+	if !strings.HasSuffix(fileName, "pdf") {
+		return types.Credits{}, errors.New("only pdf files supported")
 	}
-	return 0, errors.New("no number found in filename")
+
+	p := pdfium.NewPdfiumReader(appEnv.Log)
+
+	credits, err := p.Credits(fileName, startingPage, endingPage)
+
+	if err != nil {
+		return types.Credits{}, err
+	}
+	return internal.ExtractCreatorsFromCredits(credits), nil
 }
 
 func getFiles(appEnv env.AppEnv, dir string) (pdfFiles []fs.DirEntry) {
@@ -107,13 +107,13 @@ func getFiles(appEnv env.AppEnv, dir string) (pdfFiles []fs.DirEntry) {
 	return
 }
 
-func scanWorker(appEnv env.AppEnv, wg *sync.WaitGroup, jobs <-chan string, results chan<- Issue) {
+func scanWorker(appEnv env.AppEnv, wg *sync.WaitGroup, jobs <-chan string, results chan<- types.Issue) {
 	for {
 		j, isChannelOpen := <-jobs
 		if !isChannelOpen {
 			break
 		}
-		issue, err := ScanFile(appEnv, j)
+		issue, err := File(appEnv, j)
 		if err != nil {
 			appEnv.Log.Error().Err(err).Msg(fmt.Sprintf("Failed to read file: %s", j))
 		}
@@ -121,4 +121,8 @@ func scanWorker(appEnv env.AppEnv, wg *sync.WaitGroup, jobs <-chan string, resul
 	}
 	appEnv.Log.Debug().Msg("Shutting down worker")
 	wg.Done()
+}
+
+func shouldIncludeIssue(issue types.Issue) bool {
+	return issue.IssueNumber != 0
 }

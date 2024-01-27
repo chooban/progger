@@ -1,4 +1,4 @@
-package scanner
+package internal
 
 type EpisodeWriter struct {
 	Title string

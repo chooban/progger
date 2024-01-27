@@ -6,9 +6,8 @@ package main
 import (
 	"fmt"
 	"github.com/akamensky/argparse"
-	"github.com/chooban/progdl-go/internal/db"
-	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/pdfium"
+	"github.com/chooban/progger/scan"
+	"github.com/chooban/progger/scan/env"
 	"github.com/rs/zerolog"
 	"os"
 )
@@ -25,13 +24,13 @@ func main() {
 	}
 
 	appEnv := env.NewAppEnv()
-	appEnv.Db = db.Init("progs.db")
-	appEnv.Pdf = pdfium.NewPdfiumReader(appEnv.Log)
 
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 
-	credits, err := appEnv.Pdf.Credits(*filename, *page, *page+5)
+	credits, err := scan.Credits(appEnv, *filename, *page, *page+5)
 
+	if err != nil {
+		appEnv.Log.Error().Err(err).Msg(fmt.Sprintf("Error extracting credits"))
+	}
 	appEnv.Log.Info().Msg(fmt.Sprintf("Got credits of '%s'", credits))
-
 }

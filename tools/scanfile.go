@@ -6,9 +6,8 @@ package main
 import (
 	"fmt"
 	"github.com/akamensky/argparse"
-	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/pdfium"
-	"github.com/chooban/progdl-go/internal/scanner"
+	"github.com/chooban/progger/scan"
+	"github.com/chooban/progger/scan/env"
 	"github.com/rs/zerolog"
 	"os"
 )
@@ -24,14 +23,13 @@ func main() {
 	}
 
 	appEnv := env.NewAppEnv()
-	//appEnv.Db = db.Init("progs.db")
-	appEnv.Pdf = pdfium.NewPdfiumReader(appEnv.Log)
 
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	issue, _ := scanner.ScanFile(appEnv, *f)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	issue, _ := scan.File(appEnv, *f)
 
 	for _, v := range issue.Episodes {
+		appEnv.Log.Info().Msg(fmt.Sprintf("Series: %s", v.Series))
 		appEnv.Log.Info().Msg(fmt.Sprintf("Title: %s", v.Title))
-		appEnv.Log.Info().Msg(fmt.Sprintf("Writers: %+v", v.Script))
+		appEnv.Log.Info().Msg(fmt.Sprintf("Writers: %+v", v.Credits))
 	}
 }

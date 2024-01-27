@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"github.com/akamensky/argparse"
 	"github.com/chooban/progdl-go/internal/db"
-	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/pdfium"
-	"github.com/chooban/progdl-go/internal/scanner"
+	"github.com/chooban/progger/scan/env"
+
+	//"github.com/chooban/progdl-go/internal/db"
+	//"github.com/chooban/progdl-go/internal/env"
+	"github.com/chooban/progger/scan"
 	"os"
 )
 
@@ -26,11 +28,11 @@ func main() {
 
 	appEnv := env.NewAppEnv()
 	appEnv.Db = db.Init("progs.db")
-	appEnv.Pdf = pdfium.NewPdfiumReader(appEnv.Log)
 
-	issues := scanner.ScanDir(appEnv, *d, *c)
+	issues := scan.Dir(appEnv, *d, *c)
 
-	db.SaveIssues(appEnv.Db, issues)
+	dbIssues := fromRawEpisodes(appEnv, issues)
+	db.SaveIssues(appEnv.Db, dbIssues)
 
 	suggestions := db.GetSeriesTitleRenameSuggestions(appEnv.Db, appEnv.Known.SeriesTitles)
 
