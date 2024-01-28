@@ -4,12 +4,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/akamensky/argparse"
-	"github.com/chooban/progdl-go/internal/db"
-	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/pdfium"
-	"github.com/chooban/progdl-go/internal/scanner"
+	"github.com/chooban/progger/db"
+	"github.com/chooban/progger/scan/types"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
+	"github.com/rs/zerolog"
+	"time"
+
+	"github.com/chooban/progger/scan"
 	"os"
 )
 
@@ -24,23 +29,70 @@ func main() {
 		fmt.Print(parser.Usage(err))
 	}
 
-	appEnv := env.NewAppEnv()
-	appEnv.Db = db.Init("progs.db")
-	appEnv.Pdf = pdfium.NewPdfiumReader(appEnv.Log)
+	writer := zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.RFC3339,
+	}
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	logger := zerolog.New(writer)
+	logger = logger.With().Caller().Timestamp().Logger()
+	var log = zerologr.New(&logger)
 
-	issues := scanner.ScanDir(appEnv, *d, *c)
+	//appEnv := env.NewAppEnv()
+	var myDb = db.Init("progs.db")
 
-	db.SaveIssues(appEnv.Db, issues)
+	ctx := logr.NewContext(context.Background(), log)
 
-	suggestions := db.GetSeriesTitleRenameSuggestions(appEnv.Db, appEnv.Known.SeriesTitles)
+	scan.Dir(ctx, *d, *c)
+
+	//dbIssues := fromRawEpisodes(appEnv, issues[0].Episodes)
+	//db.SaveIssues(myDb, issues)
+	knownTitles := []string{
+		"Anderson, Psi-Division",
+		"Strontium Dug",
+	}
+
+	suggestions := db.GetSeriesTitleRenameSuggestions(myDb, knownTitles)
 
 	for _, s := range suggestions {
-		db.ApplySuggestion(appEnv.Db, s)
+		db.ApplySuggestion(myDb, s)
 	}
 
-	suggestions = db.GetEpisodeTitleRenameSuggestions(appEnv.Db, appEnv.Known.SeriesTitles)
+	suggestions = db.GetEpisodeTitleRenameSuggestions(myDb, knownTitles)
 
 	for _, v := range suggestions {
-		appEnv.Log.Info().Msg(fmt.Sprintf("Suggest renaming '%s' to '%s'", v.From, v.To))
+		log.Info(fmt.Sprintf("Suggest renaming '%s' to '%s'", v.From, v.To))
 	}
+}
+
+func creators(names []string) (creators []*db.Creator) {
+	creators = make([]*db.Creator, len(names))
+	for i, v := range names {
+		creators[i] = &db.Creator{Name: v}
+	}
+	return
+}
+
+func fromRawEpisodes(rawEpisodes []types.Episode) []db.Episode {
+	episodes := make([]db.Episode, 0, len(rawEpisodes))
+	for _, rawEpisode := range rawEpisodes {
+		writers := creators(rawEpisode.Credits[types.Script])
+		artists := creators(rawEpisode.Credits[types.Art])
+		colourists := creators(rawEpisode.Credits[types.Colours])
+		letterists := creators(rawEpisode.Credits[types.Letters])
+
+		ep := db.Episode{
+			Title:    rawEpisode.Title,
+			Part:     rawEpisode.Part,
+			Series:   db.Series{Title: rawEpisode.Series},
+			PageFrom: rawEpisode.FirstPage,
+			PageThru: rawEpisode.LastPage,
+			Script:   writers,
+			Art:      artists,
+			Colours:  colourists,
+			Letters:  letterists,
+		}
+		episodes = append(episodes, ep)
+	}
+	return episodes
 }

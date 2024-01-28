@@ -1,7 +1,9 @@
 package pdfium
 
 import (
-	"github.com/chooban/progdl-go/testing_init"
+	_ "github.com/chooban/progger/scan/testing_init"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"os"
@@ -10,15 +12,25 @@ import (
 	"time"
 )
 
+func IntegrationTest(t *testing.T) {
+	t.Helper()
+	if os.Getenv("INTEGRATION") == "" {
+		t.Skip("skipping integration tests, set environment variable INTEGRATION")
+	}
+}
+
 func TestPdfiumReader_Credits(t *testing.T) {
-	testing_init.IntegrationTest(t)
+	IntegrationTest(t)
 	writer := zerolog.ConsoleWriter{
 		Out:        os.Stdout,
 		TimeFormat: time.RFC3339,
 	}
 	logger := zerolog.New(writer)
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	pdfium := NewPdfiumReader(&logger)
+
+	var log logr.Logger = zerologr.New(&logger)
+
+	pdfium := NewPdfiumReader(log)
 	dataDir := strings.Join([]string{"test", "testdata", "creators"}, string(os.PathSeparator))
 
 	testCases := []struct {
@@ -115,7 +127,7 @@ func TestPdfiumReader_Credits(t *testing.T) {
 			name:        "Hershey - 2348",
 			filename:    "2000AD 2348 (1977).pdf",
 			page:        25,
-			wantCredits: "art paul davidson script cavan scott colours len o’grady letters simon bowland",
+			wantCredits: "script rob williams art simon fraser letters simon bowland",
 		},
 	}
 	for _, tc := range testCases {

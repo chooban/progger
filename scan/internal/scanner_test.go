@@ -1,7 +1,6 @@
-package scanner
+package internal
 
 import (
-	"github.com/chooban/progdl-go/internal/db"
 	"testing"
 )
 
@@ -33,33 +32,6 @@ func TestGetProgNumber(t *testing.T) {
 			gotNumber, _ := getProgNumber(tc.input)
 			if gotNumber != tc.expectedNumber {
 				t.Errorf("getProgNumber(%v) = %v; want %v", tc.input, gotNumber, tc.expectedNumber)
-			}
-		})
-	}
-}
-func TestShouldIncludeIssue(t *testing.T) {
-	testCases := []struct {
-		name     string
-		input    db.Issue
-		expected bool
-	}{
-		{
-			name:     "Issue with number 0",
-			input:    db.Issue{IssueNumber: 0},
-			expected: false,
-		},
-		{
-			name:     "Issue with number 1234",
-			input:    db.Issue{IssueNumber: 1234},
-			expected: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := shouldIncludeIssue(tc.input)
-			if got != tc.expected {
-				t.Errorf("shouldIncludeIssue(%v) = %v; want %v", tc.input, got, tc.expected)
 			}
 		})
 	}

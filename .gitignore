@@ -3,4 +3,4 @@
 ignore/
 myfile.pdf
 .DS_Store
-test/testdata/**/*.pdf
+scan/test/testdata/**/*.pdf

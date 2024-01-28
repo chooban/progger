@@ -4,13 +4,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/akamensky/argparse"
-	"github.com/chooban/progdl-go/internal/db"
-	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/pdfium"
+	"github.com/chooban/progger/scan"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
 	"os"
+	"time"
 )
 
 func main() {
@@ -23,15 +25,22 @@ func main() {
 		fmt.Print(parser.Usage(err))
 		os.Exit(1)
 	}
-
-	appEnv := env.NewAppEnv()
-	appEnv.Db = db.Init("progs.db")
-	appEnv.Pdf = pdfium.NewPdfiumReader(appEnv.Log)
-
+	writer := zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.RFC3339,
+	}
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	logger := zerolog.New(writer)
+	logger = logger.With().Caller().Timestamp().Logger()
+	var log = zerologr.New(&logger)
 
-	credits, err := appEnv.Pdf.Credits(*filename, *page, *page+5)
+	ctx := context.Background()
+	ctx = logr.NewContext(ctx, log)
 
-	appEnv.Log.Info().Msg(fmt.Sprintf("Got credits of '%s'", credits))
+	credits, err := scan.ReadCredits(ctx, *filename, *page, *page+5)
 
+	if err != nil {
+		log.Error(err, fmt.Sprintf("Error extracting credits"))
+	}
+	log.Info(fmt.Sprintf("Got credits of '%s'", credits))
 }

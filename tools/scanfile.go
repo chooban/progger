@@ -4,13 +4,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/akamensky/argparse"
-	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/pdfium"
-	"github.com/chooban/progdl-go/internal/scanner"
+	"github.com/chooban/progger/scan"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
 	"os"
+	"time"
 )
 
 func main() {
@@ -23,15 +25,21 @@ func main() {
 		fmt.Print(parser.Usage(err))
 	}
 
-	appEnv := env.NewAppEnv()
-	//appEnv.Db = db.Init("progs.db")
-	appEnv.Pdf = pdfium.NewPdfiumReader(appEnv.Log)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	issue, _ := scanner.ScanFile(appEnv, *f)
+	writer := zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.RFC3339,
+	}
+	logger := zerolog.New(writer)
+	var log = zerologr.New(&logger)
+
+	ctx := logr.NewContext(context.Background(), log)
+	issue, _ := scan.File(ctx, *f)
 
 	for _, v := range issue.Episodes {
-		appEnv.Log.Info().Msg(fmt.Sprintf("Title: %s", v.Title))
-		appEnv.Log.Info().Msg(fmt.Sprintf("Writers: %+v", v.Script))
+		log.Info(fmt.Sprintf("Series: %s", v.Series))
+		log.Info(fmt.Sprintf("Title: %s", v.Title))
+		log.Info(fmt.Sprintf("Writers: %+v", v.Credits))
 	}
 }
