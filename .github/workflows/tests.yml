@@ -26,10 +26,8 @@ jobs:
             sudo curl -L https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F${{ env.PDFIUM_VERSION }}/pdfium-linux-x64.tgz -o pdfium-linux-x64.tgz && sudo mkdir /opt/pdfium && sudo tar -C /opt/pdfium -xvf pdfium-linux-x64.tgz
             sudo rm pdfium-linux-x64.tgz
             sudo cp ./.github/workflows/pdfium.pc /usr/lib/pkgconfig/pdfium.pc
-      - name: DB Tests
-        run: go test -v -coverprofile=coverage.txt -covermode=atomic ./db/./...
-      - name: Scan Tests
-        run: go test -v -coverprofile=coverage.txt -covermode=atomic ./scan/./...
+      - name: Tests
+        run: go test -v -coverprofile=coverage.txt -covermode=atomic ./db/./... ./scan/./...
       - uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
