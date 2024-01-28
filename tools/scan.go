@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/akamensky/argparse"
-	"github.com/chooban/progger/internal/db"
+	"github.com/chooban/progger/db"
 	"github.com/chooban/progger/scan/types"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"

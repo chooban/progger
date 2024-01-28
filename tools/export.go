@@ -6,7 +6,7 @@ package main
 import (
 	"fmt"
 	"github.com/akamensky/argparse"
-	"github.com/chooban/progger/internal/db"
+	"github.com/chooban/progger/db"
 	"os"
 )
 
