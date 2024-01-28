@@ -3,11 +3,11 @@ package internal
 import (
 	"errors"
 	"fmt"
-	"github.com/chooban/progger/scan/env"
 	"github.com/chooban/progger/scan/internal/pdf"
 	"github.com/chooban/progger/scan/internal/stringutils"
 	"github.com/chooban/progger/scan/types"
 	"github.com/divan/num2words"
+	"github.com/go-logr/logr"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
 	"path/filepath"
 	"regexp"
@@ -27,22 +27,21 @@ func getProgNumber(inFile string) (int, error) {
 	return 0, errors.New("no number found in filename")
 }
 
-func BuildIssue(appEnv env.AppEnv, filename string, details []pdf.EpisodeDetails) types.Issue {
-	log := appEnv.Log
+func BuildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, knownTitles []string, skipTitles []string) types.Issue {
 	issueNumber, _ := getProgNumber(filename)
 	allEpisodes := make([]types.Episode, 0)
 
 	for _, d := range details {
 		b := d.Bookmark
-		log.Debug().Msg(fmt.Sprintf("Extracting details from %s", b.Title))
+		log.Info(fmt.Sprintf("Extracting details from %s", b.Title))
 		part, series, title := extractDetailsFromPdfBookmark(b.Title)
 
 		if series == "" {
-			log.Debug().Msg(fmt.Sprintf("Odd title: %s", b.Title))
+			log.Info(fmt.Sprintf("Odd title: %s", b.Title))
 			continue
 		}
 		// Check to see if the series is close to any of the blessed titles
-		for _, v := range appEnv.Known.SeriesTitles {
+		for _, v := range knownTitles {
 			if series == v {
 				break
 			}
@@ -51,16 +50,16 @@ func BuildIssue(appEnv env.AppEnv, filename string, details []pdf.EpisodeDetails
 				[]rune(strings.ToLower(series)),
 				levenshtein.DefaultOptions,
 			)
-			log.Debug().Msg(fmt.Sprintf("Distance between '%s' and '%s' is %d", v, series, distance))
+			log.Info(fmt.Sprintf("Distance between '%s' and '%s' is %d", v, series, distance))
 			if distance < 5 {
 				series = v
 			}
 		}
 
-		if shouldIncludeEpisode(appEnv, series, title) {
-			appEnv.Log.Debug().Msg(fmt.Sprintf("Extracting creators from %s", d.Credits))
+		if shouldIncludeEpisode(log, skipTitles, series, title) {
+			log.Info(fmt.Sprintf("Extracting creators from %s", d.Credits))
 			credits := ExtractCreatorsFromCredits(d.Credits)
-			appEnv.Log.Debug().Msg(fmt.Sprintf("%+v", credits[types.Script]))
+			log.Info(fmt.Sprintf("%+v", credits[types.Script]))
 
 			allEpisodes = append(allEpisodes, types.Episode{
 				Title:     title,
@@ -71,7 +70,7 @@ func BuildIssue(appEnv env.AppEnv, filename string, details []pdf.EpisodeDetails
 				Credits:   credits,
 			})
 		} else {
-			appEnv.Log.Debug().Msg(fmt.Sprintf("Skipping. Series: %s. Episode: %s", series, title))
+			log.Info(fmt.Sprintf("Skipping. Series: %s. Episode: %s", series, title))
 		}
 	}
 	issue := types.Issue{
@@ -80,7 +79,6 @@ func BuildIssue(appEnv env.AppEnv, filename string, details []pdf.EpisodeDetails
 		Filename:    filepath.Base(filename),
 		Episodes:    allEpisodes,
 	}
-	//issue.Episodes = fromRawEpisodes(appEnv, allEpisodes)
 
 	return issue
 }
@@ -160,7 +158,7 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	return
 }
 
-func shouldIncludeEpisode(appEnv env.AppEnv, seriesTitle string, episodeTitle string) bool {
+func shouldIncludeEpisode(logger logr.Logger, seriesToSkip []string, seriesTitle string, episodeTitle string) bool {
 	pagesToSkip := []string{
 		"Star scan",
 		"Normal Opti",
@@ -179,18 +177,17 @@ func shouldIncludeEpisode(appEnv env.AppEnv, seriesTitle string, episodeTitle st
 		"Feature",
 		"Brimful of thrills",
 	}
-	log := appEnv.Log
 
-	for _, s := range appEnv.Skip.SeriesTitles {
+	for _, s := range seriesToSkip {
 		if seriesTitle == s {
-			log.Info().Msg(fmt.Sprintf("Skipping series %s", s))
+			logger.Info(fmt.Sprintf("Skipping series %s", s))
 			return false
 		}
 	}
 	for _, s := range pagesToSkip {
 		for _, t := range []string{episodeTitle, seriesTitle} {
 			if stringutils.ContainsI(t, s) || levenshtein.DistanceForStrings([]rune(s), []rune(t), levenshtein.DefaultOptions) < 5 {
-				log.Debug().Msg(fmt.Sprintf("%s contains, or is close to, %s", t, s))
+				logger.Info(fmt.Sprintf("%s contains, or is close to, %s", t, s))
 				return false
 			}
 		}

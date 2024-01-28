@@ -4,13 +4,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/akamensky/argparse"
-	"github.com/chooban/progdl-go/internal/db"
-	"github.com/chooban/progger/scan/env"
+	"github.com/chooban/progger/internal/db"
+	"github.com/chooban/progger/scan/types"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
+	"github.com/rs/zerolog"
+	"time"
 
-	//"github.com/chooban/progdl-go/internal/db"
-	//"github.com/chooban/progdl-go/internal/env"
 	"github.com/chooban/progger/scan"
 	"os"
 )
@@ -26,24 +29,39 @@ func main() {
 		fmt.Print(parser.Usage(err))
 	}
 
-	appEnv := env.NewAppEnv()
-	appEnv.Db = db.Init("progs.db")
+	writer := zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.RFC3339,
+	}
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	logger := zerolog.New(writer)
+	logger = logger.With().Caller().Timestamp().Logger()
+	var log = zerologr.New(&logger)
 
-	issues := scan.Dir(appEnv, *d, *c)
+	//appEnv := env.NewAppEnv()
+	var myDb = db.Init("progs.db")
 
-	dbIssues := fromRawEpisodes(appEnv, issues)
-	db.SaveIssues(appEnv.Db, dbIssues)
+	ctx := logr.NewContext(context.Background(), log)
 
-	suggestions := db.GetSeriesTitleRenameSuggestions(appEnv.Db, appEnv.Known.SeriesTitles)
+	scan.Dir(ctx, *d, *c)
 
-	for _, s := range suggestions {
-		db.ApplySuggestion(appEnv.Db, s)
+	//dbIssues := fromRawEpisodes(appEnv, issues[0].Episodes)
+	//db.SaveIssues(myDb, issues)
+	knownTitles := []string{
+		"Anderson, Psi-Division",
+		"Strontium Dug",
 	}
 
-	suggestions = db.GetEpisodeTitleRenameSuggestions(appEnv.Db, appEnv.Known.SeriesTitles)
+	suggestions := db.GetSeriesTitleRenameSuggestions(myDb, knownTitles)
+
+	for _, s := range suggestions {
+		db.ApplySuggestion(myDb, s)
+	}
+
+	suggestions = db.GetEpisodeTitleRenameSuggestions(myDb, knownTitles)
 
 	for _, v := range suggestions {
-		appEnv.Log.Info().Msg(fmt.Sprintf("Suggest renaming '%s' to '%s'", v.From, v.To))
+		log.Info(fmt.Sprintf("Suggest renaming '%s' to '%s'", v.From, v.To))
 	}
 }
 
@@ -55,13 +73,13 @@ func creators(names []string) (creators []*db.Creator) {
 	return
 }
 
-func fromRawEpisodes(appEnv env.AppEnv, rawEpisodes []scanner.Episode) []db.Episode {
+func fromRawEpisodes(rawEpisodes []types.Episode) []db.Episode {
 	episodes := make([]db.Episode, 0, len(rawEpisodes))
 	for _, rawEpisode := range rawEpisodes {
-		writers := creators(rawEpisode.Credits[scanner.Script])
-		artists := creators(rawEpisode.Credits[scanner.Art])
-		colourists := creators(rawEpisode.Credits[scanner.Colours])
-		letterists := creators(rawEpisode.Credits[scanner.Letters])
+		writers := creators(rawEpisode.Credits[types.Script])
+		artists := creators(rawEpisode.Credits[types.Art])
+		colourists := creators(rawEpisode.Credits[types.Colours])
+		letterists := creators(rawEpisode.Credits[types.Letters])
 
 		ep := db.Episode{
 			Title:    rawEpisode.Title,

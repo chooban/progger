@@ -1,33 +1,15 @@
 package internal
 
 import (
-	"github.com/chooban/progger/scan/env"
 	"github.com/chooban/progger/scan/internal/pdf"
 	"github.com/chooban/progger/scan/types"
+	"github.com/go-logr/logr"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"io"
-	"os"
 	"testing"
 	"time"
 )
-
-func createAppEnv() env.AppEnv {
-	writer := zerolog.ConsoleWriter{
-		Out:        os.Stdout,
-		TimeFormat: time.RFC3339,
-	}
-	logger := zerolog.New(writer)
-	appEnv := env.AppEnv{
-		Log: &logger,
-		Known: env.ToSkip{SeriesTitles: []string{
-			"Strontium Dog",
-			"Strontium Dug",
-			"The Fall of Deadworld",
-		}},
-	}
-	return appEnv
-}
 
 func TestExtractDetailsFromTitle(t *testing.T) {
 	testCases := []struct {
@@ -374,14 +356,11 @@ func TestShouldIncludeEpisode(t *testing.T) {
 		},
 	}
 
-	appEnv := createAppEnv()
-	appEnv.Skip = env.ToSkip{
-		SeriesTitles: []string{"Interrogation"},
-	}
+	var skipTitles = []string{"Interrogation"}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := shouldIncludeEpisode(appEnv, tc.input.Series, tc.input.Title)
+			got := shouldIncludeEpisode(logr.Discard(), skipTitles, tc.input.Series, tc.input.Title)
 			if got != tc.shouldInclude {
 				t.Errorf("shouldIncludeEpisode(%v) = %v; want %v", tc.input.Series+", "+tc.input.Title, got, tc.shouldInclude)
 			}
@@ -503,23 +482,18 @@ func TestBuildEpisodes(t *testing.T) {
 			expectedSeries: "ABC Warriors",
 			expectedTitle:  "Series Title",
 		},
-		// Add more test cases here
 	}
 
-	appEnv := env.AppEnv{
-		Log: discardingLogger(),
-		//Db:  nil,
-		Known: env.ToSkip{SeriesTitles: []string{
-			"ABC Warriors",
-			"Strontium Dog",
-			"Strontium Dug",
-			"The Fall of Deadworld",
-		}},
+	var knownTitles = []string{
+		"ABC Warriors",
+		"Strontium Dog",
+		"Strontium Dug",
+		"The Fall of Deadworld",
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			issue := BuildIssue(appEnv, "2000AD 123 (1977).pdf", tc.episodeDetails)
+			issue := BuildIssue(logr.Discard(), "2000AD 123 (1977).pdf", tc.episodeDetails, knownTitles, []string{})
 			assert.Equal(t, 123, issue.IssueNumber)
 			assert.Equal(t, tc.expectedSeries, issue.Episodes[0].Series)
 			assert.Equal(t, tc.expectedTitle, issue.Episodes[0].Title)

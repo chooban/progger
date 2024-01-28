@@ -4,26 +4,26 @@ import (
 	"errors"
 	"fmt"
 	"github.com/chooban/progger/scan/internal/pdf"
+	"github.com/go-logr/logr"
 	"github.com/klippa-app/go-pdfium"
 	"github.com/klippa-app/go-pdfium/references"
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/klippa-app/go-pdfium/responses"
-	"github.com/rs/zerolog"
 	"math"
 	"os"
 	"slices"
 	"strings"
 )
 
-func NewPdfiumReader(log *zerolog.Logger) *PdfiumReader {
+func NewPdfiumReader(log logr.Logger) *PdfiumReader {
 	return &PdfiumReader{
-		Log:      log,
+		Log:      log.V(1),
 		Instance: Instance,
 	}
 }
 
 type PdfiumReader struct {
-	Log      *zerolog.Logger
+	Log      logr.Logger
 	Instance pdfium.Pdfium
 }
 
@@ -33,7 +33,7 @@ func (p *PdfiumReader) Bookmarks(filename string) ([]pdf.EpisodeDetails, error) 
 		File: &contents,
 	})
 	if err != nil {
-		p.Log.Err(err).Msg("Could not open file with pdfium")
+		p.Log.Error(err, "Could not open file with pdfium")
 		return nil, errors.New("failed to read bookmarks")
 	}
 
@@ -126,22 +126,22 @@ func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (cre
 	}()
 
 	if err != nil {
-		p.Log.Err(err).Msg("Could not open file")
+		p.Log.Error(err, "Could not open file")
 		return "", err
 	}
 
-	p.Log.Debug().Msg(fmt.Sprintf("Reading %s", filename))
+	p.Log.Info(fmt.Sprintf("Reading %s", filename))
 	var creditTypes = []string{"script", "art", "colours", "letters"}
 	var textPage *responses.FPDFText_LoadPage
 	var scriptRect *responses.FPDFText_GetRect
 
 	for pageIndex := startPage; pageIndex <= endPage; pageIndex++ {
-		p.Log.Debug().Msg(fmt.Sprintf("Scanning page %d of %s", pageIndex, filename))
+		p.Log.Info(fmt.Sprintf("Scanning page %d of %s", pageIndex, filename))
 		if pdfPage, err := p.Instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
 			Document: source.Document,
 			Index:    pageIndex - 1,
 		}); err != nil {
-			p.Log.Err(err).Msg(fmt.Sprintf("Failed to load page %d", pageIndex))
+			p.Log.Error(err, fmt.Sprintf("Failed to load page %d", pageIndex))
 			return "", errors.New("failed to load page")
 		} else {
 			if textPage, scriptRect = p.findScriptRect(pdfPage.Page); scriptRect != nil {
@@ -225,7 +225,7 @@ func (p *PdfiumReader) findScriptRect(pageRef references.FPDF_PAGE) (*responses.
 			Bottom:   rect.Bottom,
 		})
 		if strings.ToLower(text.Text) == "script" {
-			p.Log.Debug().Msg(fmt.Sprintf("Found script at %+v", rect))
+			p.Log.Info(fmt.Sprintf("Found script at %+v", rect))
 			scriptRect = rect
 		}
 	}

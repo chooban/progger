@@ -2,8 +2,6 @@ package env
 
 import (
 	"github.com/rs/zerolog"
-	"os"
-	"time"
 )
 
 type ToSkip struct {
@@ -19,17 +17,7 @@ type AppEnv struct {
 }
 
 func NewAppEnv() AppEnv {
-	writer := zerolog.ConsoleWriter{
-		Out:        os.Stdout,
-		TimeFormat: time.RFC3339,
-	}
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	logger := zerolog.New(writer)
-
 	appEnv := AppEnv{
-		//Db:  nil,
-		Log: &logger,
-		//Pdf: nil,
 		Skip: ToSkip{
 			SeriesTitles: []string{
 				"Interrogation",

@@ -4,12 +4,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/akamensky/argparse"
 	"github.com/chooban/progger/scan"
-	"github.com/chooban/progger/scan/env"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
 	"os"
+	"time"
 )
 
 func main() {
@@ -22,14 +25,21 @@ func main() {
 		fmt.Print(parser.Usage(err))
 	}
 
-	appEnv := env.NewAppEnv()
-
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	issue, _ := scan.File(appEnv, *f)
+
+	writer := zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.RFC3339,
+	}
+	logger := zerolog.New(writer)
+	var log = zerologr.New(&logger)
+
+	ctx := logr.NewContext(context.Background(), log)
+	issue, _ := scan.File(ctx, *f)
 
 	for _, v := range issue.Episodes {
-		appEnv.Log.Info().Msg(fmt.Sprintf("Series: %s", v.Series))
-		appEnv.Log.Info().Msg(fmt.Sprintf("Title: %s", v.Title))
-		appEnv.Log.Info().Msg(fmt.Sprintf("Writers: %+v", v.Credits))
+		log.Info(fmt.Sprintf("Series: %s", v.Series))
+		log.Info(fmt.Sprintf("Title: %s", v.Title))
+		log.Info(fmt.Sprintf("Writers: %+v", v.Credits))
 	}
 }

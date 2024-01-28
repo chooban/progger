@@ -6,9 +6,8 @@ package main
 import (
 	"fmt"
 	"github.com/akamensky/argparse"
-	"github.com/chooban/progdl-go/internal/db"
-	"github.com/chooban/progdl-go/internal/env"
-	"github.com/chooban/progdl-go/internal/pdfium"
+	"github.com/chooban/progger/internal/db"
+	"github.com/chooban/progger/internal/env"
 	"os"
 )
 
@@ -25,7 +24,7 @@ func main() {
 
 	appEnv := env.NewAppEnv()
 	appEnv.Db = db.Init("progs.db")
-	appEnv.Pdf = pdfium.NewPdfiumReader(appEnv.Log)
+	//appEnv.Pdf = pdfium.NewPdfiumReader(appEnv.Log)
 
 	var episodes []db.Episode
 
@@ -36,5 +35,5 @@ func main() {
 		Order("e.title, part ASC").
 		Find(&episodes)
 
-	appEnv.Pdf.Build(episodes)
+	//appEnv.Pdf.Build(episodes)
 }
