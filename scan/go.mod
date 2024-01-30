@@ -3,6 +3,7 @@ module github.com/chooban/progger/scan
 go 1.21.5
 
 require (
+	github.com/akamensky/argparse v1.4.0
 	github.com/divan/num2words v0.0.0-20170904212200-57dba452f942
 	github.com/go-logr/logr v1.4.1
 	github.com/go-logr/zerologr v1.2.3
@@ -26,6 +27,7 @@ require (
 	github.com/mitchellh/go-testing-interface v0.0.0-20171004221916-a61a99592b77 // indirect
 	github.com/oklog/run v1.0.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/smarty/assertions v1.15.1 // indirect
 	github.com/smartystreets/goconvey v1.8.1 // indirect
 	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
