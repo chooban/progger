@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/chooban/progger/scan/env"
 	"github.com/chooban/progger/scan/internal"
 	"github.com/chooban/progger/scan/internal/pdfium"
 	"github.com/chooban/progger/scan/types"
@@ -18,8 +17,7 @@ import (
 // Dir scans the given directory for PDF files and extracts episode details from each file.
 // It returns a slice of Episode structs containing the extracted details.
 func Dir(ctx context.Context, dir string, scanCount int) (issues []types.Issue) {
-	appEnv := fromContextOrDefaults(ctx)
-	files := getFiles(appEnv, dir)
+	files, _ := getFiles(dir)
 
 	jobs := make(chan string, 10)
 	results := make(chan types.Issue, len(files))
@@ -76,7 +74,7 @@ func File(ctx context.Context, fileName string) (types.Issue, error) {
 		episodeDetails[i].Credits = credits
 	}
 
-	issue := internal.BuildIssue(logger, fileName, episodeDetails, appEnv.Known.SeriesTitles, appEnv.Skip.SeriesTitles)
+	issue := internal.BuildIssue(logger, fileName, episodeDetails, appEnv.Known, appEnv.Skip)
 
 	return issue, nil
 }
@@ -97,10 +95,10 @@ func ReadCredits(ctx context.Context, fileName string, startingPage int, endingP
 	return internal.ExtractCreatorsFromCredits(credits), nil
 }
 
-func getFiles(appEnv env.AppEnv, dir string) (pdfFiles []fs.DirEntry) {
+func getFiles(dir string) (pdfFiles []fs.DirEntry, err error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
-		appEnv.Log.Error().Err(err).Msg("Could not read directory")
+		return []fs.DirEntry{}, err
 	}
 
 	pdfFiles = make([]fs.DirEntry, 0, 100)
