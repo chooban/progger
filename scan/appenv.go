@@ -1,4 +1,4 @@
-package env
+package scan
 
 type AppEnv struct {
 	Skip  []string

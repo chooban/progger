@@ -1,11 +1,10 @@
-package internal
+package scan
 
 import (
 	"errors"
 	"fmt"
 	"github.com/chooban/progger/scan/internal/pdf"
 	"github.com/chooban/progger/scan/internal/stringutils"
-	"github.com/chooban/progger/scan/types"
 	"github.com/divan/num2words"
 	"github.com/go-logr/logr"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
@@ -27,9 +26,9 @@ func getProgNumber(inFile string) (int, error) {
 	return 0, errors.New("no number found in filename")
 }
 
-func BuildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, knownTitles []string, skipTitles []string) types.Issue {
+func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, knownTitles []string, skipTitles []string) Issue {
 	issueNumber, _ := getProgNumber(filename)
-	allEpisodes := make([]types.Episode, 0)
+	allEpisodes := make([]Episode, 0)
 
 	for _, d := range details {
 		b := d.Bookmark
@@ -58,10 +57,10 @@ func BuildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, 
 
 		if shouldIncludeEpisode(log, skipTitles, series, title) {
 			log.Info(fmt.Sprintf("Extracting creators from %s", d.Credits))
-			credits := ExtractCreatorsFromCredits(d.Credits)
-			log.Info(fmt.Sprintf("%+v", credits[types.Script]))
+			credits := extractCreatorsFromCredits(d.Credits)
+			log.Info(fmt.Sprintf("%+v", credits[Script]))
 
-			allEpisodes = append(allEpisodes, types.Episode{
+			allEpisodes = append(allEpisodes, Episode{
 				Title:     title,
 				Series:    series,
 				Part:      part,
@@ -73,7 +72,7 @@ func BuildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, 
 			log.Info(fmt.Sprintf("Skipping. Series: %s. Episode: %s", series, title))
 		}
 	}
-	issue := types.Issue{
+	issue := Issue{
 		Publication: "2000 AD",
 		IssueNumber: issueNumber,
 		Filename:    filepath.Base(filename),
@@ -212,21 +211,21 @@ func extractPartNumberFromString(toParse string) (part int) {
 	return
 }
 
-func ExtractCreatorsFromCredits(toParse string) (credits types.Credits) {
-	credits = types.Credits{}
+func extractCreatorsFromCredits(toParse string) (credits Credits) {
+	credits = Credits{}
 
-	var currentRole = types.Unknown
+	var currentRole = Unknown
 	var tokens = strings.Split(toParse, " ")
 	currentCreatorString := make([]string, 0)
 	for _, t := range tokens {
 		if t == "" {
 			continue
 		}
-		r, err := types.NewRole(strings.ToLower(t))
-		if currentRole != types.Unknown && err != nil {
+		r, err := NewRole(strings.ToLower(t))
+		if currentRole != Unknown && err != nil {
 			currentCreatorString = append(currentCreatorString, strings.TrimSpace(t))
 		} else if r != currentRole && err == nil {
-			if currentRole == types.Unknown {
+			if currentRole == Unknown {
 				currentRole = r
 				continue
 			}
