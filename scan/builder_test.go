@@ -1,8 +1,7 @@
-package internal
+package scan
 
 import (
 	"github.com/chooban/progger/scan/internal/pdf"
-	"github.com/chooban/progger/scan/types"
 	"github.com/go-logr/logr"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -266,37 +265,37 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 func TestShouldIncludeEpisode(t *testing.T) {
 	testCases := []struct {
 		name          string
-		input         types.Episode
+		input         Episode
 		shouldInclude bool
 	}{
 		{
 			name:          "Cover",
-			input:         types.Episode{Title: "Cover"},
+			input:         Episode{Title: "Cover"},
 			shouldInclude: false,
 		},
 		{
 			name:          "Nerve Centre",
-			input:         types.Episode{Title: "Nerve Centre"},
+			input:         Episode{Title: "Nerve Centre"},
 			shouldInclude: false,
 		},
 		{
 			name:          "Nerve Center",
-			input:         types.Episode{Title: "Nerve Center"},
+			input:         Episode{Title: "Nerve Center"},
 			shouldInclude: false,
 		},
 		{
 			name:          "Input",
-			input:         types.Episode{Title: "Input"},
+			input:         Episode{Title: "Input"},
 			shouldInclude: false,
 		},
 		{
 			name:          "Art stars",
-			input:         types.Episode{Title: "2000AD Art stars winner"},
+			input:         Episode{Title: "2000AD Art stars winner"},
 			shouldInclude: false,
 		},
 		{
 			name: "Joko's Nerve Centre",
-			input: types.Episode{
+			input: Episode{
 				Title:  "",
 				Series: "Joko-jargo's Nerve Centre",
 			},
@@ -304,7 +303,7 @@ func TestShouldIncludeEpisode(t *testing.T) {
 		},
 		{
 			name: "Alan Grant Pin up",
-			input: types.Episode{
+			input: Episode{
 				Title:  "Alan Grant Pin up",
 				Series: "Alan Grant Pin up",
 			},
@@ -312,7 +311,7 @@ func TestShouldIncludeEpisode(t *testing.T) {
 		},
 		{
 			name: "Dredd Pin up",
-			input: types.Episode{
+			input: Episode{
 				Title:  "Dredd Pin-up",
 				Series: "Dredd Pin-up",
 			},
@@ -320,17 +319,17 @@ func TestShouldIncludeEpisode(t *testing.T) {
 		},
 		{
 			name:          "Regular Episode",
-			input:         types.Episode{Title: "Regular Episode"},
+			input:         Episode{Title: "Regular Episode"},
 			shouldInclude: true,
 		},
 		{
 			name:          "Cover in name",
-			input:         types.Episode{Title: "The Radyar Recovery"},
+			input:         Episode{Title: "The Radyar Recovery"},
 			shouldInclude: true,
 		},
 		{
 			name: "Skip tracer",
-			input: types.Episode{
+			input: Episode{
 				Title:  "Nimrod",
 				Series: "Skip Tracer",
 				Part:   4,
@@ -339,7 +338,7 @@ func TestShouldIncludeEpisode(t *testing.T) {
 		},
 		{
 			name: "Feature",
-			input: types.Episode{
+			input: Episode{
 				Title:  "Caballistics, Inc",
 				Series: "Feature",
 				Part:   1,
@@ -348,7 +347,7 @@ func TestShouldIncludeEpisode(t *testing.T) {
 		},
 		{
 			name: "Interrogation",
-			input: types.Episode{
+			input: Episode{
 				Title:  "Doug Church",
 				Series: "Interrogation",
 				Part:   1,
@@ -493,7 +492,7 @@ func TestBuildEpisodes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			issue := BuildIssue(logr.Discard(), "2000AD 123 (1977).pdf", tc.episodeDetails, knownTitles, []string{})
+			issue := buildIssue(logr.Discard(), "2000AD 123 (1977).pdf", tc.episodeDetails, knownTitles, []string{})
 			assert.Equal(t, 123, issue.IssueNumber)
 			assert.Equal(t, tc.expectedSeries, issue.Episodes[0].Series)
 			assert.Equal(t, tc.expectedTitle, issue.Episodes[0].Title)
@@ -506,38 +505,38 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 	testCases := []struct {
 		name    string
 		credits string
-		Credits types.Credits
+		Credits Credits
 	}{
 		{
 			name:    "Single Creator",
 			credits: "Script John  Wagner",
-			Credits: types.Credits{
-				types.Script: []string{"John Wagner"},
+			Credits: Credits{
+				Script: []string{"John Wagner"},
 			},
 		},
 		{
 			name:    "Multiple writers",
 			credits: "Script John Wagner & Alan Grant",
-			Credits: types.Credits{
-				types.Script: []string{"John Wagner", "Alan Grant"},
+			Credits: Credits{
+				Script: []string{"John Wagner", "Alan Grant"},
 			},
 		},
 		{
 			name:    "Multiple Creators",
 			credits: "Script John Wagner Art Carlos Ezquerra",
-			Credits: types.Credits{
-				types.Script: []string{"John Wagner"},
-				types.Art:    []string{"Carlos Ezquerra"},
+			Credits: Credits{
+				Script: []string{"John Wagner"},
+				Art:    []string{"Carlos Ezquerra"},
 			},
 		},
 		{
 			name:    "Too many words",
 			credits: "PROTEUS VEX CRAWLSPACE PART ELEVEN SCRIPT MIKE CARROLL COLOURS JIM BOSWELL ART  JAKE LYNCH LETTERS  SIMON BOWLAND",
-			Credits: types.Credits{
-				types.Script:  []string{"Mike Carroll"},
-				types.Art:     []string{"Jake Lynch"},
-				types.Colours: []string{"Jim Boswell"},
-				types.Letters: []string{"Simon Bowland"},
+			Credits: Credits{
+				Script:  []string{"Mike Carroll"},
+				Art:     []string{"Jake Lynch"},
+				Colours: []string{"Jim Boswell"},
+				Letters: []string{"Simon Bowland"},
 			},
 		},
 		// Add more test cases as needed
@@ -545,7 +544,7 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := ExtractCreatorsFromCredits(tc.credits)
+			result := extractCreatorsFromCredits(tc.credits)
 			assert.Equal(t, tc.Credits, result)
 		})
 	}

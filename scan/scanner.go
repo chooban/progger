@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/chooban/progger/scan/internal"
 	"github.com/chooban/progger/scan/internal/pdfium"
-	"github.com/chooban/progger/scan/types"
 	"github.com/go-logr/logr"
 	"io/fs"
 	"os"
@@ -16,11 +14,11 @@ import (
 
 // Dir scans the given directory for PDF files and extracts episode details from each file.
 // It returns a slice of Episode structs containing the extracted details.
-func Dir(ctx context.Context, dir string, scanCount int) (issues []types.Issue) {
+func Dir(ctx context.Context, dir string, scanCount int) (issues []Issue) {
 	files, _ := getFiles(dir)
 
 	jobs := make(chan string, 10)
-	results := make(chan types.Issue, len(files))
+	results := make(chan Issue, len(files))
 
 	var wg sync.WaitGroup
 
@@ -51,9 +49,9 @@ func Dir(ctx context.Context, dir string, scanCount int) (issues []types.Issue) 
 
 // File scans the given file in the specified directory and extracts episode details.
 // It returns a slice of Episode structs containing the extracted details and an error if any occurred during the process.
-func File(ctx context.Context, fileName string) (types.Issue, error) {
+func File(ctx context.Context, fileName string) (Issue, error) {
 	if !strings.HasSuffix(fileName, "pdf") {
-		return types.Issue{}, errors.New("only pdf files supported")
+		return Issue{}, errors.New("only pdf files supported")
 	}
 	logger := logr.FromContextOrDiscard(ctx)
 	appEnv := fromContextOrDefaults(ctx)
@@ -62,7 +60,7 @@ func File(ctx context.Context, fileName string) (types.Issue, error) {
 	p := pdfium.NewPdfiumReader(logger)
 	episodeDetails, err := p.Bookmarks(fileName)
 	if err != nil {
-		return types.Issue{}, err
+		return Issue{}, err
 	}
 
 	for i, _ := range episodeDetails {
@@ -74,14 +72,14 @@ func File(ctx context.Context, fileName string) (types.Issue, error) {
 		episodeDetails[i].Credits = credits
 	}
 
-	issue := internal.BuildIssue(logger, fileName, episodeDetails, appEnv.Known, appEnv.Skip)
+	issue := buildIssue(logger, fileName, episodeDetails, appEnv.Known, appEnv.Skip)
 
 	return issue, nil
 }
 
-func ReadCredits(ctx context.Context, fileName string, startingPage int, endingPage int) (types.Credits, error) {
+func ReadCredits(ctx context.Context, fileName string, startingPage int, endingPage int) (Credits, error) {
 	if !strings.HasSuffix(fileName, "pdf") {
-		return types.Credits{}, errors.New("only pdf files supported")
+		return Credits{}, errors.New("only pdf files supported")
 	}
 	logger := logr.FromContextOrDiscard(ctx)
 
@@ -90,9 +88,9 @@ func ReadCredits(ctx context.Context, fileName string, startingPage int, endingP
 	credits, err := p.Credits(fileName, startingPage, endingPage)
 
 	if err != nil {
-		return types.Credits{}, err
+		return Credits{}, err
 	}
-	return internal.ExtractCreatorsFromCredits(credits), nil
+	return extractCreatorsFromCredits(credits), nil
 }
 
 func getFiles(dir string) (pdfFiles []fs.DirEntry, err error) {
@@ -111,7 +109,7 @@ func getFiles(dir string) (pdfFiles []fs.DirEntry, err error) {
 	return
 }
 
-func scanWorker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan string, results chan<- types.Issue) {
+func scanWorker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan string, results chan<- Issue) {
 	logger := logr.FromContextOrDiscard(ctx)
 	for {
 		j, isChannelOpen := <-jobs
@@ -128,6 +126,6 @@ func scanWorker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan string, res
 	wg.Done()
 }
 
-func shouldIncludeIssue(issue types.Issue) bool {
+func shouldIncludeIssue(issue Issue) bool {
 	return issue.IssueNumber != 0
 }
