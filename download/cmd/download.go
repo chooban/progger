@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/chooban/progger/download"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
@@ -22,7 +21,11 @@ func main() {
 	}
 
 	logger.Info("Successfully reached the end")
-	logger.Info(fmt.Sprintf("%+v", list))
+	//logger.Info(fmt.Sprintf("%+v", list))
+
+	if len(list) > 0 {
+		download.Download(ctx, list[0])
+	}
 }
 
 func withLogger(ctx context.Context) (context.Context, logr.Logger) {

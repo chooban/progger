@@ -11,6 +11,7 @@ func ListAvailableProgs(ctx context.Context) ([]api.DigitalComic, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	bContext, err := browser()
+	defer bContext.Close()
 
 	if err != nil {
 		logger.Error(err, "Could not start browser")
@@ -29,4 +30,24 @@ func ListAvailableProgs(ctx context.Context) ([]api.DigitalComic, error) {
 	} else {
 		return progs, nil
 	}
+}
+
+func Download(ctx context.Context, comic api.DigitalComic) {
+	logger := logr.FromContextOrDiscard(ctx)
+
+	bContext, err := browser()
+	defer bContext.Close()
+
+	if err != nil {
+		logger.Error(err, "Could not start browser")
+		return
+	}
+	u := Username(ctx)
+	p := Password(ctx)
+
+	if err = internal.Login(ctx, bContext, u, p); err != nil {
+		return
+	}
+
+	internal.Download(ctx, bContext, comic)
 }
