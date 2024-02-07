@@ -1,8 +1,9 @@
-package download
+package internal
 
 import (
 	"context"
 	"fmt"
+	"github.com/chooban/progger/download/api"
 	"github.com/go-logr/logr"
 	"github.com/playwright-community/playwright-go"
 	"regexp"
@@ -55,7 +56,7 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 	return
 }
 
-func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs []DigitalComic, err error) {
+func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs []api.DigitalComic, err error) {
 	//assertions := playwright.NewPlaywrightAssertions()
 	logger := logr.FromContextOrDiscard(ctx)
 	page, err := bContext.NewPage()
@@ -79,24 +80,19 @@ func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs [
 	return
 }
 
-type DigitalComic struct {
-	url         string
-	issueNumber int
-}
-
-func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]DigitalComic, error) {
+func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]api.DigitalComic, error) {
 	titleMatcher, err := regexp.Compile(`(?si)2000\s+AD\s+prog\s+\d{1,}`)
 	issueNumberMatcher, _ := regexp.Compile(`(?si)PRG(?P<Issue>\d{1,})D`)
 	titleFilter := playwright.LocatorFilterOptions{HasText: titleMatcher}
 	if err != nil {
-		return []DigitalComic{}, err
+		return []api.DigitalComic{}, err
 	}
 	locators, err := page.GetByRole("listitem").Filter(titleFilter).All()
 	if err != nil {
-		return []DigitalComic{}, err
+		return []api.DigitalComic{}, err
 	}
 	logger.Info("Found listitems", "count", len(locators))
-	progs := make([]DigitalComic, len(locators))
+	progs := make([]api.DigitalComic, len(locators))
 	for i, v := range locators {
 		productUrl, _ := v.GetByRole("link").Filter(titleFilter).First().GetAttribute("href")
 		logger.Info("Found a url", "url", productUrl)
@@ -105,7 +101,7 @@ func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]DigitalCo
 		issueNumberRaw := m[issueNumberMatcher.SubexpIndex("Issue")]
 		issueNumber, _ := strconv.Atoi(issueNumberRaw)
 
-		progs[i] = DigitalComic{url: productUrl, issueNumber: issueNumber}
+		progs[i] = api.DigitalComic{Url: productUrl, IssueNumber: issueNumber}
 	}
 	return progs, nil
 }
