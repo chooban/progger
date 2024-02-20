@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"fmt"
 	"github.com/chooban/progger/download/api"
 	"github.com/go-logr/logr"
 	"github.com/playwright-community/playwright-go"
@@ -73,32 +74,31 @@ func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs [
 	return
 }
 
-func Download(ctx context.Context, bContext playwright.BrowserContext, comic api.DigitalComic) {
+func Download(ctx context.Context, bContext playwright.BrowserContext, comic api.DigitalComic) (string, error) {
+	logger := logr.FromContextOrDiscard(ctx)
 	page, err := bContext.NewPage()
 	if err != nil {
-		return
+		return "", fmt.Errorf("could not open page %g", err)
 	}
 	download, err := page.ExpectDownload(func() error {
-		_, err := page.Goto(comic.Downloads[api.Pdf])
-
-		return err
-	})
+		// Weirdly, we ignore the errors because Playwright now considers a navigation
+		// that turns into a download to sometimes be an error
+		page.Goto(comic.Downloads[api.Pdf])
+		return nil
+	}, playwright.PageExpectDownloadOptions{})
 	if err != nil {
-		logger := logr.FromContextOrDiscard(ctx)
 		logger.Error(err, "Failed to download")
-		return
+		return "", fmt.Errorf("failed to get a download %g", err)
 	}
 
 	path, err := download.Path()
 	if err != nil {
-		logger := logr.FromContextOrDiscard(ctx)
 		logger.Error(err, "Failed to download")
-		return
+		return "", fmt.Errorf("no path to file returned %g", err)
 	}
-	println(path)
-	println(download.URL())
-	//println(download.SuggestedFilename())
+	logger.Info(fmt.Sprintf("Path is %s", path))
 
+	return path, nil
 }
 
 func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]api.DigitalComic, error) {

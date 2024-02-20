@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"flag"
 	"github.com/chooban/progger/download"
+	"github.com/chooban/progger/download/api"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
@@ -14,18 +16,29 @@ func main() {
 	ctx, logger := withLogger(context.Background())
 	ctx = download.WithLoginDetails(ctx, os.Getenv("REBELLION_USERNAME"), os.Getenv("REBELLION_PASSWORD"))
 
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		logger.Error(err, "Could not determine home dir")
+	}
+
+	var downloadDir string
+	flag.StringVar(&downloadDir, "download-dir", homeDir, "Directory for downloads")
+
 	list, err := download.ListAvailableProgs(ctx)
 
 	if err != nil {
 		logger.Error(err, "Error listing progs")
 	}
 
-	logger.Info("Successfully reached the end")
-	//logger.Info(fmt.Sprintf("%+v", list))
-
 	if len(list) > 0 {
-		download.Download(ctx, list[0])
+		if filepath, err := download.Download(ctx, list[0], downloadDir, api.Pdf); err != nil {
+			logger.Error(err, "could not download file")
+		} else {
+			logger.Info("Downloaded a file", "file", filepath)
+		}
 	}
+
+	logger.Info("Successfully reached the end")
 }
 
 func withLogger(ctx context.Context) (context.Context, logr.Logger) {

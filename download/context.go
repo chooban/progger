@@ -20,18 +20,17 @@ func WithLoginDetails(ctx context.Context, username, password string) context.Co
 	return ctx
 }
 
-func Username(ctx context.Context) string {
+func LoginDetails(ctx context.Context) (username, password string) {
 	if u := ctx.Value(contextKeyUsername); u != nil {
-		return u.(string)
+		username = u.(string)
 	} else {
-		return ""
+		return
 	}
-}
+	if p := ctx.Value(contextKeyPassword); p != nil {
+		password = p.(string)
+	} else {
+		return "", ""
+	}
 
-func Password(ctx context.Context) string {
-	if u := ctx.Value(contextKeyPassword); u != nil {
-		return u.(string)
-	} else {
-		return ""
-	}
+	return
 }
