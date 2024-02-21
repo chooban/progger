@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"github.com/chooban/progger/download"
 	"github.com/chooban/progger/download/api"
 	"github.com/go-logr/logr"
@@ -21,8 +22,21 @@ func main() {
 		logger.Error(err, "Could not determine home dir")
 	}
 
+	var printUsage bool
+	flag.BoolVar(&printUsage, "help", false, "Print usage")
+
 	var downloadDir string
 	flag.StringVar(&downloadDir, "download-dir", homeDir, "Directory for downloads")
+
+	var downloadCount = 5
+	flag.IntVar(&downloadCount, "download-count", downloadCount, "Number of progs to download")
+
+	flag.Parse()
+
+	if printUsage {
+		flag.PrintDefaults()
+		return
+	}
 
 	list, err := download.ListAvailableProgs(ctx)
 
@@ -30,15 +44,21 @@ func main() {
 		logger.Error(err, "Error listing progs")
 	}
 
-	if len(list) > 0 {
-		if filepath, err := download.Download(ctx, list[0], downloadDir, api.Pdf); err != nil {
+	if len(list) == 0 {
+		logger.Info("No progs found")
+		return
+	}
+
+	for i := 0; i < downloadCount; i++ {
+		logger.Info(fmt.Sprintf("Downloading %s...", list[i].IssueNumber))
+	}
+	for i := 0; i <= downloadCount && i < len(list); i++ {
+		if filepath, err := download.Download(ctx, list[i], downloadDir, api.Pdf); err != nil {
 			logger.Error(err, "could not download file")
 		} else {
 			logger.Info("Downloaded a file", "file", filepath)
 		}
 	}
-
-	logger.Info("Successfully reached the end")
 }
 
 func withLogger(ctx context.Context) (context.Context, logr.Logger) {

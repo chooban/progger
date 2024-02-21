@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	"os"
 	"path"
+	"slices"
 )
 
 func ListAvailableProgs(ctx context.Context) ([]api.DigitalComic, error) {
@@ -31,6 +32,9 @@ func ListAvailableProgs(ctx context.Context) ([]api.DigitalComic, error) {
 		logger.Error(err, "Could not start browser")
 		return []api.DigitalComic{}, err
 	} else {
+		slices.SortFunc(progs, func(i, j api.DigitalComic) int {
+			return j.IssueNumber - i.IssueNumber
+		})
 		return progs, nil
 	}
 }
@@ -46,7 +50,7 @@ func Download(ctx context.Context, comic api.DigitalComic, dir string, filetype 
 		return "", errors.New("path is not a directory")
 	}
 	if _, err = os.Stat(path.Join(dir, comic.Filename(filetype))); err == nil {
-		return "", fmt.Errorf("file already exists")
+		return "", fmt.Errorf("file already exists: %s", path.Join(dir, comic.Filename(filetype)))
 	}
 
 	bContext, err := browser()

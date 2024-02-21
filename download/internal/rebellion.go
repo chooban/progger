@@ -26,6 +26,8 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 
 	if page.URL() != signinUrl {
 		// Presumably we're logged in?
+		logger := logr.FromContextOrDiscard(ctx)
+		logger.V(1).Info("Skipping login procedure")
 		return
 	}
 	var emailInput, passwordInput, loginButton playwright.Locator
