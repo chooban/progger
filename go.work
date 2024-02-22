@@ -2,6 +2,6 @@ go 1.21.6
 
 use (
 	./db
-	./scan
 	./download
+	./scan
 )

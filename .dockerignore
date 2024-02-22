@@ -1,0 +1,7 @@
+**
+!download/
+!db/
+!scan/
+scan/test/testdata/
+!go.work
+!go.work.sum

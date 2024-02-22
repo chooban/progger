@@ -4,3 +4,6 @@ ignore/
 myfile.pdf
 .DS_Store
 scan/test/testdata/**/*.pdf
+progdl
+test.db
+.idea/

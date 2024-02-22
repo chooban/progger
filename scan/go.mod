@@ -31,9 +31,9 @@ require (
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/smarty/assertions v1.15.1 // indirect
 	github.com/smartystreets/goconvey v1.8.1 // indirect
-	golang.org/x/net v0.20.0 // indirect
-	golang.org/x/sys v0.16.0 // indirect
-	golang.org/x/tools v0.17.0 // indirect
+	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/sys v0.17.0 // indirect
+	golang.org/x/tools v0.18.0 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	google.golang.org/grpc v1.56.3 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
