@@ -1,18 +1,26 @@
 package download
 
 import (
+	"context"
+	"github.com/go-logr/logr"
 	"github.com/playwright-community/playwright-go"
-	"os"
 	"path/filepath"
 )
 
-func browser() (playwright.BrowserContext, error) {
+func browser(ctx context.Context) (playwright.BrowserContext, error) {
+	logger := logr.FromContextOrDiscard(ctx)
 	pw, err := playwright.Run()
 	if err != nil {
+		logger.Error(err, "failed to open browser")
 		return nil, err
 	}
-	configDir, _ := os.UserConfigDir()
-	contextDir := filepath.Join(configDir, "progger", "download", "browser")
+	var configDir string
+	if configDir, err = BrowserContextDir(ctx); err != nil || configDir == "" {
+		logger.Error(err, "failed to get context dir for browser")
+		return nil, err
+	}
+
+	contextDir := filepath.Join(configDir, "browser")
 	bContext, err := pw.Firefox.LaunchPersistentContext(
 		contextDir,
 		playwright.BrowserTypeLaunchPersistentContextOptions{
@@ -20,10 +28,6 @@ func browser() (playwright.BrowserContext, error) {
 			JavaScriptEnabled: boolPointer(false),
 		},
 	)
-	//bContext, err := pw.Chromium.LaunchPersistentContext(
-	//	contextDir,
-	//	playwright.BrowserTypeLaunchPersistentContextOptions{Headless: &headless},
-	//)
 	if err != nil {
 		return nil, err
 	}

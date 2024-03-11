@@ -7,3 +7,5 @@ scan/test/testdata/**/*.pdf
 progdl
 test.db
 .idea/
+env
+volumes/

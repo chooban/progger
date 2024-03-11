@@ -27,7 +27,7 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 	if page.URL() != signinUrl {
 		// Presumably we're logged in?
 		logger := logr.FromContextOrDiscard(ctx)
-		logger.V(1).Info("Skipping login procedure")
+		logger.V(2).Info("Skipping login procedure")
 		return
 	}
 	var emailInput, passwordInput, loginButton playwright.Locator
@@ -62,10 +62,8 @@ func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs [
 	if err != nil {
 		return
 	}
-	if resp, err := page.Goto(listUrl); err != nil {
+	if _, err := page.Goto(listUrl); err != nil {
 		return progs, err
-	} else {
-		logger.V(1).Info("Response code", "response_code", resp.Status())
 	}
 
 	progs, _ = extractProgsFromPage(logger, page)

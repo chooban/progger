@@ -7,6 +7,8 @@ import (
 	"github.com/chooban/progger/download/api"
 	"github.com/chooban/progger/download/internal"
 	"github.com/go-logr/logr"
+	"github.com/playwright-community/playwright-go"
+	"io"
 	"os"
 	"path"
 	"slices"
@@ -15,8 +17,13 @@ import (
 func ListAvailableProgs(ctx context.Context) ([]api.DigitalComic, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
-	bContext, err := browser()
-	defer bContext.Close()
+	bContext, err := browser(ctx)
+	defer func(bContext playwright.BrowserContext) {
+		err := bContext.Close()
+		if err != nil {
+			logger.Error(err, "failed to close browsr")
+		}
+	}(bContext)
 
 	if err != nil {
 		logger.Error(err, "Could not start browser")
@@ -53,7 +60,7 @@ func Download(ctx context.Context, comic api.DigitalComic, dir string, filetype 
 		return "", fmt.Errorf("file already exists: %s", path.Join(dir, comic.Filename(filetype)))
 	}
 
-	bContext, err := browser()
+	bContext, err := browser(ctx)
 	defer func() {
 		err := bContext.Close()
 		if err != nil {
@@ -71,16 +78,19 @@ func Download(ctx context.Context, comic api.DigitalComic, dir string, filetype 
 		return "", fmt.Errorf("could not login", err)
 	}
 
-	loc, err := internal.Download(ctx, bContext, comic)
+	downloadedFile, err := internal.Download(ctx, bContext, comic)
 	if err != nil {
 		return "", fmt.Errorf("failed to download file %g", err)
 	}
 
-	dest := path.Join(dir, comic.Filename(filetype))
-	err = os.Rename(loc, dest)
+	destinationFile := path.Join(dir, comic.Filename(filetype))
+
+	r, _ := os.Open(downloadedFile)
+	w, _ := os.Create(destinationFile)
+	_, err = io.Copy(w, r)
 	if err != nil {
 		return "", fmt.Errorf("failed to move downloaded file %g", err)
 	}
 
-	return dest, err
+	return destinationFile, err
 }

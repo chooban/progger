@@ -1,6 +1,9 @@
 package download
 
-import "context"
+import (
+	"context"
+	"errors"
+)
 
 type contextKey string
 
@@ -9,8 +12,9 @@ func (c contextKey) String() string {
 }
 
 var (
-	contextKeyUsername = contextKey("progger-username")
-	contextKeyPassword = contextKey("progger-password")
+	contextKeyUsername       = contextKey("progger-username")
+	contextKeyPassword       = contextKey("progger-password")
+	contextKeyBrowserContext = contextKey("progger-browser-context")
 )
 
 func WithLoginDetails(ctx context.Context, username, password string) context.Context {
@@ -18,6 +22,21 @@ func WithLoginDetails(ctx context.Context, username, password string) context.Co
 	ctx = context.WithValue(ctx, contextKeyPassword, password)
 
 	return ctx
+}
+
+func WithBrowserContextDir(ctx context.Context, dir string) context.Context {
+	ctx = context.WithValue(ctx, contextKeyBrowserContext, dir)
+
+	return ctx
+}
+
+func BrowserContextDir(ctx context.Context) (d string, err error) {
+	if v := ctx.Value(contextKeyBrowserContext); v != nil {
+		d = v.(string)
+	} else {
+		err = errors.New("browser context not found")
+	}
+	return d, err
 }
 
 func LoginDetails(ctx context.Context) (username, password string) {
