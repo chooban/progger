@@ -1,0 +1,45 @@
+FROM --platform=linux/amd64 golang:1.21-alpine as builder
+
+WORKDIR /app
+
+COPY go.work go.work.sum ./
+COPY download/go.mod download/go.sum ./download/
+COPY scan/go.mod scan/go.sum ./scan/
+COPY db/go.mod db/go.sum ./db/
+
+RUN go mod download
+COPY . .
+
+RUN go build -o progdl ./download/cmd/download.go
+
+FROM --platform=linux/amd64 mcr.microsoft.com/playwright:v1.41.1-jammy
+
+RUN wget https://go.dev/dl/go1.22.0.linux-amd64.tar.gz
+RUN tar -xvf go1.22.0.linux-amd64.tar.gz -C /usr/local
+
+WORKDIR /app
+
+ENV PATH="${PATH}:/usr/local/go/bin"
+ENV BROWSER_DIR /opt/cache
+ENV DOWNLOAD_DIR /opt/downloads
+ENV DOWNLOAD_COUNT 1
+
+RUN mkdir -p /opt/downloads
+RUN mkdir -p /opt/cache
+RUN chown pwuser /opt/downloads
+RUN chown pwuser /opt/cache
+
+USER pwuser
+RUN go run github.com/playwright-community/playwright-go/cmd/playwright@v0.4101.1 install firefox
+
+RUN mkdir -p ~/.config/progger/
+
+VOLUME /opt/cache
+VOLUME /opt/downloads
+
+COPY --from=builder /app/progdl ./
+
+CMD ./progdl \
+    --browser-dir $BROWSER_DIR \
+    --download-dir $DOWNLOAD_DIR \
+    --download-count $DOWNLOAD_COUNT
