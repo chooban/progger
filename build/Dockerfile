@@ -14,6 +14,8 @@ RUN go build -o progdl ./download/cmd/download.go
 
 FROM --platform=linux/amd64 mcr.microsoft.com/playwright:v1.41.1-jammy
 
+LABEL org.opencontainers.image.description="Utility for downloading 2000AD"
+
 RUN wget https://go.dev/dl/go1.22.0.linux-amd64.tar.gz
 RUN tar -xvf go1.22.0.linux-amd64.tar.gz -C /usr/local
 
