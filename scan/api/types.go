@@ -67,3 +67,9 @@ func (r Role) String() string {
 	}
 	return ""
 }
+
+type ExportPage struct {
+	Filename string
+	PageFrom int
+	PageTo   int
+}

@@ -18,7 +18,7 @@ import (
 func main() {
 
 	parser := argparse.NewParser("scan", "Scans a pdf")
-	f := parser.String("f", "directory", &argparse.Options{Required: true, Help: "Directory to scan"})
+	f := parser.String("f", "file", &argparse.Options{Required: true, Help: "Directory to scan"})
 
 	err := parser.Parse(os.Args)
 	if err != nil {

@@ -4,33 +4,47 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/akamensky/argparse"
-	"github.com/chooban/progger/db"
+	"github.com/chooban/progger/scan"
+	"github.com/chooban/progger/scan/api"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
+	"github.com/rs/zerolog"
 	"os"
+	"time"
 )
 
 func main() {
-	parser := argparse.NewParser("export", "Exports a PDF of selected series")
+	parser := argparse.NewParser("scan", "Scans a pdf")
+	file := parser.String("f", "file", &argparse.Options{Required: true, Help: "File to scan"})
+	pageFrom := parser.Int("s", "start", &argparse.Options{Required: true, Help: "Page to export from"})
+	pageTo := parser.Int("e", "end", &argparse.Options{Required: true, Help: "Page to export to"})
 
-	series := parser.String("s", "series", &argparse.Options{Required: true, Help: "Series name"})
-
-	err := parser.Parse(os.Args)
-	if err != nil {
+	if err := parser.Parse(os.Args); err != nil {
 		fmt.Print(parser.Usage(err))
-		os.Exit(1)
+		return
 	}
 
-	myDb := db.Init("progs.db")
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	writer := zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.RFC3339,
+	}
+	logger := zerolog.New(writer)
+	var log = zerologr.New(&logger)
 
-	var episodes []db.Episode
+	ctx := logr.NewContext(context.Background(), log)
+	//issue, _ := scan.File(ctx, *file)
+	pages := []api.ExportPage{
+		{
+			Filename: *file,
+			PageFrom: *pageFrom,
+			PageTo:   *pageTo,
+		},
+	}
 
-	myDb.Preload("Issue").Table("episodes e").
-		Joins("join series s on s.id = e.series_id").
-		Joins("join issues i on e.issue_id = i.id").
-		Where("s.title = ? and e.issue_id > 0", series).
-		Order("e.title, part ASC").
-		Find(&episodes)
+	scan.Build(ctx, pages, "export.pdf")
 
-	//appEnv.Pdf.Build(episodes)
 }
