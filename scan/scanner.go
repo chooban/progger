@@ -9,6 +9,7 @@ import (
 	"github.com/go-logr/logr"
 	"io/fs"
 	"os"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -16,23 +17,35 @@ import (
 // Dir scans the given directory for PDF files and extracts episode details from each file.
 // It returns a slice of Episode structs containing the extracted details.
 func Dir(ctx context.Context, dir string, scanCount int) (issues []api.Issue) {
+	logger := logr.FromContextOrDiscard(ctx)
+	logger.Info("Scanning directory", "dir", dir)
+
 	files, _ := getFiles(dir)
+
+	if len(files) == 0 {
+		return
+	}
+	logger.Info("Found files to scan", "num_files", len(files))
 
 	jobs := make(chan string, 10)
 	results := make(chan api.Issue, len(files))
 
 	var wg sync.WaitGroup
 
-	for w := 1; w <= 10; w++ {
+	workerCount := runtime.NumCPU()
+	logger.V(1).Info("Creating workers", "num_workers", workerCount)
+
+	for w := 1; w <= workerCount; w++ {
 		wg.Add(1)
 		go scanWorker(ctx, &wg, jobs, results)
 	}
 
 	for i, file := range files {
-		jobs <- dir + string(os.PathSeparator) + file.Name()
-		if scanCount > 0 && i > scanCount {
+		if scanCount > 0 && i >= scanCount {
 			break
 		}
+		logger.V(1).Info("Adding file to jobs", "file_name", file.Name())
+		jobs <- dir + string(os.PathSeparator) + file.Name()
 	}
 
 	close(jobs)
@@ -112,6 +125,7 @@ func getFiles(dir string) (pdfFiles []fs.DirEntry, err error) {
 
 func scanWorker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan string, results chan<- api.Issue) {
 	logger := logr.FromContextOrDiscard(ctx)
+	logger.V(1).Info("Creating worker")
 	for {
 		j, isChannelOpen := <-jobs
 		if !isChannelOpen {
@@ -123,7 +137,7 @@ func scanWorker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan string, res
 		}
 		results <- issue
 	}
-	logger.Info("Shutting down worker")
+	logger.V(1).Info("Shutting down worker")
 	wg.Done()
 }
 

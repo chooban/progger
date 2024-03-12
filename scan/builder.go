@@ -33,11 +33,11 @@ func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, 
 
 	for _, d := range details {
 		b := d.Bookmark
-		log.Info(fmt.Sprintf("Extracting details from %s", b.Title))
+		log.V(2).Info(fmt.Sprintf("Extracting details from %s", b.Title))
 		part, series, title := extractDetailsFromPdfBookmark(b.Title)
 
 		if series == "" {
-			log.Info(fmt.Sprintf("Odd title: %s", b.Title))
+			log.V(1).Info(fmt.Sprintf("Odd title: %s", b.Title))
 			continue
 		}
 		// Check to see if the series is close to any of the blessed titles
@@ -50,16 +50,15 @@ func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, 
 				[]rune(strings.ToLower(series)),
 				levenshtein.DefaultOptions,
 			)
-			log.Info(fmt.Sprintf("Distance between '%s' and '%s' is %d", v, series, distance))
+			log.V(2).Info(fmt.Sprintf("Distance between '%s' and '%s' is %d", v, series, distance))
 			if distance < 5 {
 				series = v
 			}
 		}
 
 		if shouldIncludeEpisode(log, skipTitles, series, title) {
-			log.Info(fmt.Sprintf("Extracting creators from %s", d.Credits))
+			log.V(1).Info(fmt.Sprintf("Extracting creators from %s", d.Credits))
 			credits := extractCreatorsFromCredits(d.Credits)
-			log.Info(fmt.Sprintf("%+v", credits[api.Script]))
 
 			allEpisodes = append(allEpisodes, api.Episode{
 				Title:     title,
@@ -70,7 +69,7 @@ func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, 
 				Credits:   credits,
 			})
 		} else {
-			log.Info(fmt.Sprintf("Skipping. Series: %s. Episode: %s", series, title))
+			log.V(1).Info(fmt.Sprintf("Skipping. Series: %s. Episode: %s", series, title))
 		}
 	}
 	issue := api.Issue{
@@ -187,7 +186,7 @@ func shouldIncludeEpisode(logger logr.Logger, seriesToSkip []string, seriesTitle
 	for _, s := range pagesToSkip {
 		for _, t := range []string{episodeTitle, seriesTitle} {
 			if stringutils.ContainsI(t, s) || levenshtein.DistanceForStrings([]rune(s), []rune(t), levenshtein.DefaultOptions) < 5 {
-				logger.Info(fmt.Sprintf("%s contains, or is close to, %s", t, s))
+				logger.V(1).Info(fmt.Sprintf("%s contains, or is close to, %s", t, s))
 				return false
 			}
 		}
