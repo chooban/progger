@@ -3,6 +3,7 @@ package scan
 import (
 	"errors"
 	"fmt"
+	"github.com/chooban/progger/scan/api"
 	"github.com/chooban/progger/scan/internal/pdf"
 	"github.com/chooban/progger/scan/internal/stringutils"
 	"github.com/divan/num2words"
@@ -26,9 +27,9 @@ func getProgNumber(inFile string) (int, error) {
 	return 0, errors.New("no number found in filename")
 }
 
-func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, knownTitles []string, skipTitles []string) Issue {
+func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, knownTitles []string, skipTitles []string) api.Issue {
 	issueNumber, _ := getProgNumber(filename)
-	allEpisodes := make([]Episode, 0)
+	allEpisodes := make([]api.Episode, 0)
 
 	for _, d := range details {
 		b := d.Bookmark
@@ -58,9 +59,9 @@ func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, 
 		if shouldIncludeEpisode(log, skipTitles, series, title) {
 			log.Info(fmt.Sprintf("Extracting creators from %s", d.Credits))
 			credits := extractCreatorsFromCredits(d.Credits)
-			log.Info(fmt.Sprintf("%+v", credits[Script]))
+			log.Info(fmt.Sprintf("%+v", credits[api.Script]))
 
-			allEpisodes = append(allEpisodes, Episode{
+			allEpisodes = append(allEpisodes, api.Episode{
 				Title:     title,
 				Series:    series,
 				Part:      part,
@@ -72,7 +73,7 @@ func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, 
 			log.Info(fmt.Sprintf("Skipping. Series: %s. Episode: %s", series, title))
 		}
 	}
-	issue := Issue{
+	issue := api.Issue{
 		Publication: "2000 AD",
 		IssueNumber: issueNumber,
 		Filename:    filepath.Base(filename),
@@ -211,21 +212,21 @@ func extractPartNumberFromString(toParse string) (part int) {
 	return
 }
 
-func extractCreatorsFromCredits(toParse string) (credits Credits) {
-	credits = Credits{}
+func extractCreatorsFromCredits(toParse string) (credits api.Credits) {
+	credits = api.Credits{}
 
-	var currentRole = Unknown
+	var currentRole = api.Unknown
 	var tokens = strings.Split(toParse, " ")
 	currentCreatorString := make([]string, 0)
 	for _, t := range tokens {
 		if t == "" {
 			continue
 		}
-		r, err := NewRole(strings.ToLower(t))
-		if currentRole != Unknown && err != nil {
+		r, err := api.NewRole(strings.ToLower(t))
+		if currentRole != api.Unknown && err != nil {
 			currentCreatorString = append(currentCreatorString, strings.TrimSpace(t))
 		} else if r != currentRole && err == nil {
-			if currentRole == Unknown {
+			if currentRole == api.Unknown {
 				currentRole = r
 				continue
 			}

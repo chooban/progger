@@ -1,4 +1,4 @@
-package scan
+package api
 
 import (
 	"errors"

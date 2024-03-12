@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/akamensky/argparse"
 	"github.com/chooban/progger/db"
+	"github.com/chooban/progger/scan/api"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
@@ -72,13 +73,13 @@ func creators(names []string) (creators []*db.Creator) {
 	return
 }
 
-func fromRawEpisodes(rawEpisodes []scan.Episode) []db.Episode {
+func fromRawEpisodes(rawEpisodes []api.Episode) []db.Episode {
 	episodes := make([]db.Episode, 0, len(rawEpisodes))
 	for _, rawEpisode := range rawEpisodes {
-		writers := creators(rawEpisode.Credits[scan.Script])
-		artists := creators(rawEpisode.Credits[scan.Art])
-		colourists := creators(rawEpisode.Credits[scan.Colours])
-		letterists := creators(rawEpisode.Credits[scan.Letters])
+		writers := creators(rawEpisode.Credits[api.Script])
+		artists := creators(rawEpisode.Credits[api.Art])
+		colourists := creators(rawEpisode.Credits[api.Colours])
+		letterists := creators(rawEpisode.Credits[api.Letters])
 
 		ep := db.Episode{
 			Title:    rawEpisode.Title,
