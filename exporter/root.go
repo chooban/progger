@@ -13,29 +13,31 @@ import (
 func MainWindow(a fyne.App, w fyne.Window) fyne.CanvasObject {
 	// We'll need a scanner service-like object to perform the operations
 	scanner := NewScanner()
-	scannerPanel := scannerPanel(a, w, scanner)
 
-	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
-		if isScanning, err := scanner.IsScanning.Get(); err != nil {
-			println(err.Error())
-		} else {
-			if !isScanning && len(scanner.Issues) > 0 {
-				scannerPanel.Hide()
-			}
-		}
-	}))
+	// We want to be able to react to the source directory changing
+	boundSource := BoundSourceDir(a)
+
+	scannerButtonsPanel := buttonsContainer(w, boundSource, scanner)
+
+	//scanner.IsScanning.AddListener(binding.NewDataListener(func() {
+	//	if isScanning, err := scanner.IsScanning.Get(); err != nil {
+	//		println(err.Error())
+	//	} else {
+	//		if !isScanning && len(scanner.Issues) > 0 {
+	//			scannerButtonsPanel.Hide()
+	//		}
+	//	}
+	//}))
 
 	return container.NewBorder(
 		widget.NewLabel("Borag Thungg!"),
-		nil,
+		scannerButtonsPanel,
 		nil,
 		nil,
 	)
 }
 
-func scannerPanel(a fyne.App, w fyne.Window, scanner *Scanner) fyne.CanvasObject {
-	// We want to be able to react to the source directory changing
-	boundSource := BoundSourceDir(a)
+func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanner) fyne.CanvasObject {
 
 	dirButton := widget.NewButton("Choose directory", func() {
 		dialog.ShowFolderOpen(func(l fyne.ListableURI, err error) {
@@ -48,28 +50,31 @@ func scannerPanel(a fyne.App, w fyne.Window, scanner *Scanner) fyne.CanvasObject
 		scanner.Scan(dirToScan)
 	})
 
+	exportButton := widget.NewButton("Export Story", func() {})
+	exportButton.Hide()
+	exportButton.Disable()
+
 	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
 		isScanning, _ := scanner.IsScanning.Get()
 		if isScanning {
 			dirButton.Disable()
 			scanButton.Disable()
 		} else {
-			dirButton.Enable()
-			scanButton.Enable()
+			if len(scanner.Issues) == 0 {
+				dirButton.Enable()
+				scanButton.Enable()
+			} else {
+				dirButton.Hide()
+				scanButton.Hide()
+				exportButton.Show()
+			}
 		}
 	}))
 
-	return container.NewBorder(
-		widget.NewLabel("Borag Thungg!"),
-		container.NewVBox(
-			dirButton,
-			scanButton,
-		),
-		nil,
-		nil,
-		container.NewCenter(
-			widget.NewLabelWithData(boundSource),
-		),
+	return container.NewVBox(
+		dirButton,
+		scanButton,
+		exportButton,
 	)
 }
 
