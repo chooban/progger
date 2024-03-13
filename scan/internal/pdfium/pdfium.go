@@ -18,7 +18,7 @@ import (
 
 func NewPdfiumReader(log logr.Logger) *PdfiumReader {
 	return &PdfiumReader{
-		Log:      log.V(1),
+		Log:      log,
 		Instance: Instance,
 	}
 }
@@ -87,6 +87,7 @@ func (p *PdfiumReader) Build(episodes []api.ExportPage, outputPath string) {
 			continue
 		}
 		pageRange := fmt.Sprintf("%d-%d", episode.PageFrom, episode.PageTo)
+		p.Log.Info("Adding pages", "page_range", pageRange, "index", pageCount, "filename", episode.Filename)
 		if _, err = p.Instance.FPDF_ImportPages(&requests.FPDF_ImportPages{
 			Source:      source.Document,
 			Destination: destination.Document,
@@ -97,7 +98,7 @@ func (p *PdfiumReader) Build(episodes []api.ExportPage, outputPath string) {
 			continue
 		}
 
-		pageCount = (episode.PageTo - episode.PageFrom) + 1
+		pageCount += (episode.PageTo - episode.PageFrom) + 1
 	}
 
 	if saveAsCopy, err := p.Instance.FPDF_SaveAsCopy(&requests.FPDF_SaveAsCopy{
@@ -129,13 +130,13 @@ func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (cre
 		return "", err
 	}
 
-	p.Log.Info(fmt.Sprintf("Reading %s", filename))
+	p.Log.V(1).Info(fmt.Sprintf("Reading %s", filename))
 	var creditTypes = []string{"script", "art", "colours", "letters"}
 	var textPage *responses.FPDFText_LoadPage
 	var scriptRect *responses.FPDFText_GetRect
 
 	for pageIndex := startPage; pageIndex <= endPage; pageIndex++ {
-		p.Log.Info(fmt.Sprintf("Scanning page %d of %s", pageIndex, filename))
+		p.Log.V(1).Info(fmt.Sprintf("Scanning page %d of %s", pageIndex, filename))
 		if pdfPage, err := p.Instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
 			Document: source.Document,
 			Index:    pageIndex - 1,
@@ -224,7 +225,7 @@ func (p *PdfiumReader) findScriptRect(pageRef references.FPDF_PAGE) (*responses.
 			Bottom:   rect.Bottom,
 		})
 		if strings.ToLower(text.Text) == "script" {
-			p.Log.Info(fmt.Sprintf("Found script at %+v", rect))
+			p.Log.V(1).Info(fmt.Sprintf("Found script at %+v", rect))
 			scriptRect = rect
 		}
 	}

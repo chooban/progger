@@ -11,17 +11,22 @@ import (
 
 type Scanner struct {
 	IsScanning   binding.Bool
-	Issues       []api.Issue
-	BoundIssues  binding.UntypedList
 	BoundStories binding.UntypedList
+}
+
+type Episode struct {
+	api.Episode
+	Filename    string
+	IssueNumber int
 }
 
 type Story struct {
 	Title      string
 	Series     string
-	Episodes   []api.Episode
+	Episodes   []Episode
 	FirstIssue int
 	LastIssue  int
+	ToExport   bool
 }
 
 func toStories(issues []api.Issue) []*Story {
@@ -33,9 +38,9 @@ func toStories(issues []api.Issue) []*Story {
 		for _, episode := range issue.Episodes {
 			// If the series - story combo exists, add to its episodes
 			if story, ok := storyMap[fmt.Sprintf("%s - %s", episode.Series, episode.Title)]; ok {
-				story.Episodes = append(story.Episodes, episode)
+				story.Episodes = append(story.Episodes, Episode{episode, issue.Filename, issue.IssueNumber})
 				sort.Slice(story.Episodes, func(i, j int) bool {
-					return story.Episodes[i].Part < story.Episodes[j].Part
+					return story.Episodes[i].IssueNumber < story.Episodes[j].IssueNumber
 				})
 				if issue.IssueNumber < story.FirstIssue {
 					story.FirstIssue = issue.IssueNumber
@@ -47,9 +52,10 @@ func toStories(issues []api.Issue) []*Story {
 				s := Story{
 					Title:      episode.Title,
 					Series:     episode.Series,
-					Episodes:   []api.Episode{episode},
+					Episodes:   []Episode{{episode, issue.Filename, issue.IssueNumber}},
 					FirstIssue: issue.IssueNumber,
 					LastIssue:  issue.IssueNumber,
+					ToExport:   false,
 				}
 				storyMap[fmt.Sprintf("%s - %s", episode.Series, episode.Title)] = &s
 			}
@@ -72,14 +78,9 @@ func toStories(issues []api.Issue) []*Story {
 func (s *Scanner) Scan(path string) {
 	s.IsScanning.Set(true)
 	ctx := WithLogger()
-	issues := scan.Dir(ctx, path, 0)
-	s.Issues = issues
+	issues := scan.Dir(ctx, path, 10)
 
-	for _, v := range issues {
-		s.BoundIssues.Append(v)
-	}
-
-	stories := toStories(s.Issues)
+	stories := toStories(issues)
 	for _, v := range stories {
 		s.BoundStories.Append(v)
 	}
@@ -93,8 +94,6 @@ func NewScanner() *Scanner {
 
 	return &Scanner{
 		IsScanning:   isScanning,
-		Issues:       []api.Issue{},
-		BoundIssues:  binding.NewUntypedList(),
 		BoundStories: binding.NewUntypedList(),
 	}
 }

@@ -7,6 +7,9 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/chooban/progger/scan"
+	"github.com/chooban/progger/scan/api"
+	"path/filepath"
 )
 
 func MainWindow(a fyne.App, w fyne.Window) fyne.CanvasObject {
@@ -65,8 +68,9 @@ func displayContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 				progs = fmt.Sprintf("%d", story.FirstIssue)
 			}
 
+			b := binding.BindBool(&story.ToExport)
 			l.SetText(fmt.Sprintf("%s - %s (%s)", story.Series, story.Title, progs))
-			c.SetChecked(false)
+			c.Bind(b)
 		},
 	)
 	listContainer := container.NewStack(storyList)
@@ -83,7 +87,8 @@ func displayContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 			centeredLabel.Hide()
 			centeredBar.Show()
 		} else {
-			if len(scanner.Issues) == 0 {
+			stories, _ := scanner.BoundStories.Get()
+			if len(stories) == 0 {
 				centeredLabel.Show()
 				centeredBar.Hide()
 			} else {
@@ -110,9 +115,40 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 		scanner.Scan(dirToScan)
 	})
 
-	exportButton := widget.NewButton("Export Story", func() {})
+	exportButton := widget.NewButton("Export Story", func() {
+		stories, err := scanner.BoundStories.Get()
+		sourceDir, _ := boundSource.Get()
+		if err != nil {
+			println(err.Error())
+		}
+		toExport := make([]api.ExportPage, 0)
+		for _, v := range stories {
+			story := v.(*Story)
+			if story.ToExport {
+				//println(fmt.Sprintf("Exporting %s - %s", story.Series, story.Title))
+				for _, e := range story.Episodes {
+					//println(fmt.Sprintf("Adding pages %d - %d from %s", e.FirstPage, e.LastPage, e.Filename))
+					toExport = append(toExport, api.ExportPage{
+						Filename: filepath.Join(sourceDir, e.Filename),
+						PageFrom: e.FirstPage,
+						PageTo:   e.LastPage,
+					})
+				}
+			}
+		}
+		if len(toExport) == 0 {
+			println("Nothing to export")
+			return
+		}
+
+		// Do the export
+		err = scan.Build(WithLogger(), toExport, "export.pdf")
+		if err != nil {
+			println(err.Error())
+		}
+		println("Export complete")
+	})
 	exportButton.Hide()
-	exportButton.Disable()
 
 	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
 		isScanning, _ := scanner.IsScanning.Get()
@@ -120,7 +156,8 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 			dirButton.Disable()
 			scanButton.Disable()
 		} else {
-			if len(scanner.Issues) == 0 {
+			stories, _ := scanner.BoundStories.Get()
+			if len(stories) == 0 {
 				dirButton.Enable()
 				scanButton.Enable()
 			} else {
