@@ -58,6 +58,9 @@ func Dir(ctx context.Context, dir string, scanCount int) (issues []api.Issue) {
 		}
 	}
 
+	// Sanitise the results to correct titles
+	Sanitise(ctx, &issues)
+
 	return issues
 }
 
