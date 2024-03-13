@@ -1,4 +1,4 @@
-package scan
+package api
 
 import (
 	"errors"
@@ -66,4 +66,10 @@ func (r Role) String() string {
 		return "letters"
 	}
 	return ""
+}
+
+type ExportPage struct {
+	Filename string
+	PageFrom int
+	PageTo   int
 }

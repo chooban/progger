@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"github.com/chooban/progger/scan/api"
 	"github.com/chooban/progger/scan/internal/pdf"
 	"github.com/go-logr/logr"
 	"github.com/rs/zerolog"
@@ -265,37 +266,37 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 func TestShouldIncludeEpisode(t *testing.T) {
 	testCases := []struct {
 		name          string
-		input         Episode
+		input         api.Episode
 		shouldInclude bool
 	}{
 		{
 			name:          "Cover",
-			input:         Episode{Title: "Cover"},
+			input:         api.Episode{Title: "Cover"},
 			shouldInclude: false,
 		},
 		{
 			name:          "Nerve Centre",
-			input:         Episode{Title: "Nerve Centre"},
+			input:         api.Episode{Title: "Nerve Centre"},
 			shouldInclude: false,
 		},
 		{
 			name:          "Nerve Center",
-			input:         Episode{Title: "Nerve Center"},
+			input:         api.Episode{Title: "Nerve Center"},
 			shouldInclude: false,
 		},
 		{
 			name:          "Input",
-			input:         Episode{Title: "Input"},
+			input:         api.Episode{Title: "Input"},
 			shouldInclude: false,
 		},
 		{
 			name:          "Art stars",
-			input:         Episode{Title: "2000AD Art stars winner"},
+			input:         api.Episode{Title: "2000AD Art stars winner"},
 			shouldInclude: false,
 		},
 		{
 			name: "Joko's Nerve Centre",
-			input: Episode{
+			input: api.Episode{
 				Title:  "",
 				Series: "Joko-jargo's Nerve Centre",
 			},
@@ -303,7 +304,7 @@ func TestShouldIncludeEpisode(t *testing.T) {
 		},
 		{
 			name: "Alan Grant Pin up",
-			input: Episode{
+			input: api.Episode{
 				Title:  "Alan Grant Pin up",
 				Series: "Alan Grant Pin up",
 			},
@@ -311,7 +312,7 @@ func TestShouldIncludeEpisode(t *testing.T) {
 		},
 		{
 			name: "Dredd Pin up",
-			input: Episode{
+			input: api.Episode{
 				Title:  "Dredd Pin-up",
 				Series: "Dredd Pin-up",
 			},
@@ -319,17 +320,17 @@ func TestShouldIncludeEpisode(t *testing.T) {
 		},
 		{
 			name:          "Regular Episode",
-			input:         Episode{Title: "Regular Episode"},
+			input:         api.Episode{Title: "Regular Episode"},
 			shouldInclude: true,
 		},
 		{
 			name:          "Cover in name",
-			input:         Episode{Title: "The Radyar Recovery"},
+			input:         api.Episode{Title: "The Radyar Recovery"},
 			shouldInclude: true,
 		},
 		{
 			name: "Skip tracer",
-			input: Episode{
+			input: api.Episode{
 				Title:  "Nimrod",
 				Series: "Skip Tracer",
 				Part:   4,
@@ -338,7 +339,7 @@ func TestShouldIncludeEpisode(t *testing.T) {
 		},
 		{
 			name: "Feature",
-			input: Episode{
+			input: api.Episode{
 				Title:  "Caballistics, Inc",
 				Series: "Feature",
 				Part:   1,
@@ -347,7 +348,7 @@ func TestShouldIncludeEpisode(t *testing.T) {
 		},
 		{
 			name: "Interrogation",
-			input: Episode{
+			input: api.Episode{
 				Title:  "Doug Church",
 				Series: "Interrogation",
 				Part:   1,
@@ -505,38 +506,38 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 	testCases := []struct {
 		name    string
 		credits string
-		Credits Credits
+		Credits api.Credits
 	}{
 		{
 			name:    "Single Creator",
 			credits: "Script John  Wagner",
-			Credits: Credits{
-				Script: []string{"John Wagner"},
+			Credits: api.Credits{
+				api.Script: []string{"John Wagner"},
 			},
 		},
 		{
 			name:    "Multiple writers",
 			credits: "Script John Wagner & Alan Grant",
-			Credits: Credits{
-				Script: []string{"John Wagner", "Alan Grant"},
+			Credits: api.Credits{
+				api.Script: []string{"John Wagner", "Alan Grant"},
 			},
 		},
 		{
 			name:    "Multiple Creators",
 			credits: "Script John Wagner Art Carlos Ezquerra",
-			Credits: Credits{
-				Script: []string{"John Wagner"},
-				Art:    []string{"Carlos Ezquerra"},
+			Credits: api.Credits{
+				api.Script: []string{"John Wagner"},
+				api.Art:    []string{"Carlos Ezquerra"},
 			},
 		},
 		{
 			name:    "Too many words",
 			credits: "PROTEUS VEX CRAWLSPACE PART ELEVEN SCRIPT MIKE CARROLL COLOURS JIM BOSWELL ART  JAKE LYNCH LETTERS  SIMON BOWLAND",
-			Credits: Credits{
-				Script:  []string{"Mike Carroll"},
-				Art:     []string{"Jake Lynch"},
-				Colours: []string{"Jim Boswell"},
-				Letters: []string{"Simon Bowland"},
+			Credits: api.Credits{
+				api.Script:  []string{"Mike Carroll"},
+				api.Art:     []string{"Jake Lynch"},
+				api.Colours: []string{"Jim Boswell"},
+				api.Letters: []string{"Simon Bowland"},
 			},
 		},
 		// Add more test cases as needed

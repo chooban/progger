@@ -3,6 +3,7 @@ package scan
 import (
 	"errors"
 	"fmt"
+	"github.com/chooban/progger/scan/api"
 	"github.com/chooban/progger/scan/internal/pdf"
 	"github.com/chooban/progger/scan/internal/stringutils"
 	"github.com/divan/num2words"
@@ -26,17 +27,17 @@ func getProgNumber(inFile string) (int, error) {
 	return 0, errors.New("no number found in filename")
 }
 
-func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, knownTitles []string, skipTitles []string) Issue {
+func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, knownTitles []string, skipTitles []string) api.Issue {
 	issueNumber, _ := getProgNumber(filename)
-	allEpisodes := make([]Episode, 0)
+	allEpisodes := make([]api.Episode, 0)
 
 	for _, d := range details {
 		b := d.Bookmark
-		log.Info(fmt.Sprintf("Extracting details from %s", b.Title))
+		log.V(2).Info(fmt.Sprintf("Extracting details from %s", b.Title))
 		part, series, title := extractDetailsFromPdfBookmark(b.Title)
 
 		if series == "" {
-			log.Info(fmt.Sprintf("Odd title: %s", b.Title))
+			log.V(1).Info(fmt.Sprintf("Odd title: %s", b.Title))
 			continue
 		}
 		// Check to see if the series is close to any of the blessed titles
@@ -49,18 +50,17 @@ func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, 
 				[]rune(strings.ToLower(series)),
 				levenshtein.DefaultOptions,
 			)
-			log.Info(fmt.Sprintf("Distance between '%s' and '%s' is %d", v, series, distance))
+			log.V(2).Info(fmt.Sprintf("Distance between '%s' and '%s' is %d", v, series, distance))
 			if distance < 5 {
 				series = v
 			}
 		}
 
 		if shouldIncludeEpisode(log, skipTitles, series, title) {
-			log.Info(fmt.Sprintf("Extracting creators from %s", d.Credits))
+			log.V(1).Info(fmt.Sprintf("Extracting creators from %s", d.Credits))
 			credits := extractCreatorsFromCredits(d.Credits)
-			log.Info(fmt.Sprintf("%+v", credits[Script]))
 
-			allEpisodes = append(allEpisodes, Episode{
+			allEpisodes = append(allEpisodes, api.Episode{
 				Title:     title,
 				Series:    series,
 				Part:      part,
@@ -69,10 +69,10 @@ func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, 
 				Credits:   credits,
 			})
 		} else {
-			log.Info(fmt.Sprintf("Skipping. Series: %s. Episode: %s", series, title))
+			log.V(1).Info(fmt.Sprintf("Skipping. Series: %s. Episode: %s", series, title))
 		}
 	}
-	issue := Issue{
+	issue := api.Issue{
 		Publication: "2000 AD",
 		IssueNumber: issueNumber,
 		Filename:    filepath.Base(filename),
@@ -175,6 +175,7 @@ func shouldIncludeEpisode(logger logr.Logger, seriesToSkip []string, seriesTitle
 		"How to draw",
 		"Feature",
 		"Brimful of thrills",
+		"In Memoriam",
 	}
 
 	for _, s := range seriesToSkip {
@@ -186,7 +187,7 @@ func shouldIncludeEpisode(logger logr.Logger, seriesToSkip []string, seriesTitle
 	for _, s := range pagesToSkip {
 		for _, t := range []string{episodeTitle, seriesTitle} {
 			if stringutils.ContainsI(t, s) || levenshtein.DistanceForStrings([]rune(s), []rune(t), levenshtein.DefaultOptions) < 5 {
-				logger.Info(fmt.Sprintf("%s contains, or is close to, %s", t, s))
+				logger.V(1).Info(fmt.Sprintf("%s contains, or is close to, %s", t, s))
 				return false
 			}
 		}
@@ -211,21 +212,21 @@ func extractPartNumberFromString(toParse string) (part int) {
 	return
 }
 
-func extractCreatorsFromCredits(toParse string) (credits Credits) {
-	credits = Credits{}
+func extractCreatorsFromCredits(toParse string) (credits api.Credits) {
+	credits = api.Credits{}
 
-	var currentRole = Unknown
+	var currentRole = api.Unknown
 	var tokens = strings.Split(toParse, " ")
 	currentCreatorString := make([]string, 0)
 	for _, t := range tokens {
 		if t == "" {
 			continue
 		}
-		r, err := NewRole(strings.ToLower(t))
-		if currentRole != Unknown && err != nil {
+		r, err := api.NewRole(strings.ToLower(t))
+		if currentRole != api.Unknown && err != nil {
 			currentCreatorString = append(currentCreatorString, strings.TrimSpace(t))
 		} else if r != currentRole && err == nil {
-			if currentRole == Unknown {
+			if currentRole == api.Unknown {
 				currentRole = r
 				continue
 			}

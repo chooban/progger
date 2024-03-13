@@ -2,6 +2,7 @@
 !download/
 !db/
 !scan/
+!exporter/
 scan/test/testdata/
 !go.work
 !go.work.sum
