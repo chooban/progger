@@ -11,30 +11,52 @@ import (
 )
 
 func MainWindow(a fyne.App, w fyne.Window) fyne.CanvasObject {
-	// We'll need a scanner service-like object to perform the operations
-	scanner := NewScanner()
-
 	// We want to be able to react to the source directory changing
 	boundSource := BoundSourceDir(a)
 
-	scannerButtonsPanel := buttonsContainer(w, boundSource, scanner)
+	// We'll need a scanner service-like object to perform the operations
+	scanner := NewScanner()
 
-	//scanner.IsScanning.AddListener(binding.NewDataListener(func() {
-	//	if isScanning, err := scanner.IsScanning.Get(); err != nil {
-	//		println(err.Error())
-	//	} else {
-	//		if !isScanning && len(scanner.Issues) > 0 {
-	//			scannerButtonsPanel.Hide()
-	//		}
-	//	}
-	//}))
+	scannerButtonsPanel := buttonsContainer(w, boundSource, scanner)
+	displayPanel := displayContainer(w, boundSource, scanner)
 
 	return container.NewBorder(
 		widget.NewLabel("Borag Thungg!"),
 		scannerButtonsPanel,
 		nil,
 		nil,
+		displayPanel,
 	)
+}
+
+func displayContainer(w fyne.Window, boundSource binding.String, scanner *Scanner) fyne.CanvasObject {
+	barContainer := container.NewVBox(
+		widget.NewProgressBarInfinite(),
+		widget.NewLabel("Scanning..."),
+	)
+
+	label := widget.NewLabelWithData(boundSource)
+
+	centeredLabel := container.NewCenter(label)
+	centeredBar := container.NewCenter(
+		barContainer,
+	)
+
+	layout := container.NewStack(
+		centeredLabel,
+		centeredBar,
+	)
+	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
+		if isScanning, _ := scanner.IsScanning.Get(); isScanning == true {
+			centeredLabel.Hide()
+			centeredBar.Show()
+		} else {
+			centeredLabel.Show()
+			centeredBar.Hide()
+		}
+	}))
+
+	return layout
 }
 
 func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanner) fyne.CanvasObject {
