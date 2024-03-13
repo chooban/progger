@@ -31,6 +31,12 @@ services:
       - ./downloads:/opt/downloads
 ```
 
+
+### Exporter
+
+If I want to reread a series, or do a catchup, I want to read one series at a time. The [exporter](./exporter/) lets me do that.
+
+
 ## Motivation
 
 Learn more Go. Read more comics.
