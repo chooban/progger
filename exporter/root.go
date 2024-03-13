@@ -1,13 +1,12 @@
 package exporter
 
 import (
+	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
-	"github.com/chooban/progger/scan"
-	"github.com/chooban/progger/scan/api"
 )
 
 func MainWindow(a fyne.App, w fyne.Window) fyne.CanvasObject {
@@ -34,25 +33,64 @@ func displayContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 		widget.NewProgressBarInfinite(),
 		widget.NewLabel("Scanning..."),
 	)
-
-	label := widget.NewLabelWithData(boundSource)
-
-	centeredLabel := container.NewCenter(label)
 	centeredBar := container.NewCenter(
 		barContainer,
 	)
 
+	label := widget.NewLabelWithData(boundSource)
+	centeredLabel := container.NewCenter(label)
+
+	storyList := widget.NewListWithData(
+		scanner.BoundStories,
+		// Component structure of the row
+		func() fyne.CanvasObject {
+			return container.NewBorder(
+				nil, nil, nil,
+				widget.NewCheck("", func(b bool) {}),
+				// takes the rest of the space
+				widget.NewLabel(""),
+			)
+		},
+		func(di binding.DataItem, o fyne.CanvasObject) {
+			ctr, _ := o.(*fyne.Container)
+			// ideally we should check `ok` for each one of those casting
+			// but we know that they are those types for sure
+			l := ctr.Objects[0].(*widget.Label)
+			c := ctr.Objects[1].(*widget.Check)
+			diu, _ := di.(binding.Untyped).Get()
+			story := diu.(*Story)
+
+			progs := fmt.Sprintf("%d - %d", story.FirstIssue, story.LastIssue)
+			if story.FirstIssue == story.LastIssue {
+				progs = fmt.Sprintf("%d", story.FirstIssue)
+			}
+
+			l.SetText(fmt.Sprintf("%s - %s (%s)", story.Series, story.Title, progs))
+			c.SetChecked(false)
+		},
+	)
+	listContainer := container.NewStack(storyList)
+	listContainer.Hide()
+
 	layout := container.NewStack(
 		centeredLabel,
 		centeredBar,
+		listContainer,
 	)
+
 	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
 		if isScanning, _ := scanner.IsScanning.Get(); isScanning == true {
 			centeredLabel.Hide()
 			centeredBar.Show()
 		} else {
-			centeredLabel.Show()
-			centeredBar.Hide()
+			if len(scanner.Issues) == 0 {
+				centeredLabel.Show()
+				centeredBar.Hide()
+			} else {
+				centeredLabel.Hide()
+				centeredBar.Hide()
+				listContainer.Show()
+			}
 		}
 	}))
 
@@ -98,27 +136,4 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 		scanButton,
 		exportButton,
 	)
-}
-
-type Scanner struct {
-	IsScanning binding.Bool
-	Issues     []api.Issue
-}
-
-func (s *Scanner) Scan(path string) {
-	s.IsScanning.Set(true)
-	ctx := WithLogger()
-	issues := scan.Dir(ctx, path, 20)
-	s.Issues = issues
-	if err := s.IsScanning.Set(false); err != nil {
-		println(err.Error())
-	}
-}
-
-func NewScanner() *Scanner {
-	isScanning := binding.NewBool()
-
-	return &Scanner{
-		IsScanning: isScanning,
-	}
 }

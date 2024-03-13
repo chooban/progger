@@ -175,6 +175,7 @@ func shouldIncludeEpisode(logger logr.Logger, seriesToSkip []string, seriesTitle
 		"How to draw",
 		"Feature",
 		"Brimful of thrills",
+		"In Memoriam",
 	}
 
 	for _, s := range seriesToSkip {

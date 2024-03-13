@@ -16,7 +16,14 @@ func NewAppEnv() AppEnv {
 		},
 		Known: []string{
 			"Anderson, Psi-Division",
+			"Chimpsky's Law",
+			"Counterfeit Girl",
+			"Feral & Foe",
+			"Lowborn High",
+			"Scarlet Traces",
+			"Strontium Dog",
 			"Strontium Dug",
+			"The Fall of Deadworld",
 		},
 	}
 
