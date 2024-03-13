@@ -78,7 +78,7 @@ func toStories(issues []api.Issue) []*Story {
 func (s *Scanner) Scan(path string) {
 	s.IsScanning.Set(true)
 	ctx := WithLogger()
-	issues := scan.Dir(ctx, path, 10)
+	issues := scan.Dir(ctx, path, 0)
 
 	stories := toStories(issues)
 	for _, v := range stories {
