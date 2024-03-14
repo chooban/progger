@@ -29,7 +29,7 @@ func getProgNumber(inFile string) (int, error) {
 
 func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, knownTitles []string, skipTitles []string) api.Issue {
 	issueNumber, _ := getProgNumber(filename)
-	allEpisodes := make([]api.Episode, 0)
+	allEpisodes := make([]*api.Episode, 0)
 
 	for _, d := range details {
 		b := d.Bookmark
@@ -60,7 +60,7 @@ func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, 
 			log.V(1).Info(fmt.Sprintf("Extracting creators from %s", d.Credits))
 			credits := extractCreatorsFromCredits(d.Credits)
 
-			allEpisodes = append(allEpisodes, api.Episode{
+			allEpisodes = append(allEpisodes, &api.Episode{
 				Title:     title,
 				Series:    series,
 				Part:      part,

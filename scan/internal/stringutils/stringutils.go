@@ -74,19 +74,20 @@ func TrimNonAlphaNumeric(input string) string {
 }
 
 func CapitalizeWords(sentence string) string {
-	skipWords := map[string]func(s string) string{
-		`\bOf\b`:     strings.ToLower,
-		`\bVs\b`:     strings.ToLower,
-		`\d{1}[A-Z]`: strings.ToLower,
-		`\bAbc\b`:    strings.ToUpper,
+	conversionPatterns := map[string]func(s string) string{
+		`\bOf\b`:          strings.ToLower,
+		`\bVs\b`:          strings.ToLower,
+		`\d{1}[A-Z]`:      strings.ToLower,
+		`\bAbc\b`:         strings.ToUpper,
+		`\b[IVX][ivx]*\b`: strings.ToUpper,
 	}
 
 	capitalized := cases.Title(language.BritishEnglish).String(sentence)
 
 	var re *regexp.Regexp
-	for k, v := range skipWords {
+	for k, convertFn := range conversionPatterns {
 		re = regexp.MustCompile(k)
-		capitalized = re.ReplaceAllStringFunc(capitalized, v)
+		capitalized = re.ReplaceAllStringFunc(capitalized, convertFn)
 	}
 
 	return capitalized

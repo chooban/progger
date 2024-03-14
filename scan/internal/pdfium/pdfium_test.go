@@ -2,7 +2,6 @@ package pdfium
 
 import (
 	_ "github.com/chooban/progger/scan/testing_init"
-	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +27,7 @@ func TestPdfiumReader_Credits(t *testing.T) {
 	logger := zerolog.New(writer)
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 
-	var log logr.Logger = zerologr.New(&logger)
+	var log = zerologr.New(&logger)
 
 	pdfium := NewPdfiumReader(log)
 	dataDir := strings.Join([]string{"test", "testdata", "creators"}, string(os.PathSeparator))

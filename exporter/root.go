@@ -1,6 +1,7 @@
 package exporter
 
 import (
+	"cmp"
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -10,6 +11,7 @@ import (
 	"github.com/chooban/progger/scan"
 	"github.com/chooban/progger/scan/api"
 	"path/filepath"
+	"slices"
 )
 
 func MainWindow(a fyne.App, w fyne.Window) fyne.CanvasObject {
@@ -129,9 +131,11 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 				for _, e := range story.Episodes {
 					//println(fmt.Sprintf("Adding pages %d - %d from %s", e.FirstPage, e.LastPage, e.Filename))
 					toExport = append(toExport, api.ExportPage{
-						Filename: filepath.Join(sourceDir, e.Filename),
-						PageFrom: e.FirstPage,
-						PageTo:   e.LastPage,
+						Filename:    filepath.Join(sourceDir, e.Filename),
+						PageFrom:    e.FirstPage,
+						PageTo:      e.LastPage,
+						IssueNumber: e.IssueNumber,
+						Title:       fmt.Sprintf("%s - Part %d", e.Title, e.Part),
 					})
 				}
 			}
@@ -140,6 +144,11 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 			println("Nothing to export")
 			return
 		}
+		// Sort by issue number. We sometimes have issues being wrongly grouped, but surely we never want anything
+		// other than issue order?
+		slices.SortFunc(toExport, func(i, j api.ExportPage) int {
+			return cmp.Compare(i.IssueNumber, j.IssueNumber)
+		})
 
 		// Do the export
 		err = scan.Build(WithLogger(), toExport, "export.pdf")

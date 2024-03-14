@@ -70,12 +70,12 @@ func Download(ctx context.Context, comic api.DigitalComic, dir string, filetype 
 
 	if err != nil {
 		logger.Error(err, "Could not start browser")
-		return "", fmt.Errorf("could not start browser", err)
+		return "", fmt.Errorf("could not start browser: %w", err)
 	}
 	u, p := LoginDetails(ctx)
 
 	if err = internal.Login(ctx, bContext, u, p); err != nil {
-		return "", fmt.Errorf("could not login", err)
+		return "", fmt.Errorf("could not login: %w", err)
 	}
 
 	downloadedFile, err := internal.Download(ctx, bContext, comic)

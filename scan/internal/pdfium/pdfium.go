@@ -16,19 +16,19 @@ import (
 	"strings"
 )
 
-func NewPdfiumReader(log logr.Logger) *PdfiumReader {
-	return &PdfiumReader{
+func NewPdfiumReader(log logr.Logger) *Reader {
+	return &Reader{
 		Log:      log,
 		Instance: Instance,
 	}
 }
 
-type PdfiumReader struct {
+type Reader struct {
 	Log      logr.Logger
 	Instance pdfium.Pdfium
 }
 
-func (p *PdfiumReader) Bookmarks(filename string) ([]pdf.EpisodeDetails, error) {
+func (p *Reader) Bookmarks(filename string) ([]pdf.EpisodeDetails, error) {
 	contents, err := os.ReadFile(filename)
 	doc, err := p.Instance.OpenDocument(&requests.OpenDocument{
 		File: &contents,
@@ -71,7 +71,7 @@ func (p *PdfiumReader) Bookmarks(filename string) ([]pdf.EpisodeDetails, error) 
 	return details, nil
 }
 
-func (p *PdfiumReader) Build(episodes []api.ExportPage, outputPath string) {
+func (p *Reader) Build(episodes []api.ExportPage, outputPath string) {
 	destination, err := p.Instance.FPDF_CreateNewDocument(&requests.FPDF_CreateNewDocument{})
 	if err != nil {
 		p.Log.Error(err, "Could not create new document")
@@ -112,7 +112,7 @@ func (p *PdfiumReader) Build(episodes []api.ExportPage, outputPath string) {
 	}
 }
 
-func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (credits string, err error) {
+func (p *Reader) Credits(filename string, startPage int, endPage int) (credits string, err error) {
 	source, err := p.Instance.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
 		Path: &filename,
 	})
@@ -196,7 +196,7 @@ func (p *PdfiumReader) Credits(filename string, startPage int, endPage int) (cre
 	return credits, nil
 }
 
-func (p *PdfiumReader) findScriptRect(pageRef references.FPDF_PAGE) (*responses.FPDFText_LoadPage, *responses.FPDFText_GetRect) {
+func (p *Reader) findScriptRect(pageRef references.FPDF_PAGE) (*responses.FPDFText_LoadPage, *responses.FPDFText_GetRect) {
 	var (
 		textPage   *responses.FPDFText_LoadPage
 		scriptRect *responses.FPDFText_GetRect

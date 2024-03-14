@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// A Episode represents information extracted from a PDF bookmark.
+// An Episode represents information extracted from a PDF bookmark.
 type Episode struct {
 	Series    string
 	Title     string
@@ -18,7 +18,7 @@ type Episode struct {
 type Issue struct {
 	Publication string
 	IssueNumber int
-	Episodes    []Episode
+	Episodes    []*Episode
 	Filename    string
 }
 
@@ -69,7 +69,9 @@ func (r Role) String() string {
 }
 
 type ExportPage struct {
-	Filename string
-	PageFrom int
-	PageTo   int
+	Filename    string
+	IssueNumber int
+	Title       string
+	PageFrom    int
+	PageTo      int
 }

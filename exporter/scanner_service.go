@@ -15,7 +15,7 @@ type Scanner struct {
 }
 
 type Episode struct {
-	api.Episode
+	*api.Episode
 	Filename    string
 	IssueNumber int
 }

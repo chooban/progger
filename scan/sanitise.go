@@ -3,16 +3,18 @@ package scan
 import (
 	"cmp"
 	"context"
-	"fmt"
 	"github.com/chooban/progger/scan/api"
 	"github.com/go-logr/logr"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
 	"slices"
+	"strings"
 )
 
-type suggestionsResults struct {
-	Title string
-	Count int
+type titleCounts struct {
+	Title     string
+	Count     int
+	FirstSeen int
+	LastSeen  int
 }
 
 type SuggestionType int64
@@ -34,35 +36,69 @@ func Sanitise(ctx context.Context, issues *[]api.Issue) {
 
 	// Look for series titles that are close to others
 	allSeries := seriesTitleCounts(issues)
-	suggestions := getSuggestions(appEnv.Known, allSeries, SeriesTitle)
+	suggestions := getSuggestions(logger, appEnv.Known, allSeries, SeriesTitle)
 	applySuggestions(logger, suggestions, issues)
 
-	// Get all the series titles again
-	//allSeries = seriesTitleCounts(issues)
-	//titleCounts := make(map[string]map[string]suggestionsResults)
-	//for _, issue := range *issues {
-	//	for _, e := range issue.Episodes {
-	//		if _, ok := titleCounts[e.Title]; !ok {
-	//			titleCounts[e.Series] = make(map[string]suggestionsResults)
-	//		}
-	//		if _, ok := titleCounts[e.Series][e.Title]; !ok {
-	//			titleCounts[e.Series][e.Title] = suggestionsResults{e.Title, 1}
-	//		} else {
-	//			titleCounts[e.Series][e.Title] = suggestionsResults{
-	//				e.Title, titleCounts[e.Series][e.Title].Count + 1,
-	//			}
-	//		}
-	//	}
-	//}
+	// Create a map of series -> episodes
+	// For each series, create a count mapping of episode titles.
+	// Do the comparisons, as with series titles
+	seriesEpisodes := make(map[string][]*api.Episode, len(*issues))
+	seriesEpisodeTitles := make(map[string][]*titleCounts)
+	for _, issue := range *issues {
+		for _, ep := range issue.Episodes {
+			seriesName := ep.Series
+			if episodes, ok := seriesEpisodes[seriesName]; ok {
+				seriesEpisodes[seriesName] = append(episodes, ep)
+				episodeTitleCounts := seriesEpisodeTitles[seriesName]
+				if idx, found := slices.BinarySearchFunc(episodeTitleCounts, &titleCounts{Title: ep.Title, Count: 1}, func(e, t *titleCounts) int {
+					return cmp.Compare(e.Title, t.Title)
+				}); found {
+					c := episodeTitleCounts[idx]
+					episodeTitleCounts[idx] = &titleCounts{
+						Title:     c.Title,
+						Count:     c.Count + 1,
+						FirstSeen: min(c.FirstSeen, issue.IssueNumber),
+						LastSeen:  max(c.LastSeen, issue.IssueNumber),
+					}
+				} else {
+					seriesEpisodeTitles[seriesName] = slices.Insert(seriesEpisodeTitles[seriesName], idx, &titleCounts{
+						ep.Title, 1, issue.IssueNumber, issue.IssueNumber,
+					})
+				}
+			} else {
+				seriesEpisodes[seriesName] = []*api.Episode{ep}
+				seriesEpisodeTitles[seriesName] = []*titleCounts{{
+					ep.Title, 1, issue.IssueNumber, issue.IssueNumber,
+				}}
+			}
+		}
+	}
 
+	for k, v := range seriesEpisodeTitles {
+		seriesSuggestions := getSuggestions(logger, []string{}, v, EpisodeTitle)
+		if len(seriesSuggestions) == 0 {
+			continue
+		}
+		episodes := seriesEpisodes[k]
+		for _, ep := range episodes {
+			for _, s := range seriesSuggestions {
+				if ep.Title == s.From {
+					logger.Info("Renaming episode", "series", ep.Series, "from", s.From, "to", s.To)
+					ep.Title = s.To
+				}
+			}
+		}
+	}
 }
 
 func applySuggestions(logger logr.Logger, suggestions []Suggestion, issues *[]api.Issue) {
+	if len(suggestions) == 0 {
+		return
+	}
 	for _, issue := range *issues {
 		for i, e := range issue.Episodes {
 			for _, suggestion := range suggestions {
 				if e.Series == suggestion.From {
-					logger.Info(fmt.Sprintf("%+v", e))
 					e.Series = suggestion.To
 					issue.Episodes[i] = e
 				}
@@ -71,47 +107,66 @@ func applySuggestions(logger logr.Logger, suggestions []Suggestion, issues *[]ap
 	}
 }
 
-func getSuggestions(knownTitles []string, results []*suggestionsResults, suggestionType SuggestionType) (suggestions []Suggestion) {
+func getSuggestions(logger logr.Logger, knownTitles []string, results []*titleCounts, suggestionType SuggestionType) (suggestions []Suggestion) {
 	for _, k := range results {
+		targetDistance := getTargetLevenshteinDistance(k.Title)
 		for _, l := range results {
 			// If they match or the smaller series is a known title
 			if k == l || slices.Contains(knownTitles, l.Title) {
 				continue
 			}
-			targetDistance := getTargetLevenshteinDistance(l.Title)
-			distance := levenshtein.DistanceForStrings([]rune(k.Title), []rune(l.Title), levenshtein.DefaultOptions)
+			kTitle := k.Title
+			lTitle := l.Title
+
+			if targetDistance < 3 {
+				kTitle = strings.ToLower(k.Title)
+				lTitle = strings.ToLower(l.Title)
+			}
+			distance := levenshtein.DistanceForStrings([]rune(kTitle), []rune(lTitle), levenshtein.DefaultOptions)
 			if distance > targetDistance || (distance <= targetDistance && l.Count > k.Count) {
 				continue
 			}
-			suggestions = append(suggestions, Suggestion{
-				From: l.Title,
-				To:   k.Title,
-				Type: suggestionType,
-			})
+			//Only suggest a change if l's "seen" range is within k's seen range
+			if suggestionType == EpisodeTitle {
+				if (l.FirstSeen > k.FirstSeen && l.LastSeen < k.LastSeen) || (k.FirstSeen-l.LastSeen <= 2) || (k.LastSeen-l.FirstSeen <= 2) {
+					logger.Info("Suggesting an episode title change", "from", l.Title, "to", k.Title)
+					suggestions = append(suggestions, Suggestion{
+						From: l.Title,
+						To:   k.Title,
+						Type: suggestionType,
+					})
+				}
+			} else {
+				logger.Info("Suggesting a series title change", "from", l.Title, "to", k.Title)
+				suggestions = append(suggestions, Suggestion{
+					From: l.Title,
+					To:   k.Title,
+					Type: suggestionType,
+				})
+			}
 		}
 	}
 	return
 }
 
-func seriesTitleCounts(issues *[]api.Issue) []*suggestionsResults {
-	seriesCounts := make([]*suggestionsResults, 0, len(*issues)/2)
+func seriesTitleCounts(issues *[]api.Issue) []*titleCounts {
+	seriesCounts := make([]*titleCounts, 0, len(*issues)/2)
 	for _, issue := range *issues {
 		for _, episode := range issue.Episodes {
 			if idx, found := slices.BinarySearchFunc(
 				seriesCounts,
-				&suggestionsResults{episode.Series, 1},
-				func(a, b *suggestionsResults) int {
+				&titleCounts{episode.Series, 1, 0, 0},
+				func(a, b *titleCounts) int {
 					return cmp.Compare(a.Title, b.Title)
 				}); !found {
-				fmt.Printf("Didn't find anything for %s\n", episode.Series)
-				seriesCounts = slices.Insert(seriesCounts, idx, &suggestionsResults{episode.Series, 1})
+				seriesCounts = slices.Insert(seriesCounts, idx, &titleCounts{episode.Series, 1, issue.IssueNumber, issue.IssueNumber})
 			} else {
 				seriesCounts[idx].Count++
 			}
 		}
 	}
 
-	slices.SortFunc(seriesCounts, func(i, j *suggestionsResults) int {
+	slices.SortFunc(seriesCounts, func(i, j *titleCounts) int {
 		return cmp.Compare(len(i.Title), len(j.Title))
 	})
 
