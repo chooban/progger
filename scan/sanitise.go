@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"github.com/chooban/progger/scan/api"
@@ -32,13 +33,28 @@ func Sanitise(ctx context.Context, issues *[]api.Issue) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	// Look for series titles that are close to others
-	allSeries := getAllSeries(issues)
+	allSeries := seriesTitleCounts(issues)
 	suggestions := getSuggestions(appEnv.Known, allSeries, SeriesTitle)
-
-	for _, suggestion := range suggestions {
-		logger.Info(fmt.Sprintf("%+v", suggestion))
-	}
 	applySuggestions(logger, suggestions, issues)
+
+	// Get all the series titles again
+	//allSeries = seriesTitleCounts(issues)
+	//titleCounts := make(map[string]map[string]suggestionsResults)
+	//for _, issue := range *issues {
+	//	for _, e := range issue.Episodes {
+	//		if _, ok := titleCounts[e.Title]; !ok {
+	//			titleCounts[e.Series] = make(map[string]suggestionsResults)
+	//		}
+	//		if _, ok := titleCounts[e.Series][e.Title]; !ok {
+	//			titleCounts[e.Series][e.Title] = suggestionsResults{e.Title, 1}
+	//		} else {
+	//			titleCounts[e.Series][e.Title] = suggestionsResults{
+	//				e.Title, titleCounts[e.Series][e.Title].Count + 1,
+	//			}
+	//		}
+	//	}
+	//}
+
 }
 
 func applySuggestions(logger logr.Logger, suggestions []Suggestion, issues *[]api.Issue) {
@@ -55,7 +71,7 @@ func applySuggestions(logger logr.Logger, suggestions []Suggestion, issues *[]ap
 	}
 }
 
-func getSuggestions(knownTitles []string, results []suggestionsResults, suggestionType SuggestionType) (suggestions []Suggestion) {
+func getSuggestions(knownTitles []string, results []*suggestionsResults, suggestionType SuggestionType) (suggestions []Suggestion) {
 	for _, k := range results {
 		for _, l := range results {
 			// If they match or the smaller series is a known title
@@ -77,23 +93,27 @@ func getSuggestions(knownTitles []string, results []suggestionsResults, suggesti
 	return
 }
 
-func getAllSeries(issues *[]api.Issue) []suggestionsResults {
-	allSeriesMap := make(map[string]int, len(*issues))
+func seriesTitleCounts(issues *[]api.Issue) []*suggestionsResults {
+	seriesCounts := make([]*suggestionsResults, 0, len(*issues)/2)
 	for _, issue := range *issues {
 		for _, episode := range issue.Episodes {
-			if _, ok := allSeriesMap[episode.Series]; !ok {
-				allSeriesMap[episode.Series] = 1
+			if idx, found := slices.BinarySearchFunc(
+				seriesCounts,
+				&suggestionsResults{episode.Series, 1},
+				func(a, b *suggestionsResults) int {
+					return cmp.Compare(a.Title, b.Title)
+				}); !found {
+				fmt.Printf("Didn't find anything for %s\n", episode.Series)
+				seriesCounts = slices.Insert(seriesCounts, idx, &suggestionsResults{episode.Series, 1})
 			} else {
-				allSeriesMap[episode.Series]++
+				seriesCounts[idx].Count++
 			}
 		}
 	}
-	seriesCounts := make([]suggestionsResults, 0, len(allSeriesMap))
-	for k, v := range allSeriesMap {
-		seriesCounts = append(seriesCounts, suggestionsResults{
-			k, v,
-		})
-	}
+
+	slices.SortFunc(seriesCounts, func(i, j *suggestionsResults) int {
+		return cmp.Compare(len(i.Title), len(j.Title))
+	})
 
 	return seriesCounts
 }
