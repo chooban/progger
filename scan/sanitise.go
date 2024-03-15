@@ -34,14 +34,50 @@ func Sanitise(ctx context.Context, issues *[]api.Issue) {
 	appEnv := fromContextOrDefaults(ctx)
 	logger := logr.FromContextOrDiscard(ctx)
 
+	findTypoedSeries(issues, logger, appEnv)
+	findTypoedEpisodes(issues, logger)
+}
+
+func findTypoedSeries(issues *[]api.Issue, logger logr.Logger, appEnv AppEnv) {
 	// Look for series titles that are close to others
 	allSeries := seriesTitleCounts(issues)
 	suggestions := getSuggestions(logger, appEnv.Known, allSeries, SeriesTitle)
-	applySuggestions(logger, suggestions, issues)
+	for _, issue := range *issues {
+		for i, e := range issue.Episodes {
+			for _, suggestion := range suggestions {
+				if e.Series == suggestion.From {
+					e.Series = suggestion.To
+					issue.Episodes[i] = e
+				}
+			}
+		}
+	}
+}
 
+func findTypoedEpisodes(issues *[]api.Issue, logger logr.Logger) {
 	// Create a map of series -> episodes
 	// For each series, create a count mapping of episode titles.
 	// Do the comparisons, as with series titles
+	seriesEpisodes, seriesEpisodeTitles := episodesBySeries(issues)
+
+	for k, v := range seriesEpisodeTitles {
+		seriesSuggestions := getSuggestions(logger, []string{}, v, EpisodeTitle)
+		if len(seriesSuggestions) == 0 {
+			continue
+		}
+		episodes := seriesEpisodes[k]
+		for _, ep := range episodes {
+			for _, s := range seriesSuggestions {
+				if ep.Title == s.From {
+					logger.Info("Renaming episode", "series", ep.Series, "from", s.From, "to", s.To)
+					ep.Title = s.To
+				}
+			}
+		}
+	}
+}
+
+func episodesBySeries(issues *[]api.Issue) (map[string][]*api.Episode, map[string][]*titleCounts) {
 	seriesEpisodes := make(map[string][]*api.Episode, len(*issues))
 	seriesEpisodeTitles := make(map[string][]*titleCounts)
 	for _, issue := range *issues {
@@ -73,38 +109,7 @@ func Sanitise(ctx context.Context, issues *[]api.Issue) {
 			}
 		}
 	}
-
-	for k, v := range seriesEpisodeTitles {
-		seriesSuggestions := getSuggestions(logger, []string{}, v, EpisodeTitle)
-		if len(seriesSuggestions) == 0 {
-			continue
-		}
-		episodes := seriesEpisodes[k]
-		for _, ep := range episodes {
-			for _, s := range seriesSuggestions {
-				if ep.Title == s.From {
-					logger.Info("Renaming episode", "series", ep.Series, "from", s.From, "to", s.To)
-					ep.Title = s.To
-				}
-			}
-		}
-	}
-}
-
-func applySuggestions(logger logr.Logger, suggestions []Suggestion, issues *[]api.Issue) {
-	if len(suggestions) == 0 {
-		return
-	}
-	for _, issue := range *issues {
-		for i, e := range issue.Episodes {
-			for _, suggestion := range suggestions {
-				if e.Series == suggestion.From {
-					e.Series = suggestion.To
-					issue.Episodes[i] = e
-				}
-			}
-		}
-	}
+	return seriesEpisodes, seriesEpisodeTitles
 }
 
 func getSuggestions(logger logr.Logger, knownTitles []string, results []*titleCounts, suggestionType SuggestionType) (suggestions []Suggestion) {
