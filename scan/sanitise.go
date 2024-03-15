@@ -3,9 +3,11 @@ package scan
 import (
 	"cmp"
 	"context"
+	"fmt"
 	"github.com/chooban/progger/scan/api"
 	"github.com/go-logr/logr"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
+	"golang.org/x/exp/maps"
 	"slices"
 	"strings"
 )
@@ -36,6 +38,64 @@ func Sanitise(ctx context.Context, issues *[]api.Issue) {
 
 	findTypoedSeries(issues, logger, appEnv)
 	findTypoedEpisodes(issues, logger)
+	findSwappedSeriesEpisodeTitles(issues, logger)
+}
+
+func findSwappedSeriesEpisodeTitles(issues *[]api.Issue, logger logr.Logger) {
+	suggestions := make([]Suggestion, 0)
+	seriesEpisodes, seriesEpisodeTitleCounts := episodesBySeries(issues)
+	seriesNames := maps.Keys(seriesEpisodes)
+	for _, seriesName := range seriesNames {
+		for _, cmpSeries := range seriesNames {
+			if seriesName == cmpSeries {
+				continue
+			}
+			for j, episode := range seriesEpisodes[cmpSeries] {
+				if cmpSeries == episode.Title {
+					continue
+				}
+				if j > 0 && episode.Title == seriesEpisodes[cmpSeries][j-1].Title {
+					continue
+				}
+				if episode.Title == seriesName {
+					rootCounts, _ := seriesEpisodeTitleCounts[seriesName]
+					cmpCounts, _ := seriesEpisodeTitleCounts[cmpSeries]
+
+					rcIdx := slices.IndexFunc(rootCounts, func(a *titleCounts) bool {
+						return a.Title == cmpSeries
+					})
+					cmpIdx := slices.IndexFunc(cmpCounts, func(a *titleCounts) bool {
+						return a.Title == seriesName
+					})
+
+					if rcIdx < 0 || cmpIdx < 0 {
+						continue
+					}
+
+					if rootCounts[rcIdx].Count > cmpCounts[cmpIdx].Count {
+						logger.Info(fmt.Sprintf("Suggest renaming %s - %s to %s - %s", cmpSeries, episode.Title, seriesName, cmpSeries))
+						suggestions = append(suggestions, Suggestion{
+							From: cmpSeries,
+							To:   episode.Title,
+						})
+					}
+				}
+			}
+		}
+	}
+
+	if len(suggestions) > 0 {
+		for _, issue := range *issues {
+			for _, episode := range issue.Episodes {
+				for _, suggestion := range suggestions {
+					if episode.Series == suggestion.From && episode.Title == suggestion.To {
+						episode.Series = suggestion.To
+						episode.Title = suggestion.From
+					}
+				}
+			}
+		}
+	}
 }
 
 func findTypoedSeries(issues *[]api.Issue, logger logr.Logger, appEnv AppEnv) {
