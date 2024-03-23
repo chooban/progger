@@ -25,7 +25,9 @@ func MainWindow(a fyne.App, w fyne.Window) fyne.CanvasObject {
 	displayPanel := displayContainer(w, boundSource, scanner)
 
 	return container.NewBorder(
-		widget.NewLabel("Borag Thungg!"),
+		container.NewCenter(
+			widget.NewLabel("Borag Thungg!"),
+		),
 		scannerButtonsPanel,
 		nil,
 		nil,
@@ -33,7 +35,7 @@ func MainWindow(a fyne.App, w fyne.Window) fyne.CanvasObject {
 	)
 }
 
-func displayContainer(w fyne.Window, boundSource binding.String, scanner *Scanner) fyne.CanvasObject {
+func newScannerContainer() *fyne.Container {
 	barContainer := container.NewVBox(
 		widget.NewProgressBarInfinite(),
 		widget.NewLabel("Scanning..."),
@@ -42,11 +44,12 @@ func displayContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 		barContainer,
 	)
 
-	label := widget.NewLabelWithData(boundSource)
-	centeredLabel := container.NewCenter(label)
+	return centeredBar
+}
 
+func newStoryListWidget(boundStories binding.UntypedList) *widget.List {
 	storyList := widget.NewListWithData(
-		scanner.BoundStories,
+		boundStories,
 		// Component structure of the row
 		func() fyne.CanvasObject {
 			return container.NewBorder(
@@ -65,37 +68,50 @@ func displayContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 			diu, _ := di.(binding.Untyped).Get()
 			story := diu.(*Story)
 
-			progs := fmt.Sprintf("%d - %d", story.FirstIssue, story.LastIssue)
-			if story.FirstIssue == story.LastIssue {
-				progs = fmt.Sprintf("%d", story.FirstIssue)
-			}
-
 			b := binding.BindBool(&story.ToExport)
-			l.SetText(fmt.Sprintf("%s - %s (%s)", story.Series, story.Title, progs))
+			l.SetText(fmt.Sprintf("%s - %s (%s)", story.Series, story.Title, story.IssueSummary()))
 			c.Bind(b)
 		},
 	)
-	listContainer := container.NewStack(storyList)
+
+	return storyList
+}
+
+func displayContainer(w fyne.Window, boundSource binding.String, scanner *Scanner) fyne.CanvasObject {
+
+	scannerProgressContainer := newScannerContainer()
+	sourceDirectoryLabel := container.NewCenter(
+		container.NewVBox(
+			widget.NewLabelWithData(boundSource),
+			widget.NewButton("Choose Directory", func() {
+				dialog.ShowFolderOpen(func(l fyne.ListableURI, err error) {
+					boundSource.Set(l.Path())
+				}, w)
+			}),
+		),
+	)
+
+	listContainer := container.NewStack(newStoryListWidget(scanner.BoundStories))
 	listContainer.Hide()
 
 	layout := container.NewStack(
-		centeredLabel,
-		centeredBar,
+		sourceDirectoryLabel,
+		scannerProgressContainer,
 		listContainer,
 	)
 
 	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
 		if isScanning, _ := scanner.IsScanning.Get(); isScanning == true {
-			centeredLabel.Hide()
-			centeredBar.Show()
+			sourceDirectoryLabel.Hide()
+			scannerProgressContainer.Show()
 		} else {
 			stories, _ := scanner.BoundStories.Get()
 			if len(stories) == 0 {
-				centeredLabel.Show()
-				centeredBar.Hide()
+				sourceDirectoryLabel.Show()
+				scannerProgressContainer.Hide()
 			} else {
-				centeredLabel.Hide()
-				centeredBar.Hide()
+				sourceDirectoryLabel.Hide()
+				scannerProgressContainer.Hide()
 				listContainer.Show()
 			}
 		}
@@ -105,16 +121,11 @@ func displayContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 }
 
 func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanner) fyne.CanvasObject {
-
-	dirButton := widget.NewButton("Choose directory", func() {
-		dialog.ShowFolderOpen(func(l fyne.ListableURI, err error) {
-			boundSource.Set(l.Path())
-		}, w)
-	})
-
 	scanButton := widget.NewButton("Scan Directory", func() {
 		dirToScan, _ := boundSource.Get()
-		scanner.Scan(dirToScan)
+		go func() {
+			scanner.Scan(dirToScan)
+		}()
 	})
 
 	exportButton := widget.NewButton("Export Story", func() {
@@ -127,9 +138,7 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 		for _, v := range stories {
 			story := v.(*Story)
 			if story.ToExport {
-				//println(fmt.Sprintf("Exporting %s - %s", story.Series, story.Title))
 				for _, e := range story.Episodes {
-					//println(fmt.Sprintf("Adding pages %d - %d from %s", e.FirstPage, e.LastPage, e.Filename))
 					toExport = append(toExport, api.ExportPage{
 						Filename:    filepath.Join(sourceDir, e.Filename),
 						PageFrom:    e.FirstPage,
@@ -155,22 +164,18 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 		if err != nil {
 			println(err.Error())
 		}
-		println("Export complete")
 	})
 	exportButton.Hide()
 
 	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
 		isScanning, _ := scanner.IsScanning.Get()
 		if isScanning {
-			dirButton.Disable()
 			scanButton.Disable()
 		} else {
 			stories, _ := scanner.BoundStories.Get()
 			if len(stories) == 0 {
-				dirButton.Enable()
 				scanButton.Enable()
 			} else {
-				dirButton.Hide()
 				scanButton.Hide()
 				exportButton.Show()
 			}
@@ -178,7 +183,6 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 	}))
 
 	return container.NewVBox(
-		dirButton,
 		scanButton,
 		exportButton,
 	)

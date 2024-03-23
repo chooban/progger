@@ -14,24 +14,7 @@ type Scanner struct {
 	BoundStories binding.UntypedList
 }
 
-type Episode struct {
-	*api.Episode
-	Filename    string
-	IssueNumber int
-}
-
-type Story struct {
-	Title      string
-	Series     string
-	Episodes   []Episode
-	FirstIssue int
-	LastIssue  int
-	ToExport   bool
-}
-
 func toStories(issues []api.Issue) []*Story {
-	stories := make([]*Story, len(issues))
-
 	storyMap := make(map[string]*Story)
 
 	for _, issue := range issues {
@@ -42,6 +25,7 @@ func toStories(issues []api.Issue) []*Story {
 				sort.Slice(story.Episodes, func(i, j int) bool {
 					return story.Episodes[i].IssueNumber < story.Episodes[j].IssueNumber
 				})
+				story.Issues = append(story.Issues, issue.IssueNumber)
 				if issue.IssueNumber < story.FirstIssue {
 					story.FirstIssue = issue.IssueNumber
 				}
@@ -55,13 +39,15 @@ func toStories(issues []api.Issue) []*Story {
 					Episodes:   []Episode{{episode, issue.Filename, issue.IssueNumber}},
 					FirstIssue: issue.IssueNumber,
 					LastIssue:  issue.IssueNumber,
+					Issues:     []int{issue.IssueNumber},
 					ToExport:   false,
 				}
 				storyMap[fmt.Sprintf("%s - %s", episode.Series, episode.Title)] = &s
 			}
 		}
 	}
-	stories = maps.Values(storyMap)
+
+	stories := maps.Values(storyMap)
 	sort.Slice(stories, func(i, j int) bool {
 		storyI := stories[i]
 		storyJ := stories[j]

@@ -82,6 +82,7 @@ func TestCapitalizeWords(t *testing.T) {
 		{name: "letter after number", input: "3rillers", expected: "3rillers"},
 		{name: "ABC", input: "Abc", expected: "ABC"},
 		{name: "Numerals", input: "ii", expected: "II"},
+		{name: "Abbreviations", input: "a.i.", expected: "A.I."},
 	}
 
 	for _, tc := range testCases {
