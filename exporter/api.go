@@ -24,6 +24,10 @@ type Story struct {
 	ToExport   bool
 }
 
+func (s *Story) Display() string {
+	return strings.Join([]string{s.Series, s.Title}, " - ")
+}
+
 func (s *Story) IssueSummary() string {
 	if len(s.Issues) == 1 {
 		return strconv.Itoa(s.Issues[0])

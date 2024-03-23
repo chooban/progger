@@ -12,6 +12,7 @@ import (
 	"github.com/chooban/progger/scan/api"
 	"path/filepath"
 	"slices"
+	"strings"
 )
 
 func MainWindow(a fyne.App, w fyne.Window) fyne.CanvasObject {
@@ -47,9 +48,12 @@ func newScannerContainer() *fyne.Container {
 	return centeredBar
 }
 
-func newStoryListWidget(boundStories binding.UntypedList) *widget.List {
+func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
+	filterValue := binding.NewString()
+	filteredList := binding.NewUntypedList()
+
 	storyList := widget.NewListWithData(
-		boundStories,
+		filteredList,
 		// Component structure of the row
 		func() fyne.CanvasObject {
 			return container.NewBorder(
@@ -69,12 +73,48 @@ func newStoryListWidget(boundStories binding.UntypedList) *widget.List {
 			story := diu.(*Story)
 
 			b := binding.BindBool(&story.ToExport)
-			l.SetText(fmt.Sprintf("%s - %s (%s)", story.Series, story.Title, story.IssueSummary()))
+			l.SetText(fmt.Sprintf("%s (%s)", story.Display(), story.IssueSummary()))
 			c.Bind(b)
 		},
 	)
 
-	return storyList
+	listRefresh := func() {
+		stories, _ := boundStories.Get()
+		toDisplay := make([]interface{}, 0, len(stories))
+
+		f, _ := filterValue.Get()
+		if strings.TrimSpace(f) == "" {
+			toDisplay = slices.Clone(stories)
+		} else {
+			_f := strings.Split(strings.ToLower(f), " ")
+			for _, v := range stories {
+				if ContainsAll(strings.ToLower(v.(*Story).Display()), _f) {
+					toDisplay = append(toDisplay, v)
+				}
+			}
+		}
+
+		if err := filteredList.Set(toDisplay); err != nil {
+			println(err.Error())
+		}
+		storyList.Refresh()
+	}
+
+	boundStories.AddListener(binding.NewDataListener(listRefresh))
+	filterValue.AddListener(binding.NewDataListener(listRefresh))
+
+	filter := widget.NewEntryWithData(filterValue)
+	filter.SetPlaceHolder("Filter list")
+
+	c := container.NewBorder(
+		nil,
+		filter,
+		nil,
+		nil,
+		storyList,
+	)
+
+	return c
 }
 
 func displayContainer(w fyne.Window, boundSource binding.String, scanner *Scanner) fyne.CanvasObject {
