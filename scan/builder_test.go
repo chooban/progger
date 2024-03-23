@@ -213,8 +213,8 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			name:           "Nakka",
 			input:          "Tharg's 3rillers Present Nakka of the S.T.A.R.S: Part One",
 			expectedPart:   1,
-			expectedSeries: "Tharg's 3rillers Present Nakka of The S.t.a.r.s",
-			expectedTitle:  "Tharg's 3rillers Present Nakka of The S.t.a.r.s",
+			expectedSeries: "Tharg's 3rillers Present Nakka of The S.T.A.R.S",
+			expectedTitle:  "Tharg's 3rillers Present Nakka of The S.T.A.R.S",
 		},
 		{
 			name:           "'Splorers",

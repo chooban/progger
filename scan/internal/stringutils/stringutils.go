@@ -75,12 +75,12 @@ func TrimNonAlphaNumeric(input string) string {
 
 func CapitalizeWords(sentence string) string {
 	conversionPatterns := map[string]func(s string) string{
-		`\bOf\b`:           strings.ToLower,
-		`\bVs\b`:           strings.ToLower,
-		`\d{1}[A-Z]`:       strings.ToLower,
-		`\bAbc\b`:          strings.ToUpper,
-		`\b[IVX][ivx]*\b`:  strings.ToUpper,
-		`\b[A-Z]\.[a-z]\.`: strings.ToUpper,
+		`\bOf\b`:                      strings.ToLower,
+		`\bVs\b`:                      strings.ToLower,
+		`\d{1}[A-Z]`:                  strings.ToLower,
+		`\bAbc\b`:                     strings.ToUpper,
+		`\b[IVX][ivx]*\b`:             strings.ToUpper,
+		`\b[A-Z]\.([a-z]\.)*[a-z]\.?`: strings.ToUpper,
 	}
 
 	capitalized := cases.Title(language.BritishEnglish).String(sentence)

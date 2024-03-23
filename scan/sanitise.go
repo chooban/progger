@@ -102,6 +102,11 @@ func findTypoedSeries(issues *[]api.Issue, logger logr.Logger, appEnv AppEnv) {
 	// Look for series titles that are close to others
 	allSeries := seriesTitleCounts(issues)
 	suggestions := getSuggestions(logger, appEnv.Known, allSeries, SeriesTitle)
+	suggestions = append(suggestions, Suggestion{
+		"Dexter", "Sinister Dexter", SeriesTitle,
+	}, Suggestion{
+		"Sinister", "Sinister Dexter", SeriesTitle,
+	})
 	for _, issue := range *issues {
 		for i, e := range issue.Episodes {
 			for _, suggestion := range suggestions {
