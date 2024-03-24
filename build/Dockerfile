@@ -20,6 +20,14 @@ LABEL org.opencontainers.image.description="Utility for downloading 2000AD"
 RUN wget https://go.dev/dl/go1.22.0.linux-amd64.tar.gz
 RUN tar -xvf go1.22.0.linux-amd64.tar.gz -C /usr/local
 
+RUN USER=pwuser && \
+    GROUP=pwuser && \
+    curl -SsL https://github.com/boxboat/fixuid/releases/download/v0.6.0/fixuid-0.6.0-linux-amd64.tar.gz | tar -C /usr/local/bin -xzf - && \
+    chown root:root /usr/local/bin/fixuid && \
+    chmod 4755 /usr/local/bin/fixuid && \
+    mkdir -p /etc/fixuid && \
+    printf "user: pwuser\ngroup: pwuser\n" > /etc/fixuid/config.yml
+
 WORKDIR /app
 
 ENV PATH="${PATH}:/usr/local/go/bin"
@@ -32,7 +40,7 @@ RUN mkdir -p /opt/cache
 RUN chown pwuser /opt/downloads
 RUN chown pwuser /opt/cache
 
-USER pwuser
+USER pwuser:pwuser
 RUN go run github.com/playwright-community/playwright-go/cmd/playwright@v0.4101.1 install firefox
 
 RUN mkdir -p ~/.config/progger/
@@ -41,6 +49,8 @@ VOLUME /opt/cache
 VOLUME /opt/downloads
 
 COPY --from=builder /app/progdl ./
+
+ENTRYPOINT ["fixuid"]
 
 CMD ./progdl \
     --browser-dir $BROWSER_DIR \
