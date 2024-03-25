@@ -1,16 +1,11 @@
 package exporter
 
 import (
-	"cmp"
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
-	"github.com/chooban/progger/scan"
-	"github.com/chooban/progger/scan/api"
-	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -21,9 +16,10 @@ func MainWindow(a fyne.App, w fyne.Window) fyne.CanvasObject {
 
 	// We'll need a scanner service-like object to perform the operations
 	scanner := NewScanner()
+	exporter := NewExporter(BoundSourceDir(a), BoundExportDir(a))
 
-	scannerButtonsPanel := buttonsContainer(w, boundSource, scanner)
-	displayPanel := displayContainer(w, boundSource, scanner)
+	scannerButtonsPanel := buttonsContainer(w, boundSource, scanner, exporter)
+	displayPanel := displayContainer(boundSource, scanner)
 
 	return container.NewBorder(
 		container.NewCenter(
@@ -117,17 +113,11 @@ func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
 	return c
 }
 
-func displayContainer(w fyne.Window, boundSource binding.String, scanner *Scanner) fyne.CanvasObject {
-
+func displayContainer(boundSource binding.String, scanner *Scanner) fyne.CanvasObject {
 	scannerProgressContainer := newScannerContainer()
 	sourceDirectoryLabel := container.NewCenter(
 		container.NewVBox(
 			widget.NewLabelWithData(boundSource),
-			widget.NewButton("Choose Directory", func() {
-				dialog.ShowFolderOpen(func(l fyne.ListableURI, err error) {
-					boundSource.Set(l.Path())
-				}, w)
-			}),
 		),
 	)
 
@@ -160,7 +150,7 @@ func displayContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 	return layout
 }
 
-func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanner) fyne.CanvasObject {
+func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanner, exporter *Exporter) fyne.CanvasObject {
 	scanButton := widget.NewButton("Scan Directory", func() {
 		dirToScan, _ := boundSource.Get()
 		go func() {
@@ -170,40 +160,21 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 
 	exportButton := widget.NewButton("Export Story", func() {
 		stories, err := scanner.BoundStories.Get()
-		sourceDir, _ := boundSource.Get()
 		if err != nil {
 			println(err.Error())
 		}
-		toExport := make([]api.ExportPage, 0)
+		toExport := make([]*Story, 0)
 		for _, v := range stories {
 			story := v.(*Story)
 			if story.ToExport {
-				for _, e := range story.Episodes {
-					toExport = append(toExport, api.ExportPage{
-						Filename:    filepath.Join(sourceDir, e.Filename),
-						PageFrom:    e.FirstPage,
-						PageTo:      e.LastPage,
-						IssueNumber: e.IssueNumber,
-						Title:       fmt.Sprintf("%s - Part %d", e.Title, e.Part),
-					})
-				}
+				toExport = append(toExport, story)
 			}
 		}
 		if len(toExport) == 0 {
 			println("Nothing to export")
 			return
 		}
-		// Sort by issue number. We sometimes have issues being wrongly grouped, but surely we never want anything
-		// other than issue order?
-		slices.SortFunc(toExport, func(i, j api.ExportPage) int {
-			return cmp.Compare(i.IssueNumber, j.IssueNumber)
-		})
-
-		// Do the export
-		err = scan.Build(WithLogger(), toExport, "export.pdf")
-		if err != nil {
-			println(err.Error())
-		}
+		exporter.Export(toExport)
 	})
 	exportButton.Hide()
 

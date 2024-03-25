@@ -1,13 +1,65 @@
 package exporter
 
 import (
+	"cmp"
 	"fmt"
 	"fyne.io/fyne/v2/data/binding"
 	"github.com/chooban/progger/scan"
 	"github.com/chooban/progger/scan/api"
 	"golang.org/x/exp/maps"
+	"path/filepath"
+	"slices"
 	"sort"
 )
+
+type Exporter struct {
+	BoundSourceDir binding.String
+	BoundExportDir binding.String
+}
+
+func (e *Exporter) Export(stories []*Story) error {
+	sourceDir, err := e.BoundSourceDir.Get()
+	if err != nil {
+		return err
+	}
+	exportDir, err := e.BoundExportDir.Get()
+	if err != nil {
+		return err
+	}
+
+	toExport := make([]api.ExportPage, 0)
+	for _, story := range stories {
+		//story := v.(*Story)
+		if story.ToExport {
+			for _, e := range story.Episodes {
+				toExport = append(toExport, api.ExportPage{
+					Filename:    filepath.Join(sourceDir, e.Filename),
+					PageFrom:    e.FirstPage,
+					PageTo:      e.LastPage,
+					IssueNumber: e.IssueNumber,
+					Title:       fmt.Sprintf("%s - Part %d", e.Title, e.Part),
+				})
+			}
+		}
+	}
+	if len(toExport) == 0 {
+		println("Nothing to export")
+		return nil
+	}
+	// Sort by issue number. We sometimes have issues being wrongly grouped, but surely we never want anything
+	// other than issue order?
+	slices.SortFunc(toExport, func(i, j api.ExportPage) int {
+		return cmp.Compare(i.IssueNumber, j.IssueNumber)
+	})
+
+	// Do the export
+	err = scan.Build(WithLogger(), toExport, filepath.Join(exportDir, "export.pdf"))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 type Scanner struct {
 	IsScanning   binding.Bool
@@ -81,5 +133,11 @@ func NewScanner() *Scanner {
 	return &Scanner{
 		IsScanning:   isScanning,
 		BoundStories: binding.NewUntypedList(),
+	}
+}
+
+func NewExporter(src, export binding.String) *Exporter {
+	return &Exporter{
+		src, export,
 	}
 }
