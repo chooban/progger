@@ -2,6 +2,7 @@ package exporter
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"fyne.io/fyne/v2/data/binding"
 	"github.com/chooban/progger/scan"
@@ -17,7 +18,7 @@ type Exporter struct {
 	BoundExportDir binding.String
 }
 
-func (e *Exporter) Export(stories []*Story) error {
+func (e *Exporter) Export(stories []*Story, filename string) error {
 	sourceDir, err := e.BoundSourceDir.Get()
 	if err != nil {
 		return err
@@ -29,7 +30,6 @@ func (e *Exporter) Export(stories []*Story) error {
 
 	toExport := make([]api.ExportPage, 0)
 	for _, story := range stories {
-		//story := v.(*Story)
 		if story.ToExport {
 			for _, e := range story.Episodes {
 				toExport = append(toExport, api.ExportPage{
@@ -43,8 +43,7 @@ func (e *Exporter) Export(stories []*Story) error {
 		}
 	}
 	if len(toExport) == 0 {
-		println("Nothing to export")
-		return nil
+		return errors.New("no stories to export")
 	}
 	// Sort by issue number. We sometimes have issues being wrongly grouped, but surely we never want anything
 	// other than issue order?
@@ -53,7 +52,7 @@ func (e *Exporter) Export(stories []*Story) error {
 	})
 
 	// Do the export
-	err = scan.Build(WithLogger(), toExport, filepath.Join(exportDir, "export.pdf"))
+	err = scan.Build(WithLogger(), toExport, filepath.Join(exportDir, filename))
 	if err != nil {
 		return err
 	}

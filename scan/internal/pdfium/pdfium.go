@@ -87,7 +87,7 @@ func (p *Reader) Build(episodes []api.ExportPage, outputPath string) {
 			continue
 		}
 		pageRange := fmt.Sprintf("%d-%d", episode.PageFrom, episode.PageTo)
-		p.Log.Info("Adding pages", "page_range", pageRange, "index", pageCount, "filename", episode.Filename)
+		p.Log.V(1).Info("Adding pages", "page_range", pageRange, "index", pageCount, "filename", episode.Filename)
 		if _, err = p.Instance.FPDF_ImportPages(&requests.FPDF_ImportPages{
 			Source:      source.Document,
 			Destination: destination.Document,

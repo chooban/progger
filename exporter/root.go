@@ -151,32 +151,15 @@ func displayContainer(boundSource binding.String, scanner *Scanner) fyne.CanvasO
 }
 
 func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanner, exporter *Exporter) fyne.CanvasObject {
+	exportButton := ExportButton(w, scanner, exporter)
+	exportButton.Hide()
+
 	scanButton := widget.NewButton("Scan Directory", func() {
 		dirToScan, _ := boundSource.Get()
 		go func() {
 			scanner.Scan(dirToScan)
 		}()
 	})
-
-	exportButton := widget.NewButton("Export Story", func() {
-		stories, err := scanner.BoundStories.Get()
-		if err != nil {
-			println(err.Error())
-		}
-		toExport := make([]*Story, 0)
-		for _, v := range stories {
-			story := v.(*Story)
-			if story.ToExport {
-				toExport = append(toExport, story)
-			}
-		}
-		if len(toExport) == 0 {
-			println("Nothing to export")
-			return
-		}
-		exporter.Export(toExport)
-	})
-	exportButton.Hide()
 
 	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
 		isScanning, _ := scanner.IsScanning.Get()
