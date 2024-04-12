@@ -12,6 +12,7 @@ import (
 
 var signinUrl = "https://shop.2000ad.com/account/sign-in"
 var listUrl = "https://shop.2000ad.com/account/downloads?sort-by=released&direction=desc"
+var downloadPageUrl = "https://shop.2000ad.com/account/downloads?sort-by=granted&direction=desc&page=%d"
 
 func Login(ctx context.Context, bContext playwright.BrowserContext, username, password string) (err error) {
 	assertions := playwright.NewPlaywrightAssertions()
@@ -56,7 +57,6 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 }
 
 func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs []api.DigitalComic, err error) {
-	//assertions := playwright.NewPlaywrightAssertions()
 	logger := logr.FromContextOrDiscard(ctx)
 	page, err := bContext.NewPage()
 	if err != nil {
@@ -66,10 +66,24 @@ func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs [
 		return progs, err
 	}
 
-	progs, _ = extractProgsFromPage(logger, page)
+	links := page.Locator("ul.pagination").GetByRole("link").Filter(playwright.LocatorFilterOptions{HasNotText: "Next"}).Last()
+	maxPageText, _ := links.InnerText()
+	maxPage, _ := strconv.Atoi(maxPageText)
 
-	// TODO: Iterate through for a full list
-	//nextLink := page.GetByRole("link").Filter(playwright.LocatorFilterOptions{HasText: "Next"}).First()
+	progs = make([]api.DigitalComic, 0, maxPage*10)
+	for p := range maxPage {
+		if p == 0 {
+			continue
+		}
+		if _, err := page.Goto(fmt.Sprintf(downloadPageUrl, p)); err != nil {
+			logger.Error(err, "Failed to load page")
+			continue
+		} else {
+			if newProgs, err := extractProgsFromPage(logger, page); err == nil {
+				progs = append(progs, newProgs...)
+			}
+		}
+	}
 
 	return
 }
@@ -112,7 +126,7 @@ func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]api.Digit
 	if err != nil {
 		return []api.DigitalComic{}, err
 	}
-	logger.Info("Found listitems", "count", len(locators))
+	logger.Info("Found listitems", "count", len(locators), "page", page.URL())
 	progs := make([]api.DigitalComic, len(locators))
 	for i, v := range locators {
 		productUrl, _ := v.GetByRole("link").Filter(titleFilter).First().GetAttribute("href")

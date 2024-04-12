@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"github.com/chooban/progger/download"
 	"github.com/chooban/progger/download/api"
 	"github.com/go-logr/logr"
@@ -27,6 +28,9 @@ func main() {
 
 	var printUsage bool
 	flag.BoolVar(&printUsage, "help", false, "Print usage")
+
+	var listAvailable bool
+	flag.BoolVar(&listAvailable, "list", false, "List available downloads")
 
 	var browserDir string
 	flag.StringVar(&browserDir, "browser-dir", configDir, "Directory for browser cache")
@@ -62,6 +66,13 @@ func main() {
 		return
 	}
 
+	if listAvailable {
+		for _, prog := range list {
+			logger.Info(fmt.Sprintf("Found %d", prog.IssueNumber))
+		}
+		return
+	}
+
 	for i := 0; i < downloadCount && i < len(list); i++ {
 		logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
 		if filepath, err := download.Download(ctx, list[i], downloadDir, api.Pdf); err != nil {
@@ -79,7 +90,7 @@ func withLogger(ctx context.Context) (context.Context, logr.Logger) {
 	}
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	zlogger := zerolog.New(writer)
-	zlogger = zlogger.With().Caller().Timestamp().Logger()
+	zlogger = zlogger.With().Caller().Logger()
 
 	var logrLogger = zerologr.New(&zlogger)
 	ctx = logr.NewContext(ctx, logrLogger)

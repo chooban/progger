@@ -12,3 +12,4 @@ volumes/
 build/package/exporter/progger
 build/package/exporter/*.app
 build/package/exporter/*.dmg
+exporter/libpdfium.dylib
