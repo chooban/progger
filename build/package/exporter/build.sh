@@ -1,5 +1,7 @@
 #! /bin/sh
 
+rm progger.dmg
+
 go build -o progger ../../exporter/cmd/exporter.go
 fyne package -os darwin --exe progger --name progger --icon Icon.png
 mkdir progger.app/Contents/Frameworks

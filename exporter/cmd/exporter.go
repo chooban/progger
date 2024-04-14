@@ -12,14 +12,7 @@ func main() {
 	w.Resize(fyne.NewSize(600, 400))
 
 	w.SetContent(exporter.MainWindow(a, w))
-
-	w.SetMainMenu(fyne.NewMainMenu(fyne.NewMenu("Progger", fyne.NewMenuItem("Preferences", func() {
-		prefs := exporter.ShowPrefs(a, w, func() {
-			w.SetContent(exporter.MainWindow(a, w))
-		})
-
-		w.SetContent(prefs)
-	}))))
+	w.SetMainMenu(exporter.MainMenu(a, w))
 
 	w.ShowAndRun()
 }

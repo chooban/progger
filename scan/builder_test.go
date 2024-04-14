@@ -4,11 +4,8 @@ import (
 	"github.com/chooban/progger/scan/api"
 	"github.com/chooban/progger/scan/internal/pdf"
 	"github.com/go-logr/logr"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"io"
 	"testing"
-	"time"
 )
 
 func TestExtractDetailsFromTitle(t *testing.T) {
@@ -368,14 +365,30 @@ func TestShouldIncludeEpisode(t *testing.T) {
 	}
 }
 
-func discardingLogger() *zerolog.Logger {
-	writer := zerolog.ConsoleWriter{
-		Out:        io.Discard,
-		TimeFormat: time.RFC3339,
+func TestGetIssueNumber(t *testing.T) {
+	testCases := []struct {
+		name                string
+		filename            string
+		expectedIssueNumber int
+	}{
+		{
+			name:                "Downloaded from site",
+			filename:            "PRG2365D.pdf",
+			expectedIssueNumber: 2365,
+		},
+		{
+			name:                "Downloaded by downloader",
+			filename:            "2000AD 2365 (1977).pdf",
+			expectedIssueNumber: 2365,
+		},
 	}
-	logger := zerolog.New(writer)
-
-	return &logger
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			issueNumber, err := getProgNumber(tc.filename)
+			assert.Nil(t, err, "Should be no error")
+			assert.Equal(t, tc.expectedIssueNumber, issueNumber)
+		})
+	}
 }
 
 func TestBuildEpisodes(t *testing.T) {

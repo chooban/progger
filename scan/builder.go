@@ -18,17 +18,27 @@ import (
 
 func getProgNumber(inFile string) (int, error) {
 	filename := filepath.Base(inFile)
-	regex := regexp.MustCompile(`(\b[^()])(?P<issue>\d{1,4})(\b[^()])`)
 
-	namedResults := stringutils.FindNamedMatches(regex, filename)
-	if len(namedResults) > 0 {
-		return strconv.Atoi(stringutils.TrimNonAlphaNumeric(namedResults["issue"]))
+	knownFileNames := []*regexp.Regexp{
+		regexp.MustCompile(`(\b[^()])(?P<issue>\d{1,4})(\b[^()])`),
+		regexp.MustCompile(`PRG(?P<issue>\d{1,4})D`),
+	}
+
+	for _, regex := range knownFileNames {
+		namedResults := stringutils.FindNamedMatches(regex, filename)
+		if len(namedResults) > 0 {
+			return strconv.Atoi(stringutils.TrimNonAlphaNumeric(namedResults["issue"]))
+		}
 	}
 	return 0, errors.New("no number found in filename")
 }
 
 func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, knownTitles []string, skipTitles []string) api.Issue {
-	issueNumber, _ := getProgNumber(filename)
+	issueNumber, err := getProgNumber(filename)
+	if err != nil {
+		log.Error(err, "Error getting issue number")
+		return api.Issue{}
+	}
 	allEpisodes := make([]*api.Episode, 0)
 
 	for _, d := range details {
@@ -187,7 +197,7 @@ func shouldIncludeEpisode(logger logr.Logger, seriesToSkip []string, seriesTitle
 	for _, s := range pagesToSkip {
 		for _, t := range []string{episodeTitle, seriesTitle} {
 			if stringutils.ContainsI(t, s) || levenshtein.DistanceForStrings([]rune(s), []rune(t), levenshtein.DefaultOptions) < 5 {
-				logger.V(1).Info(fmt.Sprintf("%s contains, or is close to, %s", t, s))
+				logger.V(1).Info(fmt.Sprintf("\"%s\" contains, or is close to, \"%s\"", t, s))
 				return false
 			}
 		}

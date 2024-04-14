@@ -6,20 +6,20 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/widget"
+	"github.com/chooban/progger/exporter/api"
+	"github.com/chooban/progger/exporter/prefs"
+	"github.com/chooban/progger/exporter/services"
 	"slices"
 	"strings"
 )
 
 func MainWindow(a fyne.App, w fyne.Window) fyne.CanvasObject {
-	// We want to be able to react to the source directory changing
-	boundSource := BoundSourceDir(a)
+	ctx, _ := WithLogger()
+	appServices := services.NewAppServices(ctx, a)
+	boundSource := prefs.BoundSourceDir(a)
 
-	// We'll need a scanner service-like object to perform the operations
-	scanner := NewScanner()
-	exporter := NewExporter(BoundSourceDir(a), BoundExportDir(a))
-
-	scannerButtonsPanel := buttonsContainer(w, boundSource, scanner, exporter)
-	displayPanel := displayContainer(boundSource, scanner)
+	scannerButtonsPanel := buttonsContainer(w, boundSource, appServices)
+	displayPanel := displayContainer(boundSource, appServices)
 
 	return container.NewBorder(
 		container.NewCenter(
@@ -66,7 +66,7 @@ func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
 			l := ctr.Objects[0].(*widget.Label)
 			c := ctr.Objects[1].(*widget.Check)
 			diu, _ := di.(binding.Untyped).Get()
-			story := diu.(*Story)
+			story := diu.(*api.Story)
 
 			b := binding.BindBool(&story.ToExport)
 			l.SetText(fmt.Sprintf("%s (%s)", story.Display(), story.IssueSummary()))
@@ -84,7 +84,7 @@ func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
 		} else {
 			_f := strings.Split(strings.ToLower(f), " ")
 			for _, v := range stories {
-				if ContainsAll(strings.ToLower(v.(*Story).Display()), _f) {
+				if ContainsAll(strings.ToLower(v.(*api.Story).Display()), _f) {
 					toDisplay = append(toDisplay, v)
 				}
 			}
@@ -113,7 +113,10 @@ func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
 	return c
 }
 
-func displayContainer(boundSource binding.String, scanner *Scanner) fyne.CanvasObject {
+func displayContainer(boundSource binding.String, appServices *services.AppServices) fyne.CanvasObject {
+	scanner := appServices.Scanner
+	downloader := appServices.Downloader
+
 	scannerProgressContainer := newScannerContainer()
 	sourceDirectoryLabel := container.NewCenter(
 		container.NewVBox(
@@ -129,6 +132,16 @@ func displayContainer(boundSource binding.String, scanner *Scanner) fyne.CanvasO
 		scannerProgressContainer,
 		listContainer,
 	)
+
+	downloader.IsDownloading.AddListener(binding.NewDataListener(func() {
+		if isDownloading, _ := downloader.IsDownloading.Get(); isDownloading == true {
+			sourceDirectoryLabel.Hide()
+			scannerProgressContainer.Show()
+		} else {
+			sourceDirectoryLabel.Show()
+			scannerProgressContainer.Show()
+		}
+	}))
 
 	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
 		if isScanning, _ := scanner.IsScanning.Get(); isScanning == true {
@@ -150,9 +163,24 @@ func displayContainer(boundSource binding.String, scanner *Scanner) fyne.CanvasO
 	return layout
 }
 
-func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanner, exporter *Exporter) fyne.CanvasObject {
+func buttonsContainer(w fyne.Window, boundSource binding.String, appServices *services.AppServices) fyne.CanvasObject {
+	scanner := appServices.Scanner
+	exporter := appServices.Exporter
+	downloader := appServices.Downloader
+
 	exportButton := ExportButton(w, scanner, exporter)
 	exportButton.Hide()
+
+	downloadButton := widget.NewButton("Download Progs", func() {
+		if err := downloader.Download(); err == nil {
+			srcDir, _ := downloader.BoundSourceDir.Get()
+			go func() {
+				scanner.Scan(srcDir)
+			}()
+		} else {
+			println(err.Error())
+		}
+	})
 
 	scanButton := widget.NewButton("Scan Directory", func() {
 		dirToScan, _ := boundSource.Get()
@@ -161,11 +189,24 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 		}()
 	})
 
+	downloader.IsDownloading.AddListener(binding.NewDataListener(func() {
+		isDownloading, _ := downloader.IsDownloading.Get()
+		if isDownloading {
+			scanButton.Disable()
+			downloadButton.Disable()
+		} else {
+			scanButton.Enable()
+			downloadButton.Enable()
+		}
+	}))
+
 	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
 		isScanning, _ := scanner.IsScanning.Get()
 		if isScanning {
 			scanButton.Disable()
+			downloadButton.Disable()
 		} else {
+			downloadButton.Enable()
 			stories, _ := scanner.BoundStories.Get()
 			if len(stories) == 0 {
 				scanButton.Enable()
@@ -177,6 +218,7 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, scanner *Scanne
 	}))
 
 	return container.NewVBox(
+		downloadButton,
 		scanButton,
 		exportButton,
 	)

@@ -9,8 +9,6 @@ test.db
 .idea/
 env
 volumes/
-build/exporter/progger
-build/exporter/progger.app
-build/exporter/progger.dmg
-build/exporter/rw.72162.progger.dmg
-build/exporter/rw.72538.progger.dmg
+build/package/exporter/progger
+build/package/exporter/*.app
+build/package/exporter/*.dmg

@@ -5,17 +5,32 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"github.com/chooban/progger/exporter/api"
+	"github.com/chooban/progger/exporter/services"
 )
 
-func ExportButton(w fyne.Window, scanner *Scanner, exporter *Exporter) *widget.Button {
+func DownloadButton(w fyne.Window, downloader *services.Downloader, scanner *services.Scanner) *widget.Button {
+	downloadButton := widget.NewButton("Download Progs", func() {
+		if err := downloader.Download(); err == nil {
+			srcDir, _ := downloader.BoundSourceDir.Get()
+			scanner.Scan(srcDir)
+		} else {
+			println(err.Error())
+		}
+	})
+
+	return downloadButton
+}
+
+func ExportButton(w fyne.Window, scanner *services.Scanner, exporter *services.Exporter) *widget.Button {
 	exportButton := widget.NewButton("Export Story", func() {
 		stories, err := scanner.BoundStories.Get()
 		if err != nil {
 			dialog.ShowError(err, w)
 		}
-		toExport := make([]*Story, 0)
+		toExport := make([]*api.Story, 0)
 		for _, v := range stories {
-			story := v.(*Story)
+			story := v.(*api.Story)
 			if story.ToExport {
 				toExport = append(toExport, story)
 			}
