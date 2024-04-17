@@ -1,3 +1,5 @@
+name: Progger - DMG Build
+
 on:
   workflow_dispatch:
 
@@ -27,7 +29,7 @@ jobs:
           sudo cp ./.github/workflows/pdfium.pc /usr/lib/pkgconfig/pdfium.pc
       - name: Build progger
         run: |
-          GOOS=darwin GOARCH=arm64 go build -o progger
+          GOOS=darwin GOARCH=arm64 go build -o progger exporter/cmd/exporter.go
       - uses: actions/upload-artifact@v4
         with:
           name: progger-bin
