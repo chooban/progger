@@ -27,9 +27,14 @@ jobs:
           
           sudo rm pdfium-${{ env.PDFIUM_OS }}.tgz
           sudo cp ./.github/workflows/pdfium.pc /usr/lib/pkgconfig/pdfium.pc
-      - name: Build progger
-        run: |
-          GOOS=darwin GOARCH=arm64 go build -o progger exporter/cmd/exporter.go
+      - name: Generate build files
+        uses: thatisuday/go-cross-build@v1
+        with:
+            platforms: 'darwin/arm64'
+            package: 'exporter/cmd/exporter.go'
+            name: 'progger'
+            compress: 'true'
+            dest: 'dist'
       - uses: actions/upload-artifact@v4
         with:
           name: progger-bin
