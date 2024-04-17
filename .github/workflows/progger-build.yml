@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
 
 env:
-  GO_VERSION: "1.22"
   PDFIUM_VERSION: "6406"
   PDFIUM_OS: "ios-arm64"
 
@@ -18,9 +17,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: 'go.work'
+          cache-dependency-path: go.work.sum
       - name: Set up PDFium library
         run: |
           sudo curl -L https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F${{ env.PDFIUM_VERSION }}/pdfium-${{ env.PDFIUM_OS }}.tgz -o pdfium-${{ env.PDFIUM_OS }}.tgz && sudo mkdir /opt/pdfium && sudo tar -C /opt/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
