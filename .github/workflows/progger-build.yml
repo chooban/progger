@@ -24,10 +24,8 @@ jobs:
       - name: Set up PDFium library
         run: |
           sudo curl -L https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F${{ env.PDFIUM_VERSION }}/pdfium-${{ env.PDFIUM_OS }}.tgz -o pdfium-${{ env.PDFIUM_OS }}.tgz && sudo mkdir /opt/pdfium && sudo tar -C /opt/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
-          
           sudo rm pdfium-${{ env.PDFIUM_OS }}.tgz
-          sudo mkdir -p /usr/lib/pkgconfig
-          sudo cp ./.github/workflows/pdfium.pc /usr/lib/pkgconfig/pdfium.pc
+#          sudo cp ./.github/workflows/pdfium.pc /usr/lib/pkgconfig/pdfium.pc
       - name: Generate build files
         uses: thatisuday/go-cross-build@v1
         with:
