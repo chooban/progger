@@ -30,7 +30,7 @@ jobs:
         uses: crazy-max/ghaction-xgo@v3
         with:
           xgo_version: latest
-          go_version: 1.22
+          go_version: 1.21
           dest: build
           prefix: progger
           targets: darwin/arm64
