@@ -12,7 +12,7 @@ jobs:
     env:
       CGO_ENABLED: 1
       LD_LIBRARY_PATH: "/opt/pdfium/lib"
-    runs-on: ubuntu-latest
+    runs-on: macos-latest-large
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
