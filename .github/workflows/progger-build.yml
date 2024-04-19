@@ -12,7 +12,7 @@ jobs:
     env:
       CGO_ENABLED: 1
       LD_LIBRARY_PATH: "/opt/pdfium/lib"
-    runs-on: macos-latest-large
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,19 +21,26 @@ jobs:
         with:
           go-version-file: 'go.work'
           cache-dependency-path: go.work.sum
-      - name: Set up PDFium library
-        run: |
-          sudo curl -L https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F${{ env.PDFIUM_VERSION }}/pdfium-${{ env.PDFIUM_OS }}.tgz -o pdfium-${{ env.PDFIUM_OS }}.tgz && sudo mkdir /opt/pdfium && sudo tar -C /opt/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
-          sudo rm pdfium-${{ env.PDFIUM_OS }}.tgz
-          sudo cp ./.github/workflows/pdfium.pc /usr/lib/pkgconfig/pdfium.pc
-      - name: Generate build files
-        uses: thatisuday/go-cross-build@v1
+#      - name: Set up PDFium library
+#        run: |
+#          sudo curl -L https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F${{ env.PDFIUM_VERSION }}/pdfium-${{ env.PDFIUM_OS }}.tgz -o pdfium-${{ env.PDFIUM_OS }}.tgz && sudo mkdir /opt/pdfium && sudo tar -C /opt/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
+#          sudo rm pdfium-${{ env.PDFIUM_OS }}.tgz
+#          sudo cp ./.github/workflows/pdfium.pc /usr/lib/pkgconfig/pdfium.pc
+      - name: Build
+        uses: crazy-max/ghaction-xgo@v3
         with:
-            platforms: 'darwin/arm64'
-            package: 'exporter/cmd/exporter.go'
-            name: 'progger'
-            compress: 'true'
-            dest: 'dist'
+          xgo_version: latest
+          go_version: 1.22
+          dest: build
+          prefix: progger
+          targets: darwin/arm64
+          pkg: exporter/cmd/exporter.go
+          v: true
+          x: false
+          race: false
+          ldflags: -s -w
+          buildmode: default
+          trimpath: true
       - uses: actions/upload-artifact@v4
         with:
           name: progger-bin
