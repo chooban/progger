@@ -8,11 +8,11 @@ env:
   PDFIUM_OS: "ios-arm64"
 
 jobs:
-  build:
+  build-dmg:
     env:
       CGO_ENABLED: 1
       LD_LIBRARY_PATH: "/opt/pdfium/lib"
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
