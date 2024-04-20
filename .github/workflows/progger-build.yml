@@ -45,6 +45,13 @@ jobs:
           echo $LD_LIBRARY_PATH
           echo $PKG_CONFIG_PATH
           go build -o progger exporter/cmd/exporter.go
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
+        if: ${{ failure() }}
+        with:
+          limit-access-to-actor: true
+          limit-access-to-users: chooban
+          wait-timeout-minutes: 2
 #      - name: Build
 #        uses: crazy-max/ghaction-xgo@v3
 #        with:
