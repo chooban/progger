@@ -1,6 +1,6 @@
-prefix=/opt/pdfium
-libdir=/opt/pdfium/lib
-includedir=/opt/pdfium/include
+prefix=/usr/local/lib/pdfium
+libdir=/usr/local/lib/pdfium/lib
+includedir=/usr/local/lib/pdfium/include
 
 Name: PDFium
 Description: PDFium
