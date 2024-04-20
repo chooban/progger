@@ -31,6 +31,7 @@ jobs:
           cp ./.github/workflows/pdfium.pc ~/.local/lib/pkgconfig/pdfium.pc
           export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:$HOME/.local/lib/pdfium/lib"
           export PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:$HOME/.local/lib/pkgconfig"
+          echo "Done"
       - name: Build progger binary
         run: |
           go build -o progger exporter/cmd/exporter.go
