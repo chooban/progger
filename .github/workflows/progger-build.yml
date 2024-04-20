@@ -45,16 +45,18 @@ jobs:
           echo $LD_LIBRARY_PATH
           echo $PKG_CONFIG_PATH
           go build -o progger exporter/cmd/exporter.go
+      - name: Add SHORT_SHA env property with commit short sha
+        run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v4
         with:
-          name: progger-bin-${{ runner.os }}-${ GITHUB_SHA::6 }
+          name: progger-bin-${{ runner.os }}-${{ SHORT_SHA }}
           path: progger
-      - name: Start SSH session
-        if: failure()
-        uses: luchihoratiu/debug-via-ssh@main
-        with:
-          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-          SSH_PASS: ${{ secrets.SSH_PASS }}
+#      - name: Start SSH session
+#        if: failure()
+#        uses: luchihoratiu/debug-via-ssh@main
+#        with:
+#          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+#          SSH_PASS: ${{ secrets.SSH_PASS }}
 #      - name: Build
 #        uses: crazy-max/ghaction-xgo@v3
 #        with:
