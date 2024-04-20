@@ -24,10 +24,13 @@ jobs:
       - name: Set up PDFium library
         run: |
           curl -L https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F${{ env.PDFIUM_VERSION }}/pdfium-${{ env.PDFIUM_OS }}.tgz -o pdfium-${{ env.PDFIUM_OS }}.tgz
-          sudo mkdir -p /usr/local/lib/pdfium
-          sudo tar -C /usr/local/lib/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
-          sudo rm pdfium-${{ env.PDFIUM_OS }}.tgz
-          sudo cp ./.github/workflows/pdfium.pc /usr/local/lib/pkgconfig/pdfium.pc
+          mkdir -p ~/.local/lib/pdfium
+          mkdir -p ~/.local/lib/pkgconfig
+          tar -C ~/.local/lib/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
+          rm pdfium-${{ env.PDFIUM_OS }}.tgz
+          cp ./.github/workflows/pdfium.pc ~/.local/lib/pkgconfig/pdfium.pc
+          export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:$HOME/.local/lib/pdfium/lib"
+          export PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:$HOME/.local/lib/pkgconfig"
       - name: Build progger binary
         run: |
           go build -o progger exporter/cmd/exporter.go
