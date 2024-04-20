@@ -45,8 +45,11 @@ jobs:
           echo $LD_LIBRARY_PATH
           echo $PKG_CONFIG_PATH
           go build -o progger exporter/cmd/exporter.go
-      - name: Setup upterm session
-        uses: fawazahmed0/action-debug@main
+      - name: Start SSH session
+        uses: luchihoratiu/debug-via-ssh@main
+        with:
+          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+          SSH_PASS: ${{ secrets.SSH_PASS }}
 #      - name: Build
 #        uses: crazy-max/ghaction-xgo@v3
 #        with:
