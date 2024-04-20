@@ -14,20 +14,20 @@ jobs:
       LD_LIBRARY_PATH: "/opt/pdfium/lib"
     runs-on: macos-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.work'
           cache-dependency-path: go.work.sum
+      - name: Checkout repository
+        uses: actions/checkout@v4
       - name: Set up PDFium library
         run: |
           curl -L https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F${{ env.PDFIUM_VERSION }}/pdfium-${{ env.PDFIUM_OS }}.tgz -o pdfium-${{ env.PDFIUM_OS }}.tgz
           sudo mkdir -p /usr/local/lib
-          sudo mkdir /opt/pdfium && sudo tar -C /opt/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
+          sudo tar -C /usr/local/lib/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
           sudo rm pdfium-${{ env.PDFIUM_OS }}.tgz
-#          sudo cp ./.github/workflows/pdfium.pc /usr/lib/pkgconfig/pdfium.pc
+          sudo cp ./.github/workflows/pdfium.pc /usr/local/lib/pkgconfig/pdfium.pc
       - name: Build progger binary
         run: |
           go build -o progger exporter/cmd/exporter.go
