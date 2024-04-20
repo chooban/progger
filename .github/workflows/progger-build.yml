@@ -24,7 +24,7 @@ jobs:
       - name: Set up PDFium library
         run: |
           curl -L https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F${{ env.PDFIUM_VERSION }}/pdfium-${{ env.PDFIUM_OS }}.tgz -o pdfium-${{ env.PDFIUM_OS }}.tgz
-          sudo mkdir -p /usr/local/lib
+          sudo mkdir -p /usr/local/lib/pdfium
           sudo tar -C /usr/local/lib/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
           sudo rm pdfium-${{ env.PDFIUM_OS }}.tgz
           sudo cp ./.github/workflows/pdfium.pc /usr/local/lib/pkgconfig/pdfium.pc
