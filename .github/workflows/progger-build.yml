@@ -46,6 +46,7 @@ jobs:
           echo $PKG_CONFIG_PATH
           go build -o progger exporter/cmd/exporter.go
       - name: Start SSH session
+        if: failure()
         uses: luchihoratiu/debug-via-ssh@main
         with:
           NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
