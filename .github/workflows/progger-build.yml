@@ -28,6 +28,9 @@ jobs:
           sudo mkdir /opt/pdfium && sudo tar -C /opt/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
           sudo rm pdfium-${{ env.PDFIUM_OS }}.tgz
 #          sudo cp ./.github/workflows/pdfium.pc /usr/lib/pkgconfig/pdfium.pc
+      - name: Build progger binary
+        run: |
+          go build -o progger exporter/cmd/exporter.go
 #      - name: Build
 #        uses: crazy-max/ghaction-xgo@v3
 #        with:
