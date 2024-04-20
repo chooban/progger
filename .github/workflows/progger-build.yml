@@ -11,7 +11,8 @@ jobs:
   build-dmg:
     env:
       CGO_ENABLED: 1
-      LD_LIBRARY_PATH: "/opt/pdfium/lib"
+      LD_LIBRARY_PATH: "/usr/local/lib/pdfium/lib"
+      PKG_CONFIG_PATH: "/usr/local/lib/pkgconfig"
     runs-on: macos-latest
     steps:
       - name: Checkout repository
@@ -25,12 +26,10 @@ jobs:
         run: |
           curl -L https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F${{ env.PDFIUM_VERSION }}/pdfium-${{ env.PDFIUM_OS }}.tgz -o pdfium-${{ env.PDFIUM_OS }}.tgz
           sudo mkdir -p /usr/local/lib/pdfium
-          mkdir -p ~/.local/lib/pkgconfig
+          sudo mkdir -p /usr/local/lib/pkgconfig
           sudo tar -C /usr/local/lib/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
           rm pdfium-${{ env.PDFIUM_OS }}.tgz
-          cp ./.github/workflows/pdfium.pc ~/.local/lib/pkgconfig/pdfium.pc
-          export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib/pdfium/lib"
-          export PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:$HOME/.local/lib/pkgconfig"
+          sudo cp ./.github/workflows/pdfium.pc /usr/local/lib/pkgconfig/pdfium.pc
           echo "Done"
       - name: Build progger binary
         run: |
