@@ -42,15 +42,26 @@ jobs:
           echo "Done"
       - name: Build progger binary
         run: |
-          echo $LD_LIBRARY_PATH
-          echo $PKG_CONFIG_PATH
+          cd build/package/exporter
           go build -o progger exporter/cmd/exporter.go
-      - name: Add SHORT_SHA env property with commit short sha
-        run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
+      - name: Fyne build
+        run: |
+          fyne package -os darwin --exe progger --name progger --icon Icon.png
+      - name: Bundle libpdfium
+        run: |
+          mkdir progger.app/Contents/Frameworks
+          cp /usr/local/lib/pdfium/lib/libpdfium.dylib progger.app/Contents/Frameworks
+          install_name_tool -id "@rpath/libpdfium.dylib" progger.app/Contents/Frameworks/libpdfium.dylib
+          install_name_tool -change ./libpdfium.dylib "@loader_path/../Frameworks/libpdfium.dylib" progger.app/Contents/MacOS/progger
+          install_name_tool -add_rpath "@loader_path/../Frameworks/" progger.app/Contents/MacOS/progger
+
+      - name: Install create-dmg
+        run: |
+          brew install create-dmg
       - uses: actions/upload-artifact@v4
         with:
-          name: progger-bin-${{ runner.os }}-${ GITHUB_SHA }
-          path: progger
+          name: progger-dmg-${{ runner.os }}-${ GITHUB_SHA }
+          path: progger.dmg
 #      - name: Start SSH session
 #        if: failure()
 #        uses: luchihoratiu/debug-via-ssh@main
