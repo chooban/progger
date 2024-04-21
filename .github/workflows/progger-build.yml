@@ -46,17 +46,12 @@ jobs:
         run: |
           cd build/package/exporter
           go build -o progger ../../../exporter/cmd/exporter.go
-      - name: Fyne build
-        run: |
           fyne package -os darwin --exe progger --name progger --icon Icon.png
-      - name: Bundle libpdfium
-        run: |
           mkdir progger.app/Contents/Frameworks
           cp /usr/local/lib/pdfium/lib/libpdfium.dylib progger.app/Contents/Frameworks
           install_name_tool -id "@rpath/libpdfium.dylib" progger.app/Contents/Frameworks/libpdfium.dylib
           install_name_tool -change ./libpdfium.dylib "@loader_path/../Frameworks/libpdfium.dylib" progger.app/Contents/MacOS/progger
           install_name_tool -add_rpath "@loader_path/../Frameworks/" progger.app/Contents/MacOS/progger
-
       - name: Install create-dmg
         run: |
           brew install create-dmg
