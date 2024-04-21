@@ -5,27 +5,41 @@ on:
   workflow_dispatch:
 
 env:
-  GO_VERSION: "1.22"
   PDFIUM_VERSION: "6406"
+  PDFIUM_OS: "linux-x64"
 
 jobs:
   test:
     env:
       CGO_ENABLED: 1
       # INTEGRATION: 1
-      LD_LIBRARY_PATH: "/opt/pdfium/lib"
+      LD_LIBRARY_PATH: "/usr/local/lib/pdfium/lib"
+      PKG_CONFIG_PATH: "/usr/local/lib/pkgconfig"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version-file: 'go.work'
+          cache-dependency-path: go.work.sum
+      - name: Setup Golang caches
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: "${{ runner.os }}-golang-${{ hashFiles('go.work.sum') }}"
+          restore-keys: |
+            ${{ runner.os }}-golang-
       - name: Set up PDFium library
         run: |
-            sudo curl -L https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F${{ env.PDFIUM_VERSION }}/pdfium-linux-x64.tgz -o pdfium-linux-x64.tgz && sudo mkdir /opt/pdfium && sudo tar -C /opt/pdfium -xvf pdfium-linux-x64.tgz
-            sudo rm pdfium-linux-x64.tgz
-            sudo cp ./.github/workflows/pdfium.pc /usr/lib/pkgconfig/pdfium.pc
+          curl -L https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F${{ env.PDFIUM_VERSION }}/pdfium-${{ env.PDFIUM_OS }}.tgz -o pdfium-${{ env.PDFIUM_OS }}.tgz
+          sudo mkdir -p /usr/local/lib/pdfium
+          sudo mkdir -p /usr/local/lib/pkgconfig
+          sudo tar -C /usr/local/lib/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
+          rm pdfium-${{ env.PDFIUM_OS }}.tgz
+          sudo cp ./.github/workflows/pdfium.pc /usr/local/lib/pkgconfig/pdfium.pc
       - name: Tests
         run: go test -v -coverprofile=coverage.txt -covermode=atomic ./db/./... ./scan/./...
       - uses: codecov/codecov-action@v3
