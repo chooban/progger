@@ -32,7 +32,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-golang-
       - name: Install fyne
-        run: go install fyne.io/fyne/v2@latest
+        run: go install fyne.io/fyne/v2/cmd/fyne@latest
       - name: Set up PDFium library
         run: |
           curl -L https://github.com/bblanchon/pdfium-binaries/releases/download/chromium%2F${{ env.PDFIUM_VERSION }}/pdfium-${{ env.PDFIUM_OS }}.tgz -o pdfium-${{ env.PDFIUM_OS }}.tgz
