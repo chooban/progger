@@ -43,7 +43,7 @@ jobs:
       - name: Build progger binary
         run: |
           cd build/package/exporter
-          go build -o progger exporter/cmd/exporter.go
+          go build -o progger ../../exporter/cmd/exporter.go
       - name: Fyne build
         run: |
           fyne package -os darwin --exe progger --name progger --icon Icon.png
