@@ -55,6 +55,10 @@ jobs:
       - name: Install create-dmg
         run: |
           brew install create-dmg
+      - name: Build dmg
+        run: |
+          cd build/package/exporter
+          create-dmg progger.dmg progger.app/
       - uses: actions/upload-artifact@v4
         with:
           name: progger-dmg-${{ runner.os }}-${ GITHUB_SHA }
