@@ -1,6 +1,6 @@
 module github.com/chooban/progger/scan
 
-go 1.21.5
+go 1.22.2
 
 require (
 	github.com/akamensky/argparse v1.4.0
