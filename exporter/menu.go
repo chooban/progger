@@ -2,16 +2,12 @@ package exporter
 
 import (
 	"fyne.io/fyne/v2"
-	"github.com/chooban/progger/exporter/prefs"
+	"github.com/chooban/progger/exporter/api"
 )
 
-func MainMenu(a fyne.App, w fyne.Window) *fyne.MainMenu {
+func MainMenu(app *api.ProggerApp) *fyne.MainMenu {
 	mainMenu := fyne.NewMainMenu(fyne.NewMenu("Progger", fyne.NewMenuItem("Settings...", func() {
-		prefs := prefs.ShowPrefs(a, w, func() {
-			w.SetContent(MainWindow(a, w))
-		})
-
-		w.SetContent(prefs)
+		app.AppContext.ShowSettings.Set(true)
 	})))
 
 	return mainMenu

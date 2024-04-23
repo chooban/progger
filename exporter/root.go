@@ -13,12 +13,12 @@ import (
 	"strings"
 )
 
-func MainWindow(a fyne.App, w fyne.Window) fyne.CanvasObject {
+func MainWindow(app *api.ProggerApp) fyne.CanvasObject {
 	ctx, _ := WithLogger()
-	appServices := services.NewAppServices(ctx, a)
-	boundSource := prefs.BoundSourceDir(a)
+	appServices := services.NewAppServices(ctx, app.FyneApp)
+	boundSource := prefs.BoundSourceDir(app.FyneApp)
 
-	scannerButtonsPanel := buttonsContainer(w, boundSource, appServices)
+	scannerButtonsPanel := buttonsContainer(app.RootWindow, boundSource, appServices)
 	displayPanel := displayContainer(boundSource, appServices)
 
 	return container.NewBorder(
