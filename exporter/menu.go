@@ -2,14 +2,13 @@ package exporter
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/widget"
 	"github.com/chooban/progger/exporter/api"
+	"github.com/chooban/progger/exporter/windows"
 )
 
 func MainMenu(app *api.ProggerApp) *fyne.MainMenu {
 	about := fyne.NewMenuItem("About", func() {
-		d := app.FyneApp.NewWindow("About")
-		d.SetContent(widget.NewLabel("This is about the app"))
+		d := windows.NewAbout(app)
 		d.Show()
 	})
 	settings := fyne.NewMenuItem("Settings...", func() {
