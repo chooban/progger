@@ -3,6 +3,7 @@ package windows
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
@@ -14,15 +15,21 @@ type cb func()
 
 func NewSettings(app *api.ProggerApp) {
 	settingsWindow := app.FyneApp.NewWindow("Settings")
-	settingsWindow.SetOnClosed(func() {
+	settingsWindow.SetCloseIntercept(func() {
 		app.AppContext.Dispatch(api.HideSettingsMessage{})
 	})
 	settingsWindow.SetContent(ShowPrefs(app.FyneApp, settingsWindow, func() {
 		app.AppContext.Dispatch(api.HideSettingsMessage{})
-		settingsWindow.Hide()
 	}))
 	settingsWindow.Resize(fyne.NewSquareSize(600))
-	settingsWindow.Show()
+
+	app.AppContext.ShowSettings.AddListener(binding.NewDataListener(func() {
+		if showSettings, _ := app.AppContext.ShowSettings.Get(); showSettings {
+			settingsWindow.Show()
+		} else {
+			settingsWindow.Hide()
+		}
+	}))
 }
 
 func ShowPrefs(a fyne.App, w fyne.Window, onClose cb) *fyne.Container {

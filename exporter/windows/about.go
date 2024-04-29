@@ -7,7 +7,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/chooban/progger/exporter/api"
 	"image"
@@ -16,6 +15,18 @@ import (
 
 //go:embed Icon.png
 var icon []byte
+
+//go:embed extra-licenses.txt
+var extraLicensesText string
+
+var licencesText = `# Open Source Licenses
+
+Icon provided by [Atlas Icons](https://atlasicons.vectopus.com/) ([MIT License](https://github.com/Vectopus/Atlas-icons-font/blob/main/LICENSE))
+
+This software uses a variety of Open Source Software to run.
+
+* [PDFium](https://github.com/chromium/pdfium) ([Apache License 2.0](https://github.com/chromium/pdfium/blob/main/LICENSE))
+`
 
 func NewAbout(app *api.ProggerApp) fyne.Window {
 	r := bytes.NewReader(icon)
@@ -40,6 +51,7 @@ type aboutProps struct {
 func newAbout(app fyne.App, p aboutProps) fyne.Window {
 	w := app.NewWindow("About")
 	w.SetTitle("About")
+	w.Resize(fyne.Size{Width: 400, Height: 400})
 
 	iconImage := canvas.NewImageFromImage(p.Icon)
 	iconImage.FillMode = canvas.ImageFillOriginal
@@ -52,15 +64,24 @@ func newAbout(app fyne.App, p aboutProps) fyne.Window {
 		TabWidth:  0,
 	})
 
-	description := widget.NewRichTextFromMarkdown(fmt.Sprintf("Version %s", p.Version))
+	description := widget.NewRichTextFromMarkdown(fmt.Sprintf("Version %s ([MIT License](https://github.com/chooban/progger/blob/main/LICENSE))", p.Version))
 
-	c := container.New(
-		layout.NewVBoxLayout(),
-		iconImage,
-		heading,
-		description,
+	licenses := widget.NewRichTextFromMarkdown(licencesText + extraLicensesText)
+	licenses.Wrapping = fyne.TextWrapWord
+
+	licensesContainer := container.NewVScroll(licenses)
+
+	l := container.NewBorder(
+		container.NewVBox(iconImage, heading, description),
+		widget.NewButton("Close", func() {
+			w.Close()
+		}),
+		nil,
+		nil,
+		licensesContainer,
 	)
-	w.SetContent(c)
+	//c := container.New(l)
+	w.SetContent(l)
 
 	return w
 }
