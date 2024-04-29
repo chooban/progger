@@ -24,3 +24,6 @@ testdata:
 	cp ~/Documents/2000AD/2000AD\ 2317\ \(1977\).pdf scan/test/testdata/creators/
 	cp ~/Documents/2000AD/2000AD\ 2337\ \(1977\).pdf scan/test/testdata/creators/
 	cp ~/Documents/2000AD/2000AD\ 2348\ \(1977\).pdf scan/test/testdata/creators/
+
+licenses:
+  go-licenses report ./exporter/ --template build/licenses.tpl 

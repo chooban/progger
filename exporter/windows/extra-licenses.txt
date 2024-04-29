@@ -1,0 +1,91 @@
+
+* fyne.io/fyne/v2 - v2.4.4 ([BSD-3-Clause](https://github.com/fyne-io/fyne/blob/v2.4.4/LICENSE))
+
+* fyne.io/systray - v1.10.1-0.20231115130155-104f5ef7839e ([Apache-2.0](https://github.com/fyne-io/systray/blob/104f5ef7839e/LICENSE))
+
+* github.com/chooban/progger/download - Unknown ([MIT](https://github.com/chooban/progger/blob/HEAD/download/LICENSE))
+
+* github.com/chooban/progger/exporter - Unknown ([MIT](https://github.com/chooban/progger/blob/HEAD/exporter/LICENSE))
+
+* github.com/chooban/progger/scan - Unknown ([MIT](https://github.com/chooban/progger/blob/HEAD/scan/LICENSE))
+
+* github.com/deckarep/golang-set/v2 - v2.6.0 ([MIT](https://github.com/deckarep/golang-set/blob/v2.6.0/LICENSE))
+
+* github.com/divan/num2words - v0.0.0-20170904212200-57dba452f942 ([MIT](https://github.com/divan/num2words/blob/57dba452f942/LICENSE))
+
+* github.com/fatih/color - v1.13.0 ([MIT](https://github.com/fatih/color/blob/v1.13.0/LICENSE.md))
+
+* github.com/fredbi/uri - v1.0.0 ([MIT](https://github.com/fredbi/uri/blob/v1.0.0/LICENSE.md))
+
+* github.com/fsnotify/fsnotify - v1.6.0 ([BSD-3-Clause](https://github.com/fsnotify/fsnotify/blob/v1.6.0/LICENSE))
+
+* github.com/fyne-io/image/ico - v0.0.0-20220602074514-4956b0afb3d2 ([Apache-2.0](https://github.com/fyne-io/image/blob/4956b0afb3d2/ico/LICENSE-reader))
+
+* github.com/go-gl/gl/v2.1/gl - v0.0.0-20211210172815-726fda9656d6 ([MIT](https://github.com/go-gl/gl/blob/726fda9656d6/LICENSE))
+
+* github.com/go-gl/glfw/v3.3/glfw - v0.0.0-20221017161538-93cebf72946b ([BSD-3-Clause](https://github.com/go-gl/glfw/blob/93cebf72946b/v3.3/glfw/LICENSE))
+
+* github.com/go-jose/go-jose/v3/json - v3.0.1 ([BSD-3-Clause](https://github.com/go-jose/go-jose/blob/v3.0.1/json/LICENSE))
+
+* github.com/go-logr/logr - v1.4.1 ([Apache-2.0](https://github.com/go-logr/logr/blob/v1.4.1/LICENSE))
+
+* github.com/go-logr/zerologr - v1.2.3 ([Apache-2.0](https://github.com/go-logr/zerologr/blob/v1.2.3/LICENSE))
+
+* github.com/go-stack/stack - v1.8.1 ([MIT](https://github.com/go-stack/stack/blob/v1.8.1/LICENSE.md))
+
+* github.com/go-text/render - v0.0.0-20230619120952-35bccb6164b8 ([BSD-3-Clause](https://github.com/go-text/render/blob/35bccb6164b8/LICENSE))
+
+* github.com/go-text/typesetting - v0.1.0 ([BSD-3-Clause](https://github.com/go-text/typesetting/blob/v0.1.0/LICENSE))
+
+* github.com/go-text/typesetting/harfbuzz - v0.1.0 ([MIT](https://github.com/go-text/typesetting/blob/v0.1.0/harfbuzz/LICENSE))
+
+* github.com/golang/protobuf - v1.5.3 ([BSD-3-Clause](https://github.com/golang/protobuf/blob/v1.5.3/LICENSE))
+
+* github.com/google/uuid - v1.5.0 ([BSD-3-Clause](https://github.com/google/uuid/blob/v1.5.0/LICENSE))
+
+* github.com/hashicorp/go-hclog - v1.6.2 ([MIT](https://github.com/hashicorp/go-hclog/blob/v1.6.2/LICENSE))
+
+* github.com/hashicorp/go-plugin - v1.6.0 ([MPL-2.0](https://github.com/hashicorp/go-plugin/blob/v1.6.0/LICENSE))
+
+* github.com/hashicorp/yamux - v0.1.1 ([MPL-2.0](https://github.com/hashicorp/yamux/blob/v0.1.1/LICENSE))
+
+* github.com/jsummers/gobmp - v0.0.0-20151104160322-e2ba15ffa76e ([MIT](https://github.com/jsummers/gobmp/blob/e2ba15ffa76e/readme.md))
+
+* github.com/klippa-app/go-pdfium - v1.10.0 ([MIT](https://github.com/klippa-app/go-pdfium/blob/v1.10.0/LICENSE))
+
+* github.com/mattn/go-colorable - v0.1.13 ([MIT](https://github.com/mattn/go-colorable/blob/v0.1.13/LICENSE))
+
+* github.com/mattn/go-isatty - v0.0.19 ([MIT](https://github.com/mattn/go-isatty/blob/v0.0.19/LICENSE))
+
+* github.com/mitchellh/go-testing-interface - v0.0.0-20171004221916-a61a99592b77 ([MIT](https://github.com/mitchellh/go-testing-interface/blob/a61a99592b77/LICENSE))
+
+* github.com/oklog/run - v1.0.0 ([Apache-2.0](https://github.com/oklog/run/blob/v1.0.0/LICENSE))
+
+* github.com/playwright-community/playwright-go - v0.4101.1 ([MIT](https://github.com/playwright-community/playwright-go/blob/v0.4101.1/LICENSE))
+
+* github.com/rs/zerolog - v1.31.0 ([MIT](https://github.com/rs/zerolog/blob/v1.31.0/LICENSE))
+
+* github.com/srwiley/oksvg - v0.0.0-20221011165216-be6e8873101c ([BSD-3-Clause](https://github.com/srwiley/oksvg/blob/be6e8873101c/LICENSE))
+
+* github.com/srwiley/rasterx - v0.0.0-20220730225603-2ab79fcdd4ef ([BSD-3-Clause](https://github.com/srwiley/rasterx/blob/2ab79fcdd4ef/LICENSE))
+
+* github.com/texttheater/golang-levenshtein/levenshtein - v0.0.0-20200805054039-cae8b0eaed6c ([MIT](https://github.com/texttheater/golang-levenshtein/blob/cae8b0eaed6c/levenshtein/LICENSE))
+
+* github.com/yuin/goldmark - v1.5.5 ([MIT](https://github.com/yuin/goldmark/blob/v1.5.5/LICENSE))
+
+* golang.org/x/exp - v0.0.0-20240213143201-ec583247a57a ([BSD-3-Clause](https://cs.opensource.google/go/x/exp/+/ec583247:LICENSE))
+
+* golang.org/x/image - v0.11.0 ([BSD-3-Clause](https://cs.opensource.google/go/x/image/+/v0.11.0:LICENSE))
+
+* golang.org/x/net - v0.21.0 ([BSD-3-Clause](https://cs.opensource.google/go/x/net/+/v0.21.0:LICENSE))
+
+* golang.org/x/sys - v0.17.0 ([BSD-3-Clause](https://cs.opensource.google/go/x/sys/+/v0.17.0:LICENSE))
+
+* golang.org/x/text - v0.14.0 ([BSD-3-Clause](https://cs.opensource.google/go/x/text/+/v0.14.0:LICENSE))
+
+* google.golang.org/genproto/googleapis/rpc/status - v0.0.0-20230410155749-daa745c078e1 ([Apache-2.0](https://github.com/googleapis/go-genproto/blob/daa745c078e1/LICENSE))
+
+* google.golang.org/grpc - v1.56.3 ([Apache-2.0](https://github.com/grpc/grpc-go/blob/v1.56.3/LICENSE))
+
+* google.golang.org/protobuf - v1.30.0 ([BSD-3-Clause](https://github.com/protocolbuffers/protobuf-go/blob/v1.30.0/LICENSE))
+

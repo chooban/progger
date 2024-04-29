@@ -1,12 +1,14 @@
-package exporter
+package windows
 
 import (
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	"github.com/chooban/progger/exporter/api"
+	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/exporter/prefs"
 	"github.com/chooban/progger/exporter/services"
 	"slices"
@@ -14,7 +16,7 @@ import (
 )
 
 func MainWindow(app *api.ProggerApp) fyne.CanvasObject {
-	ctx, _ := WithLogger()
+	ctx, _ := context.WithLogger()
 	appServices := services.NewAppServices(ctx, app.FyneApp)
 	boundSource := prefs.BoundSourceDir(app.FyneApp)
 
@@ -171,17 +173,7 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, appServices *se
 	exportButton := ExportButton(w, scanner, exporter)
 	exportButton.Hide()
 
-	downloadButton := widget.NewButton("Download Progs", func() {
-		if err := downloader.Download(); err == nil {
-			srcDir, _ := downloader.BoundSourceDir.Get()
-			go func() {
-				scanner.Scan(srcDir)
-			}()
-		} else {
-			println(err.Error())
-		}
-	})
-
+	downloadButton := DownloadButton(w, appServices.Downloader, appServices.Scanner)
 	scanButton := widget.NewButton("Scan Directory", func() {
 		dirToScan, _ := boundSource.Get()
 		go func() {
@@ -222,4 +214,78 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, appServices *se
 		scanButton,
 		exportButton,
 	)
+}
+
+func DownloadButton(w fyne.Window, downloader *services.Downloader, scanner *services.Scanner) *widget.Button {
+	downloadButton := widget.NewButton("Download Progs", func() {
+		if err := downloader.Download(); err == nil {
+			srcDir, _ := downloader.BoundSourceDir.Get()
+			scanner.Scan(srcDir)
+		} else {
+			println(err.Error())
+		}
+	})
+
+	return downloadButton
+}
+
+func ExportButton(w fyne.Window, scanner *services.Scanner, exporter *services.Exporter) *widget.Button {
+	exportButton := widget.NewButton("Export Story", func() {
+		stories, err := scanner.BoundStories.Get()
+		if err != nil {
+			dialog.ShowError(err, w)
+		}
+		toExport := make([]*api.Story, 0)
+		for _, v := range stories {
+			story := v.(*api.Story)
+			if story.ToExport {
+				toExport = append(toExport, story)
+			}
+		}
+		if len(toExport) == 0 {
+			dialog.ShowInformation("Export", "No stories selected", w)
+		} else {
+			filename := binding.NewString()
+			filename.Set(toExport[0].Display() + ".pdf")
+			fnameEntry := widget.NewEntryWithData(filename)
+
+			onClose := func(b bool) {
+				if b {
+					fname, _ := filename.Get()
+					if err := exporter.Export(toExport, fname); err != nil {
+						dialog.ShowError(err, w)
+					} else {
+						dialog.ShowInformation("Export", "File successfully exported", w)
+					}
+				}
+			}
+
+			formDialog := dialog.NewForm(
+				"Export",
+				"Export",
+				"Cancel",
+				[]*widget.FormItem{
+					{Text: "Filename", Widget: fnameEntry},
+				},
+				onClose,
+				w,
+			)
+			formDialog.Show()
+			formDialog.Resize(fyne.NewSize(500, 100))
+		}
+	})
+
+	return exportButton
+}
+
+func ContainsAll(s string, t []string) bool {
+	if len(t) == 0 {
+		return true
+	}
+	for _, v := range t {
+		if !strings.Contains(s, v) {
+			return false
+		}
+	}
+	return true
 }
