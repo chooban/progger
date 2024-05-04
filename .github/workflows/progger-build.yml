@@ -70,7 +70,7 @@ jobs:
             --icon "Progger.app" 125 175 \
             --window-size 500 320 \
             --app-drop-link 375 175 \
-            progger.dmg ./build/package/exporter/progger.app/
+            progger-${{ github.ref_name }}.dmg ./build/package/exporter/progger.app/
 
       - uses: actions/upload-artifact@v4
         with:
