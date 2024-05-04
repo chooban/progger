@@ -1,7 +1,15 @@
 name: Progger - DMG Build
 
 on:
+  push:
+    branches:
+      - 'main'
+    tags:
+      - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Fake tag name'
 
 env:
   PDFIUM_VERSION: "6406"
@@ -56,29 +64,27 @@ jobs:
         run: |
           brew install create-dmg
       - name: Build dmg
-        run: create-dmg progger.dmg build/package/exporter/progger.app/
+        run: |
+          create-dmg \
+            --icon-size 80 \
+            --icon "Progger.app" 125 175 \
+            --window-size 500 320 \
+            --app-drop-link 375 175 \
+            progger.dmg ./build/package/exporter/progger.app/
+
       - uses: actions/upload-artifact@v4
         with:
-          name: progger-dmg-${{ runner.os }}-${{ github.head_ref }}.${{ github.sha }}
-          path: progger.dmg
+          name: progger-dmg-${{ runner.os }}-${{ github.ref_name }}-${{ github.sha }}
+          path: progger-${{ github.ref_name }}.dmg
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: progger-${{ github.ref_name }}.dmg
+          prerelease: ${{ contains(github.ref, 'rc') }}
 #      - name: Start SSH session
 #        if: failure()
 #        uses: luchihoratiu/debug-via-ssh@main
 #        with:
 #          NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 #          SSH_PASS: ${{ secrets.SSH_PASS }}
-#      - name: Build
-#        uses: crazy-max/ghaction-xgo@v3
-#        with:
-#          xgo_version: latest
-#          go_version: 1.21
-#          dest: build
-#          prefix: progger
-#          targets: darwin/arm64
-#          pkg: exporter/cmd/exporter.go
-#          v: true
-#          x: false
-#          race: false
-#          ldflags: -s -w
-#          buildmode: default
-#          trimpath: true
