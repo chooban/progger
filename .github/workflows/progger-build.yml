@@ -17,6 +17,8 @@ env:
 
 jobs:
   build-dmg:
+    permissions:
+      contents: write
     env:
       CGO_ENABLED: 1
       LD_LIBRARY_PATH: "/usr/local/lib/pdfium/lib"
