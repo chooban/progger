@@ -8,6 +8,8 @@ import (
 	"github.com/playwright-community/playwright-go"
 	"regexp"
 	"strconv"
+	"sync"
+	"time"
 )
 
 var signinUrl = "https://shop.2000ad.com/account/sign-in"
@@ -56,12 +58,43 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 	return
 }
 
-func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs []api.DigitalComic, err error) {
+func getPage(ctx context.Context, bContext playwright.BrowserContext) (playwright.Page, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	page, err := bContext.NewPage()
 	if err != nil {
-		return
+		return nil, err
 	}
+	r, _ := regexp.Compile("png|jpg|gif|woff|css")
+	err = page.Route(r, func(route playwright.Route) {
+		route.Abort()
+	})
+	if err != nil {
+		logger.Error(err, "Could not set Route intercept")
+	}
+	return page, nil
+}
+
+func pageDownloader(ctx context.Context, bContext playwright.BrowserContext, pageNumber int) []api.DigitalComic {
+	logger := logr.FromContextOrDiscard(ctx)
+	url := listUrl + fmt.Sprintf("&page=%d", pageNumber)
+	page, _ := getPage(ctx, bContext)
+	start := time.Now()
+	progs := make([]api.DigitalComic, 0)
+	if _, err := page.Goto(url); err != nil {
+		logger.Error(err, "Failed to load page", "url", downloadPageUrl)
+	} else {
+		logger.V(1).Info("Downloaded page", "duration", time.Since(start))
+		if newProgs, err := extractProgsFromPage(logger, page); err == nil {
+			logger.Info("Found new progs", "count", len(newProgs))
+			progs = newProgs
+		}
+	}
+	return progs
+}
+
+func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs []api.DigitalComic, err error) {
+	//logger := logr.FromContextOrDiscard(ctx)
+	page, _ := getPage(ctx, bContext)
 	if _, err := page.Goto(listUrl); err != nil {
 		return progs, err
 	}
@@ -70,20 +103,25 @@ func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs [
 	maxPageText, _ := links.InnerText()
 	maxPage, _ := strconv.Atoi(maxPageText)
 
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
 	progs = make([]api.DigitalComic, 0, maxPage*10)
 	for p := range maxPage {
 		if p == 0 {
 			continue
 		}
-		if _, err := page.Goto(fmt.Sprintf(downloadPageUrl, p)); err != nil {
-			logger.Error(err, "Failed to load page")
-			continue
-		} else {
-			if newProgs, err := extractProgsFromPage(logger, page); err == nil {
-				progs = append(progs, newProgs...)
-			}
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_progs := pageDownloader(ctx, bContext, p)
+			mu.Lock()
+			defer mu.Unlock()
+			progs = append(progs, _progs...)
+		}()
 	}
+
+	wg.Wait()
 
 	return
 }

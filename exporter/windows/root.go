@@ -175,6 +175,7 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, appServices *se
 
 	downloadButton := DownloadButton(w, appServices.Downloader, appServices.Scanner)
 	scanButton := widget.NewButton("Scan Directory", func() {
+		println("Scan button clicked")
 		dirToScan, _ := boundSource.Get()
 		go func() {
 			scanner.Scan(dirToScan)
@@ -218,7 +219,9 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, appServices *se
 
 func DownloadButton(w fyne.Window, downloader *services.Downloader, scanner *services.Scanner) *widget.Button {
 	downloadButton := widget.NewButton("Download Progs", func() {
+		println("Starting downloads")
 		if err := downloader.Download(); err == nil {
+			println("Finished downloading")
 			srcDir, _ := downloader.BoundSourceDir.Get()
 			scanner.Scan(srcDir)
 		} else {

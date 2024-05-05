@@ -39,7 +39,7 @@ func (d *Downloader) Download() error {
 	if err != nil {
 		return err
 	}
-	downloadCount := 100
+	downloadCount := 5
 	for i := 0; i < downloadCount && i < len(list); i++ {
 		logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
 		if fp, err := download.Download(ctx, list[i], sourceDir, downloadApi.Pdf); err != nil {
