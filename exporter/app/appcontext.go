@@ -1,4 +1,4 @@
-package api
+package app
 
 import (
 	"fyne.io/fyne/v2/data/binding"

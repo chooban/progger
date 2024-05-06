@@ -3,12 +3,12 @@ package main
 import (
 	"fyne.io/fyne/v2"
 	"github.com/chooban/progger/exporter"
-	"github.com/chooban/progger/exporter/api"
+	"github.com/chooban/progger/exporter/app"
 	"github.com/chooban/progger/exporter/windows"
 )
 
 func main() {
-	app := api.NewProggerApp()
+	app := app.NewProggerApp()
 
 	app.RootWindow.Resize(fyne.NewSize(600, 400))
 	app.RootWindow.SetMaster()

@@ -7,24 +7,24 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"github.com/chooban/progger/exporter/api"
+	"github.com/chooban/progger/exporter/app"
 	"github.com/chooban/progger/exporter/prefs"
 )
 
 type cb func()
 
-func NewSettings(app *api.ProggerApp) {
-	settingsWindow := app.FyneApp.NewWindow("Settings")
+func NewSettings(a *app.ProggerApp) {
+	settingsWindow := a.FyneApp.NewWindow("Settings")
 	settingsWindow.SetCloseIntercept(func() {
-		app.AppContext.Dispatch(api.HideSettingsMessage{})
+		a.AppContext.Dispatch(app.HideSettingsMessage{})
 	})
-	settingsWindow.SetContent(ShowPrefs(app.FyneApp, settingsWindow, func() {
-		app.AppContext.Dispatch(api.HideSettingsMessage{})
+	settingsWindow.SetContent(ShowPrefs(a.FyneApp, settingsWindow, func() {
+		a.AppContext.Dispatch(app.HideSettingsMessage{})
 	}))
 	settingsWindow.Resize(fyne.NewSquareSize(600))
 
-	app.AppContext.ShowSettings.AddListener(binding.NewDataListener(func() {
-		if showSettings, _ := app.AppContext.ShowSettings.Get(); showSettings {
+	a.AppContext.ShowSettings.AddListener(binding.NewDataListener(func() {
+		if showSettings, _ := a.AppContext.ShowSettings.Get(); showSettings {
 			settingsWindow.Show()
 		} else {
 			settingsWindow.Hide()

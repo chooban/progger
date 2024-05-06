@@ -8,7 +8,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"github.com/chooban/progger/exporter/api"
+	"github.com/chooban/progger/exporter/app"
 	"image"
 	"image/png"
 )
@@ -28,7 +28,7 @@ This software uses a variety of Open Source Software to run.
 * [PDFium](https://github.com/chromium/pdfium) ([Apache License 2.0](https://github.com/chromium/pdfium/blob/main/LICENSE))
 `
 
-func NewAbout(app *api.ProggerApp) fyne.Window {
+func NewAbout(app *app.ProggerApp) fyne.Window {
 	r := bytes.NewReader(icon)
 	img, err := png.Decode(r)
 	if err != nil {

@@ -8,20 +8,18 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	"github.com/chooban/progger/exporter/api"
-	"github.com/chooban/progger/exporter/context"
+	"github.com/chooban/progger/exporter/app"
 	"github.com/chooban/progger/exporter/prefs"
 	"github.com/chooban/progger/exporter/services"
 	"slices"
 	"strings"
 )
 
-func MainWindow(app *api.ProggerApp) fyne.CanvasObject {
-	ctx, _ := context.WithLogger()
-	appServices := services.NewAppServices(ctx, app.FyneApp)
+func MainWindow(app *app.ProggerApp) fyne.CanvasObject {
 	boundSource := prefs.BoundSourceDir(app.FyneApp)
 
-	scannerButtonsPanel := buttonsContainer(app.RootWindow, boundSource, appServices)
-	displayPanel := displayContainer(boundSource, appServices)
+	scannerButtonsPanel := buttonsContainer(app.RootWindow, boundSource, app.AppService)
+	displayPanel := displayContainer(boundSource, app.AppService)
 
 	return container.NewBorder(
 		container.NewCenter(
@@ -120,6 +118,7 @@ func displayContainer(boundSource binding.String, appServices *services.AppServi
 	downloader := appServices.Downloader
 
 	scannerProgressContainer := newScannerContainer()
+	downloadProgressContainer := newDownloadProgressContainer()
 	sourceDirectoryLabel := container.NewCenter(
 		container.NewVBox(
 			widget.NewLabelWithData(boundSource),
@@ -132,22 +131,26 @@ func displayContainer(boundSource binding.String, appServices *services.AppServi
 	layout := container.NewStack(
 		sourceDirectoryLabel,
 		scannerProgressContainer,
+		downloadProgressContainer,
 		listContainer,
 	)
 
 	downloader.IsDownloading.AddListener(binding.NewDataListener(func() {
 		if isDownloading, _ := downloader.IsDownloading.Get(); isDownloading == true {
 			sourceDirectoryLabel.Hide()
-			scannerProgressContainer.Show()
+			scannerProgressContainer.Hide()
+			downloadProgressContainer.Show()
 		} else {
 			sourceDirectoryLabel.Show()
 			scannerProgressContainer.Show()
+			downloadProgressContainer.Hide()
 		}
 	}))
 
 	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
 		if isScanning, _ := scanner.IsScanning.Get(); isScanning == true {
 			sourceDirectoryLabel.Hide()
+			downloadProgressContainer.Hide()
 			scannerProgressContainer.Show()
 		} else {
 			stories, _ := scanner.BoundStories.Get()
@@ -163,6 +166,18 @@ func displayContainer(boundSource binding.String, appServices *services.AppServi
 	}))
 
 	return layout
+}
+
+func newDownloadProgressContainer() *fyne.Container {
+	barContainer := container.NewVBox(
+		widget.NewProgressBarInfinite(),
+		widget.NewLabel("Downloading..."),
+	)
+	centeredBar := container.NewCenter(
+		barContainer,
+	)
+
+	return centeredBar
 }
 
 func buttonsContainer(w fyne.Window, boundSource binding.String, appServices *services.AppServices) fyne.CanvasObject {
