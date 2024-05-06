@@ -16,15 +16,15 @@ type cb func()
 func NewSettings(a *app.ProggerApp) {
 	settingsWindow := a.FyneApp.NewWindow("Settings")
 	settingsWindow.SetCloseIntercept(func() {
-		a.AppContext.Dispatch(app.HideSettingsMessage{})
+		a.State.Dispatch(app.HideSettingsMessage{})
 	})
 	settingsWindow.SetContent(ShowPrefs(a.FyneApp, settingsWindow, func() {
-		a.AppContext.Dispatch(app.HideSettingsMessage{})
+		a.State.Dispatch(app.HideSettingsMessage{})
 	}))
 	settingsWindow.Resize(fyne.NewSquareSize(600))
 
-	a.AppContext.ShowSettings.AddListener(binding.NewDataListener(func() {
-		if showSettings, _ := a.AppContext.ShowSettings.Get(); showSettings {
+	a.State.ShowSettings.AddListener(binding.NewDataListener(func() {
+		if showSettings, _ := a.State.ShowSettings.Get(); showSettings {
 			settingsWindow.Show()
 		} else {
 			settingsWindow.Hide()

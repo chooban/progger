@@ -8,7 +8,7 @@ import (
 )
 
 type ProggerApp struct {
-	AppContext *AppContext
+	State      *State
 	FyneApp    fyne.App
 	RootWindow fyne.Window
 	AppService *services.AppServices
@@ -23,7 +23,7 @@ func NewProggerApp() *ProggerApp {
 	appServices := services.NewAppServices(ctx, a)
 
 	return &ProggerApp{
-		AppContext: NewAppContext(),
+		State:      NewAppState(appServices),
 		FyneApp:    a,
 		RootWindow: w,
 		AppService: appServices,

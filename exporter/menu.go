@@ -12,7 +12,7 @@ func MainMenu(a *app.ProggerApp) *fyne.MainMenu {
 		d.Show()
 	})
 	settings := fyne.NewMenuItem("Settings...", func() {
-		a.AppContext.Dispatch(app.ShowSettingsMessage{})
+		a.State.Dispatch(app.ShowSettingsMessage{})
 	})
 	mainMenu := fyne.NewMainMenu(fyne.NewMenu("Progger", settings, about))
 

@@ -15,16 +15,18 @@ import (
 	"strings"
 )
 
-func MainWindow(app *app.ProggerApp) fyne.CanvasObject {
-	boundSource := prefs.BoundSourceDir(app.FyneApp)
+type Dispatcher interface {
+	Dispatch(msg interface{})
+}
 
-	scannerButtonsPanel := buttonsContainer(app.RootWindow, boundSource, app.AppService)
-	displayPanel := displayContainer(boundSource, app.AppService)
+func MainWindow(a *app.ProggerApp) fyne.CanvasObject {
+	boundSource := prefs.BoundSourceDir(a.FyneApp)
+
+	scannerButtonsPanel := buttonsContainer(a.RootWindow, boundSource, a.AppService, a.State)
+	displayPanel := displayContainer(boundSource, a.AppService)
 
 	return container.NewBorder(
-		container.NewCenter(
-			widget.NewLabel("Borag Thungg!"),
-		),
+		nil,
 		scannerButtonsPanel,
 		nil,
 		nil,
@@ -180,7 +182,7 @@ func newDownloadProgressContainer() *fyne.Container {
 	return centeredBar
 }
 
-func buttonsContainer(w fyne.Window, boundSource binding.String, appServices *services.AppServices) fyne.CanvasObject {
+func buttonsContainer(w fyne.Window, boundSource binding.String, appServices *services.AppServices, d Dispatcher) fyne.CanvasObject {
 	scanner := appServices.Scanner
 	exporter := appServices.Exporter
 	downloader := appServices.Downloader
@@ -188,13 +190,10 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, appServices *se
 	exportButton := ExportButton(w, scanner, exporter)
 	exportButton.Hide()
 
-	downloadButton := DownloadButton(w, appServices.Downloader, appServices.Scanner)
+	downloadButton := DownloadButton(d)
 	scanButton := widget.NewButton("Scan Directory", func() {
-		println("Scan button clicked")
 		dirToScan, _ := boundSource.Get()
-		go func() {
-			scanner.Scan(dirToScan)
-		}()
+		d.Dispatch(app.StartScanningMessage{Directory: dirToScan})
 	})
 
 	downloader.IsDownloading.AddListener(binding.NewDataListener(func() {
@@ -232,16 +231,9 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, appServices *se
 	)
 }
 
-func DownloadButton(w fyne.Window, downloader *services.Downloader, scanner *services.Scanner) *widget.Button {
+func DownloadButton(d Dispatcher) *widget.Button {
 	downloadButton := widget.NewButton("Download Progs", func() {
-		println("Starting downloads")
-		if err := downloader.Download(); err == nil {
-			println("Finished downloading")
-			srcDir, _ := downloader.BoundSourceDir.Get()
-			scanner.Scan(srcDir)
-		} else {
-			println(err.Error())
-		}
+		d.Dispatch(app.StartDownloadingMessage{})
 	})
 
 	return downloadButton

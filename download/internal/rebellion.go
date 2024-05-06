@@ -93,7 +93,6 @@ func pageDownloader(ctx context.Context, bContext playwright.BrowserContext, pag
 }
 
 func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs []api.DigitalComic, err error) {
-	//logger := logr.FromContextOrDiscard(ctx)
 	page, _ := getPage(ctx, bContext)
 	if _, err := page.Goto(listUrl); err != nil {
 		return progs, err
