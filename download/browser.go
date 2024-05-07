@@ -9,6 +9,7 @@ import (
 
 func browser(ctx context.Context) (playwright.BrowserContext, error) {
 	logger := logr.FromContextOrDiscard(ctx)
+	logger.V(1).Info("Starting to create browser")
 	pw, err := playwright.Run()
 	if err != nil {
 		logger.Error(err, "failed to open browser")
@@ -32,6 +33,7 @@ func browser(ctx context.Context) (playwright.BrowserContext, error) {
 		return nil, err
 	}
 
+	logger.V(1).Info("Returning browser context")
 	return bContext, nil
 }
 

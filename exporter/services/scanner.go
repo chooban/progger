@@ -24,7 +24,7 @@ func toStories(issues []api.Issue) []*api2.Story {
 		for _, episode := range issue.Episodes {
 			// If the series - story combo exists, add to its episodes
 			if story, ok := storyMap[fmt.Sprintf("%s - %s", episode.Series, episode.Title)]; ok {
-				story.Episodes = append(story.Episodes, api2.Episode{episode, issue.Filename, issue.IssueNumber})
+				story.Episodes = append(story.Episodes, api2.Episode{Episode: episode, Filename: issue.Filename, IssueNumber: issue.IssueNumber})
 				sort.Slice(story.Episodes, func(i, j int) bool {
 					return story.Episodes[i].IssueNumber < story.Episodes[j].IssueNumber
 				})

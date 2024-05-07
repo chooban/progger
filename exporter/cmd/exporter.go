@@ -8,14 +8,14 @@ import (
 )
 
 func main() {
-	app := app.NewProggerApp()
+	a := app.NewProggerApp()
 
-	app.RootWindow.Resize(fyne.NewSize(600, 400))
-	app.RootWindow.SetMaster()
-	app.RootWindow.SetContent(windows.MainWindow(app))
-	app.RootWindow.SetMainMenu(exporter.MainMenu(app))
+	a.RootWindow.Resize(fyne.NewSize(600, 400))
+	a.RootWindow.SetMaster()
+	a.RootWindow.SetContent(windows.MainWindow(a))
+	a.RootWindow.SetMainMenu(exporter.MainMenu(a))
 
-	windows.NewSettings(app)
+	windows.NewSettings(a)
 
-	app.RootWindow.ShowAndRun()
+	a.RootWindow.ShowAndRun()
 }

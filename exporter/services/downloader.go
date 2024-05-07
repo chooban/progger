@@ -14,15 +14,9 @@ type Downloader struct {
 	ctxt           context.Context
 	IsDownloading  binding.Bool
 	BoundSourceDir binding.String
-	BoundUsername  binding.String
-	BoundPassword  binding.String
 }
 
-func (d *Downloader) Download() error {
-	sourceDir, _ := d.BoundSourceDir.Get()
-	username, _ := d.BoundUsername.Get()
-	password, _ := d.BoundPassword.Get()
-
+func (d *Downloader) Download(sourceDir, username, password string) error {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return err
@@ -53,12 +47,10 @@ func (d *Downloader) Download() error {
 	return nil
 }
 
-func NewDownloader(ctx context.Context, srcDir, username, password binding.String) *Downloader {
+func NewDownloader(ctx context.Context, srcDir binding.String) *Downloader {
 	return &Downloader{
 		ctxt:           ctx,
 		IsDownloading:  binding.NewBool(),
 		BoundSourceDir: srcDir,
-		BoundPassword:  password,
-		BoundUsername:  username,
 	}
 }

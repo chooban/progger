@@ -2,12 +2,14 @@ package app
 
 import (
 	"fyne.io/fyne/v2/data/binding"
+	"github.com/chooban/progger/exporter/prefs"
 	"github.com/chooban/progger/exporter/services"
 )
 
 type State struct {
 	ShowSettings binding.Bool
 	Services     *services.AppServices
+	prefs        *prefs.Prefs
 }
 
 func (a *State) Dispatch(m interface{}) {
@@ -23,7 +25,11 @@ func (a *State) Dispatch(m interface{}) {
 		}()
 	case StartDownloadingMessage:
 		go func() {
-			if err := a.Services.Downloader.Download(); err == nil {
+			srcDir, _ := a.Services.Downloader.BoundSourceDir.Get()
+			rUser := a.prefs.RebellionUsername
+			rPass := a.prefs.RebellionPassword
+
+			if err := a.Services.Downloader.Download(srcDir, rUser, rPass); err == nil {
 				a.Dispatch(finishedDownloadingMessage{})
 			} else {
 				println(err.Error())
@@ -35,10 +41,11 @@ func (a *State) Dispatch(m interface{}) {
 	}
 }
 
-func NewAppState(s *services.AppServices) *State {
+func NewAppState(s *services.AppServices, p *prefs.Prefs) *State {
 	c := State{
 		ShowSettings: binding.NewBool(),
 		Services:     s,
+		prefs:        p,
 	}
 
 	return &c

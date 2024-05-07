@@ -12,15 +12,13 @@ type AppServices struct {
 	Scanner    *Scanner
 }
 
-func NewAppServices(ctx context.Context, a fyne.App) *AppServices {
+func NewAppServices(ctx context.Context, a fyne.App, p *prefs.Prefs) *AppServices {
 	// We want to be able to react to the source directory changing
 	boundSource := prefs.BoundSourceDir(a)
 	boundExport := prefs.BoundExportDir(a)
-	boundUserName := prefs.BoundRebellionUsername(a)
-	boundPassword := prefs.BoundRebellionPassword(a)
 
 	return &AppServices{
-		Downloader: NewDownloader(ctx, boundSource, boundUserName, boundPassword),
+		Downloader: NewDownloader(ctx, boundSource),
 		Exporter:   NewExporter(ctx, boundSource, boundExport),
 		Scanner:    NewScanner(ctx),
 	}

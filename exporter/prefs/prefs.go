@@ -33,3 +33,8 @@ func boundStringValue(app fyne.App, bindName string) binding.String {
 
 	return b
 }
+
+type Prefs struct {
+	RebellionPassword string
+	RebellionUsername string
+}
