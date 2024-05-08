@@ -1,3 +1,7 @@
+<p align="center">
+  <a href="https://goreportcard.com/report/chooban/progger/exporter"><img src="https://goreportcard.com/badge/fyne.io/fyne/v2" alt="Code Status" /></a>
+</p>
+
 # Exporter
 
 A GUI application for creating your own PDFs for a series. 
