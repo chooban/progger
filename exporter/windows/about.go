@@ -28,7 +28,7 @@ This software uses a variety of Open Source Software to run.
 * [PDFium](https://github.com/chromium/pdfium) ([Apache License 2.0](https://github.com/chromium/pdfium/blob/main/LICENSE))
 `
 
-func NewAbout(app *app.ProggerApp) fyne.Window {
+func NewAbout(app *app.ProggerApp) fyne.CanvasObject {
 	r := bytes.NewReader(icon)
 	img, err := png.Decode(r)
 	if err != nil {
@@ -48,11 +48,7 @@ type aboutProps struct {
 	Icon    image.Image
 }
 
-func newAbout(app fyne.App, p aboutProps) fyne.Window {
-	w := app.NewWindow("About")
-	w.SetTitle("About")
-	w.Resize(fyne.Size{Width: 400, Height: 400})
-
+func newAbout(app fyne.App, p aboutProps) fyne.CanvasObject {
 	iconImage := canvas.NewImageFromImage(p.Icon)
 	iconImage.FillMode = canvas.ImageFillOriginal
 
@@ -73,15 +69,11 @@ func newAbout(app fyne.App, p aboutProps) fyne.Window {
 
 	l := container.NewBorder(
 		container.NewVBox(iconImage, heading, description),
-		widget.NewButton("Close", func() {
-			w.Close()
-		}),
+		nil,
 		nil,
 		nil,
 		licensesContainer,
 	)
-	//c := container.New(l)
-	w.SetContent(l)
 
-	return w
+	return l
 }

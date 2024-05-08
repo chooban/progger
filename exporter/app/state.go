@@ -1,23 +1,17 @@
 package app
 
 import (
-	"fyne.io/fyne/v2/data/binding"
 	"github.com/chooban/progger/exporter/prefs"
 	"github.com/chooban/progger/exporter/services"
 )
 
 type State struct {
-	ShowSettings binding.Bool
-	Services     *services.AppServices
-	prefs        *prefs.Prefs
+	Services *services.AppServices
+	prefs    *prefs.Prefs
 }
 
 func (a *State) Dispatch(m interface{}) {
 	switch m.(type) {
-	case ShowSettingsMessage:
-		a.ShowSettings.Set(true)
-	case HideSettingsMessage:
-		a.ShowSettings.Set(false)
 	case StartScanningMessage:
 		_m, _ := m.(StartScanningMessage)
 		go func() {
@@ -43,16 +37,13 @@ func (a *State) Dispatch(m interface{}) {
 
 func NewAppState(s *services.AppServices, p *prefs.Prefs) *State {
 	c := State{
-		ShowSettings: binding.NewBool(),
-		Services:     s,
-		prefs:        p,
+		Services: s,
+		prefs:    p,
 	}
 
 	return &c
 }
 
-type ShowSettingsMessage struct{}
-type HideSettingsMessage struct{}
 type StartScanningMessage struct {
 	Directory string
 }

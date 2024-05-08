@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
@@ -17,6 +18,18 @@ import (
 
 type Dispatcher interface {
 	Dispatch(msg interface{})
+}
+
+func TabWindow(a *app.ProggerApp) fyne.CanvasObject {
+	tabs := container.NewAppTabs(
+		container.NewTabItemWithIcon("Stories", theme.DocumentIcon(), MainWindow(a)),
+		container.NewTabItemWithIcon("Downloads", theme.DownloadIcon(), widget.NewLabel("Downloads")),
+		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), NewSettingsCanvas(a)),
+		container.NewTabItemWithIcon("About", theme.HomeIcon(), NewAbout(a)),
+	)
+	tabs.SetTabLocation(container.TabLocationLeading)
+
+	return tabs
 }
 
 func MainWindow(a *app.ProggerApp) fyne.CanvasObject {

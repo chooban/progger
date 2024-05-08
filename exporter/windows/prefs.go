@@ -3,7 +3,6 @@ package windows
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
@@ -13,57 +12,33 @@ import (
 
 type cb func()
 
-func NewSettings(a *app.ProggerApp) {
-	settingsWindow := a.FyneApp.NewWindow("Settings")
-	settingsWindow.SetCloseIntercept(func() {
-		a.State.Dispatch(app.HideSettingsMessage{})
-	})
-	settingsWindow.SetContent(ShowPrefs(a.FyneApp, settingsWindow, func() {
-		a.State.Dispatch(app.HideSettingsMessage{})
-	}))
-	settingsWindow.Resize(fyne.NewSquareSize(600))
-
-	a.State.ShowSettings.AddListener(binding.NewDataListener(func() {
-		if showSettings, _ := a.State.ShowSettings.Get(); showSettings {
-			settingsWindow.Show()
-		} else {
-			settingsWindow.Hide()
-		}
-	}))
-}
-
-func ShowPrefs(a fyne.App, w fyne.Window, onClose cb) *fyne.Container {
+func NewSettingsCanvas(a *app.ProggerApp) fyne.CanvasObject {
+	fyneApp := a.FyneApp
 
 	allSettings := container.New(
 		layout.NewVBoxLayout(),
-		directoriesContainer(a, w),
+		directoriesContainer(fyneApp, a.RootWindow),
 		widget.NewSeparator(),
-		rebellionContainer(a, w),
+		rebellionContainer(fyneApp),
 	)
 
-	prefsContainer := container.NewBorder(
-		container.NewCenter(
-			widget.NewLabel("Settings"),
-		),
-		widget.NewButton("Close", onClose),
-		nil,
-		nil,
-		allSettings,
-	)
-
-	return prefsContainer
+	return allSettings
 }
 
-func rebellionContainer(a fyne.App, w fyne.Window) *fyne.Container {
+func rebellionContainer(a fyne.App) *fyne.Container {
 	pass := widget.NewPasswordEntry()
 	pass.Bind(prefs.BoundRebellionPassword(a))
 
 	formContainer := container.New(
-		layout.NewFormLayout(),
-		widget.NewLabel("Username"),
-		widget.NewEntryWithData(prefs.BoundRebellionUsername(a)),
-		widget.NewLabel("Password"),
-		pass,
+		layout.NewVBoxLayout(),
+		widget.NewLabel("Rebellion Account"),
+		container.New(
+			layout.NewFormLayout(),
+			widget.NewLabel("Username"),
+			widget.NewEntryWithData(prefs.BoundRebellionUsername(a)),
+			widget.NewLabel("Password"),
+			pass,
+		),
 	)
 
 	return formContainer
