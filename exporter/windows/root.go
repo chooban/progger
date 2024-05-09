@@ -23,7 +23,7 @@ type Dispatcher interface {
 func TabWindow(a *app.ProggerApp) fyne.CanvasObject {
 	tabs := container.NewAppTabs(
 		container.NewTabItemWithIcon("Stories", theme.DocumentIcon(), MainWindow(a)),
-		container.NewTabItemWithIcon("Downloads", theme.DownloadIcon(), widget.NewLabel("Downloads")),
+		container.NewTabItemWithIcon("Downloads", theme.DownloadIcon(), NewDownloads(a)),
 		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), NewSettingsCanvas(a)),
 		container.NewTabItemWithIcon("About", theme.HomeIcon(), NewAbout(a)),
 	)
@@ -35,8 +35,8 @@ func TabWindow(a *app.ProggerApp) fyne.CanvasObject {
 func MainWindow(a *app.ProggerApp) fyne.CanvasObject {
 	boundSource := prefs.BoundSourceDir(a.FyneApp)
 
-	scannerButtonsPanel := buttonsContainer(a.RootWindow, boundSource, a.AppService, a.State)
-	displayPanel := displayContainer(boundSource, a.AppService)
+	scannerButtonsPanel := buttonsContainer(a, boundSource)
+	displayPanel := displayContainer(a, boundSource)
 
 	return container.NewBorder(
 		nil,
@@ -128,10 +128,7 @@ func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
 	return c
 }
 
-func displayContainer(boundSource binding.String, appServices *services.AppServices) fyne.CanvasObject {
-	scanner := appServices.Scanner
-	downloader := appServices.Downloader
-
+func displayContainer(a *app.ProggerApp, boundSource binding.String) fyne.CanvasObject {
 	scannerProgressContainer := newScannerContainer()
 	downloadProgressContainer := newDownloadProgressContainer()
 	sourceDirectoryLabel := container.NewCenter(
@@ -140,7 +137,7 @@ func displayContainer(boundSource binding.String, appServices *services.AppServi
 		),
 	)
 
-	listContainer := container.NewStack(newStoryListWidget(scanner.BoundStories))
+	listContainer := container.NewStack(newStoryListWidget(a.State.Stories))
 	listContainer.Hide()
 
 	layout := container.NewStack(
@@ -150,8 +147,8 @@ func displayContainer(boundSource binding.String, appServices *services.AppServi
 		listContainer,
 	)
 
-	downloader.IsDownloading.AddListener(binding.NewDataListener(func() {
-		if isDownloading, _ := downloader.IsDownloading.Get(); isDownloading == true {
+	a.State.IsDownloading.AddListener(binding.NewDataListener(func() {
+		if isDownloading, _ := a.State.IsDownloading.Get(); isDownloading == true {
 			sourceDirectoryLabel.Hide()
 			scannerProgressContainer.Hide()
 			downloadProgressContainer.Show()
@@ -162,13 +159,18 @@ func displayContainer(boundSource binding.String, appServices *services.AppServi
 		}
 	}))
 
-	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
-		if isScanning, _ := scanner.IsScanning.Get(); isScanning == true {
+	a.State.IsScanning.AddListener(binding.NewDataListener(func() {
+		if isScanning, _ := a.State.IsScanning.Get(); isScanning == true {
 			sourceDirectoryLabel.Hide()
 			downloadProgressContainer.Hide()
 			scannerProgressContainer.Show()
 		} else {
-			stories, _ := scanner.BoundStories.Get()
+			stories, err := a.State.Stories.Get()
+
+			if err != nil {
+				println(err.Error())
+				return
+			}
 			if len(stories) == 0 {
 				sourceDirectoryLabel.Show()
 				scannerProgressContainer.Hide()
@@ -195,39 +197,32 @@ func newDownloadProgressContainer() *fyne.Container {
 	return centeredBar
 }
 
-func buttonsContainer(w fyne.Window, boundSource binding.String, appServices *services.AppServices, d Dispatcher) fyne.CanvasObject {
-	scanner := appServices.Scanner
-	exporter := appServices.Exporter
-	downloader := appServices.Downloader
+func buttonsContainer(a *app.ProggerApp, boundSource binding.String) fyne.CanvasObject {
+	exporter := a.AppService.Exporter
 
-	exportButton := ExportButton(w, scanner, exporter)
+	exportButton := ExportButton(a, exporter)
 	exportButton.Hide()
 
-	downloadButton := DownloadButton(d)
 	scanButton := widget.NewButton("Scan Directory", func() {
 		dirToScan, _ := boundSource.Get()
-		d.Dispatch(app.StartScanningMessage{Directory: dirToScan})
+		a.State.Dispatch(app.StartScanningMessage{Directory: dirToScan})
 	})
 
-	downloader.IsDownloading.AddListener(binding.NewDataListener(func() {
-		isDownloading, _ := downloader.IsDownloading.Get()
+	a.State.IsDownloading.AddListener(binding.NewDataListener(func() {
+		isDownloading, _ := a.State.IsDownloading.Get()
 		if isDownloading {
 			scanButton.Disable()
-			downloadButton.Disable()
 		} else {
 			scanButton.Enable()
-			downloadButton.Enable()
 		}
 	}))
 
-	scanner.IsScanning.AddListener(binding.NewDataListener(func() {
-		isScanning, _ := scanner.IsScanning.Get()
+	a.State.IsScanning.AddListener(binding.NewDataListener(func() {
+		isScanning, _ := a.State.IsScanning.Get()
 		if isScanning {
 			scanButton.Disable()
-			downloadButton.Disable()
 		} else {
-			downloadButton.Enable()
-			stories, _ := scanner.BoundStories.Get()
+			stories, _ := a.State.Stories.Get()
 			if len(stories) == 0 {
 				scanButton.Enable()
 			} else {
@@ -238,25 +233,16 @@ func buttonsContainer(w fyne.Window, boundSource binding.String, appServices *se
 	}))
 
 	return container.NewVBox(
-		downloadButton,
 		scanButton,
 		exportButton,
 	)
 }
 
-func DownloadButton(d Dispatcher) *widget.Button {
-	downloadButton := widget.NewButton("Download Progs", func() {
-		d.Dispatch(app.StartDownloadingMessage{})
-	})
-
-	return downloadButton
-}
-
-func ExportButton(w fyne.Window, scanner *services.Scanner, exporter *services.Exporter) *widget.Button {
+func ExportButton(a *app.ProggerApp, exporter *services.Exporter) *widget.Button {
 	exportButton := widget.NewButton("Export Story", func() {
-		stories, err := scanner.BoundStories.Get()
+		stories, err := a.State.Stories.Get()
 		if err != nil {
-			dialog.ShowError(err, w)
+			dialog.ShowError(err, a.RootWindow)
 		}
 		toExport := make([]*api.Story, 0)
 		for _, v := range stories {
@@ -266,7 +252,7 @@ func ExportButton(w fyne.Window, scanner *services.Scanner, exporter *services.E
 			}
 		}
 		if len(toExport) == 0 {
-			dialog.ShowInformation("Export", "No stories selected", w)
+			dialog.ShowInformation("Export", "No stories selected", a.RootWindow)
 		} else {
 			filename := binding.NewString()
 			filename.Set(toExport[0].Display() + ".pdf")
@@ -276,9 +262,9 @@ func ExportButton(w fyne.Window, scanner *services.Scanner, exporter *services.E
 				if b {
 					fname, _ := filename.Get()
 					if err := exporter.Export(toExport, fname); err != nil {
-						dialog.ShowError(err, w)
+						dialog.ShowError(err, a.RootWindow)
 					} else {
-						dialog.ShowInformation("Export", "File successfully exported", w)
+						dialog.ShowInformation("Export", "File successfully exported", a.RootWindow)
 					}
 				}
 			}
@@ -291,7 +277,7 @@ func ExportButton(w fyne.Window, scanner *services.Scanner, exporter *services.E
 					{Text: "Filename", Widget: fnameEntry},
 				},
 				onClose,
-				w,
+				a.RootWindow,
 			)
 			formDialog.Show()
 			formDialog.Resize(fyne.NewSize(500, 100))

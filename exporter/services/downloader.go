@@ -12,7 +12,6 @@ import (
 
 type Downloader struct {
 	ctxt           context.Context
-	IsDownloading  binding.Bool
 	BoundSourceDir binding.String
 }
 
@@ -26,8 +25,6 @@ func (d *Downloader) Download(sourceDir, username, password string) error {
 	logger := logr.FromContextOrDiscard(d.ctxt)
 	ctx := download.WithLoginDetails(d.ctxt, username, password)
 	ctx = download.WithBrowserContextDir(ctx, browserDir)
-
-	d.IsDownloading.Set(true)
 
 	list, err := download.ListAvailableProgs(ctx)
 	if err != nil {
@@ -43,14 +40,12 @@ func (d *Downloader) Download(sourceDir, username, password string) error {
 		}
 	}
 
-	d.IsDownloading.Set(false)
 	return nil
 }
 
 func NewDownloader(ctx context.Context, srcDir binding.String) *Downloader {
 	return &Downloader{
 		ctxt:           ctx,
-		IsDownloading:  binding.NewBool(),
 		BoundSourceDir: srcDir,
 	}
 }

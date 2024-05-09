@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"fyne.io/fyne/v2/data/binding"
 	api2 "github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/scan"
 	"github.com/chooban/progger/scan/api"
@@ -12,9 +11,7 @@ import (
 )
 
 type Scanner struct {
-	ctxt         context.Context
-	IsScanning   binding.Bool
-	BoundStories binding.UntypedList
+	ctxt context.Context
 }
 
 func toStories(issues []api.Issue) []*api2.Story {
@@ -64,25 +61,14 @@ func toStories(issues []api.Issue) []*api2.Story {
 	return stories
 }
 
-func (s *Scanner) Scan(path string) {
-	s.IsScanning.Set(true)
+func (s *Scanner) Scan(path string) []*api2.Story {
 	issues := scan.Dir(s.ctxt, path, 0)
 
-	stories := toStories(issues)
-	for _, v := range stories {
-		s.BoundStories.Append(v)
-	}
-	if err := s.IsScanning.Set(false); err != nil {
-		println(err.Error())
-	}
+	return toStories(issues)
 }
 
 func NewScanner(ctx context.Context) *Scanner {
-	isScanning := binding.NewBool()
-
 	return &Scanner{
-		ctxt:         ctx,
-		IsScanning:   isScanning,
-		BoundStories: binding.NewUntypedList(),
+		ctxt: ctx,
 	}
 }
