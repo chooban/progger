@@ -8,7 +8,7 @@ import (
 )
 
 func TestGetSuggestions(t *testing.T) {
-
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		knownTitles    []string
@@ -109,6 +109,7 @@ func TestGetSuggestions(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			logger := logr.FromContextOrDiscard(context.TODO())
 			suggestions := getSuggestions(logger, tc.knownTitles, tc.input, 0)
 

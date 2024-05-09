@@ -9,6 +9,7 @@ import (
 )
 
 func TestExtractDetailsFromTitle(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		input          string
@@ -252,6 +253,7 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			gotPart, gotSeries, gotTitle := extractDetailsFromPdfBookmark(tc.input)
 			if gotPart != tc.expectedPart || gotSeries != tc.expectedSeries || gotTitle != tc.expectedTitle {
 				t.Errorf("extractDetailsFromPdfBookmark(%v) = %v, %v, %v; want %v, %v, %v", tc.input, gotPart, gotSeries, gotTitle, tc.expectedPart, tc.expectedSeries, tc.expectedTitle)
@@ -261,6 +263,7 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 }
 
 func TestShouldIncludeEpisode(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name          string
 		input         api.Episode
@@ -357,6 +360,7 @@ func TestShouldIncludeEpisode(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := shouldIncludeEpisode(logr.Discard(), skipTitles, tc.input.Series, tc.input.Title)
 			if got != tc.shouldInclude {
 				t.Errorf("shouldIncludeEpisode(%v) = %v; want %v", tc.input.Series+", "+tc.input.Title, got, tc.shouldInclude)
@@ -366,6 +370,7 @@ func TestShouldIncludeEpisode(t *testing.T) {
 }
 
 func TestGetIssueNumber(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name                string
 		filename            string
@@ -384,6 +389,7 @@ func TestGetIssueNumber(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			issueNumber, err := getProgNumber(tc.filename)
 			assert.Nil(t, err, "Should be no error")
 			assert.Equal(t, tc.expectedIssueNumber, issueNumber)
@@ -392,6 +398,7 @@ func TestGetIssueNumber(t *testing.T) {
 }
 
 func TestBuildEpisodes(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		episodeDetails []pdf.EpisodeDetails
@@ -506,6 +513,7 @@ func TestBuildEpisodes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			issue := buildIssue(logr.Discard(), "2000AD 123 (1977).pdf", tc.episodeDetails, knownTitles, []string{})
 			assert.Equal(t, 123, issue.IssueNumber)
 			assert.Equal(t, tc.expectedSeries, issue.Episodes[0].Series)
@@ -516,6 +524,7 @@ func TestBuildEpisodes(t *testing.T) {
 }
 
 func TestExtractCreatorsFromCredits(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name    string
 		credits string
@@ -558,6 +567,7 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := extractCreatorsFromCredits(tc.credits)
 			assert.Equal(t, tc.Credits, result)
 		})
