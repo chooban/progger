@@ -52,11 +52,16 @@ jobs:
           rm pdfium-${{ env.PDFIUM_OS }}.tgz
           sudo cp ./.github/workflows/pdfium.pc /usr/local/lib/pkgconfig/pdfium.pc
           echo "Done"
+      - name: generate build number
+        uses: zyborg/gh-action-buildnum@v1
+        with:
+          gist_token: ${{ secrets.GIST_TOKEN }}
+          set_env: true
       - name: Build progger binary
         run: |
           cd build/package/exporter
           go build -o progger ../../../exporter/cmd/exporter.go
-          fyne package -os darwin --exe progger --name progger --icon Icon.png
+          fyne package -os darwin --exe progger --name progger --icon Icon.png --appVersion ${{ github.ref_name }} --appBuild ${{ env.BUILDNUM_FOR_WORKFLOW }} 
           mkdir progger.app/Contents/Frameworks
           cp /usr/local/lib/pdfium/lib/libpdfium.dylib progger.app/Contents/Frameworks
           install_name_tool -id "@rpath/libpdfium.dylib" progger.app/Contents/Frameworks/libpdfium.dylib
