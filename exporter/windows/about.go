@@ -36,15 +36,16 @@ func NewAbout(app *app.ProggerApp) fyne.CanvasObject {
 		println(err.Error())
 		panic("Cannot load icon for about window")
 	}
-
+	m := app.FyneApp.Metadata()
 	d := newAbout(app.FyneApp, aboutProps{
-		app.FyneApp.Metadata().Version, img,
+		m.Version, m.Build, img,
 	})
 	return d
 }
 
 type aboutProps struct {
 	Version string
+	Build   int
 	Icon    image.Image
 }
 
@@ -60,7 +61,7 @@ func newAbout(app fyne.App, p aboutProps) fyne.CanvasObject {
 		TabWidth:  0,
 	})
 
-	description := widget.NewRichTextFromMarkdown(fmt.Sprintf("Version %s ([MIT License](https://github.com/chooban/progger/blob/main/LICENSE))", p.Version))
+	description := widget.NewRichTextFromMarkdown(fmt.Sprintf("Version %s (%d) ([MIT License](https://github.com/chooban/progger/blob/main/LICENSE))", p.Version, p.Build))
 
 	licenses := widget.NewRichTextFromMarkdown(licencesText + extraLicensesText)
 	licenses.Wrapping = fyne.TextWrapWord
