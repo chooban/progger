@@ -57,7 +57,8 @@ func Download(ctx context.Context, comic api.DigitalComic, dir string, filetype 
 		return "", errors.New("path is not a directory")
 	}
 	if _, err = os.Stat(path.Join(dir, comic.Filename(filetype))); err == nil {
-		return "", fmt.Errorf("file already exists: %s", path.Join(dir, comic.Filename(filetype)))
+		logger.V(1).Info("file already exists", "path", path.Join(dir, comic.Filename(filetype)))
+		return path.Join(dir, comic.Filename(filetype)), nil
 	}
 
 	bContext, err := browser(ctx)
