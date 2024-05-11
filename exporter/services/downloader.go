@@ -30,8 +30,7 @@ func (d *Downloader) Download(sourceDir, username, password string) error {
 	if err != nil {
 		return err
 	}
-	downloadCount := 5
-	for i := 0; i < downloadCount && i < len(list); i++ {
+	for i := 0; i < len(list); i++ {
 		logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
 		if fp, err := download.Download(ctx, list[i], sourceDir, downloadApi.Pdf); err != nil {
 			logger.Error(err, "could not download file")

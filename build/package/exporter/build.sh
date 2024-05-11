@@ -8,7 +8,13 @@ echo "Building executable..."
 go build -o progger ../../../exporter/cmd/exporter.go
 
 echo "Building fyne package..."
-fyne package -os darwin --exe progger --name progger --icon Icon.png
+fyne package \
+  -os darwin \
+  --exe progger \
+  --name progger \
+  --icon Icon.png \
+  --appVersion 0.3.1 \
+  --appBuild 10 
 
 if [ ! -d progger.app ]; then
   echo "No progger.app directory! Exiting"
