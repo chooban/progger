@@ -53,7 +53,7 @@ jobs:
           sudo cp ./.github/workflows/pdfium.pc /usr/local/lib/pkgconfig/pdfium.pc
           echo "Done"
       - name: generate build number
-        uses: zyborg/gh-action-buildnum@v1
+        uses: zyborg/gh-action-buildnum@v2
         with:
           gist_token: ${{ secrets.GIST_TOKEN }}
           set_env: true
