@@ -10,9 +10,10 @@ type AppServices struct {
 	Downloader *Downloader
 	Exporter   *Exporter
 	Scanner    *Scanner
+	Prefs      *Prefs
 }
 
-func NewAppServices(ctx context.Context, a fyne.App, p *prefs.Prefs) *AppServices {
+func NewAppServices(ctx context.Context, a fyne.App) *AppServices {
 	// We want to be able to react to the source directory changing
 	boundSource := prefs.BoundSourceDir(a)
 	boundExport := prefs.BoundExportDir(a)
@@ -21,5 +22,6 @@ func NewAppServices(ctx context.Context, a fyne.App, p *prefs.Prefs) *AppService
 		Downloader: NewDownloader(ctx, boundSource),
 		Exporter:   NewExporter(ctx, boundSource, boundExport),
 		Scanner:    NewScanner(ctx),
+		Prefs:      NewPrefs(a),
 	}
 }

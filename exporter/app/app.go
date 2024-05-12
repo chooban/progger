@@ -22,20 +22,12 @@ func NewProggerApp() *ProggerApp {
 	a := app.NewWithID("com.rosshendry.progger.exporter")
 	w := a.NewWindow("Progger - Exporter")
 
-	username := a.Preferences().String("RebellionUsername")
-	password := a.Preferences().String("RebellionPassword")
-
-	p := &prefs.Prefs{
-		RebellionUsername: username,
-		RebellionPassword: password,
-	}
-	appServices := services.NewAppServices(ctx, a, p)
+	appServices := services.NewAppServices(ctx, a)
 
 	return &ProggerApp{
-		State:      NewAppState(appServices, p),
+		State:      NewAppState(appServices),
 		FyneApp:    a,
 		RootWindow: w,
 		AppService: appServices,
-		Prefs:      p,
 	}
 }

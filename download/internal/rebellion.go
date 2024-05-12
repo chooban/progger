@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/chooban/progger/download/api"
 	"github.com/go-logr/logr"
@@ -13,10 +14,12 @@ import (
 )
 
 var signinUrl = "https://shop.2000ad.com/account/sign-in"
+var accountUrl = "https://shop.2000ad.com/account"
 var listUrl = "https://shop.2000ad.com/account/downloads?sort-by=released&direction=desc"
 var downloadPageUrl = "https://shop.2000ad.com/account/downloads?sort-by=granted&direction=desc&page=%d"
 
 func Login(ctx context.Context, bContext playwright.BrowserContext, username, password string) (err error) {
+	logger := logr.FromContextOrDiscard(ctx)
 	assertions := playwright.NewPlaywrightAssertions()
 
 	page, err := bContext.NewPage()
@@ -27,10 +30,8 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 		return
 	}
 
-	if page.URL() != signinUrl {
-		// Presumably we're logged in?
-		logger := logr.FromContextOrDiscard(ctx)
-		logger.V(2).Info("Skipping login procedure")
+	if page.URL() == accountUrl {
+		logger.Info("Skipping login procedure")
 		return
 	}
 	var emailInput, passwordInput, loginButton playwright.Locator
@@ -55,6 +56,19 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 		return
 	}
 
+	if _, err = page.ExpectEvent("navigated", func() error {
+		currentUrl := page.URL()
+		logger.Info("Current URL: " + currentUrl)
+		if currentUrl != accountUrl {
+			logger.Info("Looks like login failed")
+			return errors.New("login failed")
+		}
+		return nil
+	}); err != nil {
+		logger.Info("Returning an error")
+		return err
+	}
+	logger.Info("Login succeeded")
 	return
 }
 
@@ -83,9 +97,9 @@ func pageDownloader(ctx context.Context, bContext playwright.BrowserContext, pag
 	if _, err := page.Goto(url); err != nil {
 		logger.Error(err, "Failed to load page", "url", downloadPageUrl)
 	} else {
-		logger.V(2).Info("Downloaded page", "duration", time.Since(start))
+		logger.Info("Downloaded page", "duration", time.Since(start))
 		if newProgs, err := extractProgsFromPage(logger, page); err == nil {
-			logger.V(2).Info("Found new progs", "count", len(newProgs))
+			logger.Info("Found new progs", "count", len(newProgs))
 			progs = newProgs
 		}
 	}
@@ -93,17 +107,26 @@ func pageDownloader(ctx context.Context, bContext playwright.BrowserContext, pag
 }
 
 func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs []api.DigitalComic, err error) {
-	page, _ := getPage(ctx, bContext)
+	logger := logr.FromContextOrDiscard(ctx)
+	page, _ := bContext.NewPage()
 	if _, err := page.Goto(listUrl); err != nil {
+		logger.Error(err, "Failed to load page", "url", listUrl)
 		return progs, err
 	}
 
 	links := page.Locator("ul.pagination").GetByRole("link").Filter(playwright.LocatorFilterOptions{HasNotText: "Next"}).Last()
-	maxPageText, _ := links.InnerText()
+	maxPageText, err := links.InnerText()
+	if err != nil {
+		logger.Error(err, "could not get text of last link")
+		return
+	}
+	logger.Info("Converting max page text", "text", maxPageText)
 	maxPage, _ := strconv.Atoi(maxPageText)
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
+
+	logger.Info("Found max page count", "max_page", maxPage)
 
 	progs = make([]api.DigitalComic, 0, maxPage*10)
 	for p := range maxPage {

@@ -46,26 +46,26 @@ func (s *State) Dispatch(m interface{}) {
 				s.IsDownloading.Set(false)
 			}()
 			srcDir, _ := s.services.Downloader.BoundSourceDir.Get()
-			rUser := s.prefs.RebellionUsername
-			rPass := s.prefs.RebellionPassword
+			rUser, rPass := s.services.Prefs.RebellionDetails()
 
-			err := s.services.Downloader.Download(srcDir, rUser, rPass)
-			s.Dispatch(finishedDownloadingMessage{})
-
-			if err != nil {
-				println(err.Error())
+			if err := s.services.Downloader.Download(srcDir, rUser, rPass); err != nil {
+				s.Dispatch(finishedDownloadingMessage{Success: false})
+			} else {
+				s.Dispatch(finishedDownloadingMessage{Success: true})
 			}
+
 		}()
 	case finishedDownloadingMessage:
-		srcDir, _ := s.services.Downloader.BoundSourceDir.Get()
-		s.Dispatch(StartScanningMessage{srcDir})
+		if m.(finishedDownloadingMessage).Success {
+			srcDir, _ := s.services.Downloader.BoundSourceDir.Get()
+			s.Dispatch(StartScanningMessage{srcDir})
+		}
 	}
 }
 
-func NewAppState(s *services.AppServices, p *prefs.Prefs) *State {
+func NewAppState(s *services.AppServices) *State {
 	c := State{
 		services:      s,
-		prefs:         p,
 		IsDownloading: binding.NewBool(),
 		IsScanning:    binding.NewBool(),
 		Stories:       binding.NewUntypedList(),
@@ -79,4 +79,6 @@ type StartScanningMessage struct {
 }
 type StartDownloadingMessage struct{}
 
-type finishedDownloadingMessage struct{}
+type finishedDownloadingMessage struct {
+	Success bool
+}

@@ -28,15 +28,21 @@ func (d *Downloader) Download(sourceDir, username, password string) error {
 
 	list, err := download.ListAvailableProgs(ctx)
 	if err != nil {
+		logger.Error(err, "failed to list available progs")
 		return err
 	}
-	for i := 0; i < len(list); i++ {
-		logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
-		if fp, err := download.Download(ctx, list[i], sourceDir, downloadApi.Pdf); err != nil {
-			logger.Error(err, "could not download file")
-		} else {
-			logger.Info("Downloaded a file", "file", fp)
+	if len(list) > 0 {
+		logger.Info("Found progs to download", "count", len(list))
+		for i := 0; i < len(list); i++ {
+			logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
+			if fp, err := download.Download(ctx, list[i], sourceDir, downloadApi.Pdf); err != nil {
+				logger.Error(err, "could not download file")
+			} else {
+				logger.Info("Downloaded a file", "file", fp)
+			}
 		}
+	} else {
+		logger.Info("No progs to download")
 	}
 
 	return nil

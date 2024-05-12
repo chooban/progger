@@ -32,11 +32,12 @@ func ListAvailableProgs(ctx context.Context) ([]api.DigitalComic, error) {
 	u, p := LoginDetails(ctx)
 
 	if err = internal.Login(ctx, bContext, u, p); err != nil {
+		logger.Error(err, "Failed to login")
 		return []api.DigitalComic{}, err
 	}
 
 	if progs, err := internal.ListProgs(ctx, bContext); err != nil {
-		logger.Error(err, "Could not start browser")
+		logger.Error(err, "Could not list progs")
 		return []api.DigitalComic{}, err
 	} else {
 		slices.SortFunc(progs, func(i, j api.DigitalComic) int {
