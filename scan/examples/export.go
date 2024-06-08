@@ -42,9 +42,13 @@ func main() {
 			Filename: *file,
 			PageFrom: *pageFrom,
 			PageTo:   *pageTo,
+			Title:    "An Example Title",
 		},
 	}
 
-	scan.Build(ctx, pages, "export.pdf")
+	err := scan.Build(ctx, pages, "export.pdf")
+	if err != nil {
+		log.Error(err, "Failed to export")
+	}
 
 }

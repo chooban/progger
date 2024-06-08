@@ -17,7 +17,5 @@ func Build(ctx context.Context, pages []api.ExportPage, fileName string) error {
 	}
 	p := pdfium.NewPdfiumReader(logger)
 
-	p.Build(pages, fileName)
-
-	return nil
+	return p.Build(pages, fileName)
 }
