@@ -1,6 +1,6 @@
 module github.com/chooban/progger/db
 
-go 1.22.2
+go 1.22.4
 
 require (
 	github.com/akamensky/argparse v1.4.0
