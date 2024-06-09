@@ -2,13 +2,11 @@ package app
 
 import (
 	"fyne.io/fyne/v2/data/binding"
-	"github.com/chooban/progger/exporter/prefs"
 	"github.com/chooban/progger/exporter/services"
 )
 
 type State struct {
 	services      *services.AppServices
-	prefs         *prefs.Prefs
 	IsDownloading binding.Bool
 	IsScanning    binding.Bool
 	Stories       binding.UntypedList
@@ -45,7 +43,7 @@ func (s *State) Dispatch(m interface{}) {
 			defer func() {
 				s.IsDownloading.Set(false)
 			}()
-			srcDir, _ := s.services.Downloader.BoundSourceDir.Get()
+			srcDir := s.services.Prefs.SourceDirectory()
 			rUser, rPass := s.services.Prefs.RebellionDetails()
 
 			if err := s.services.Downloader.Download(srcDir, rUser, rPass); err != nil {
@@ -57,7 +55,7 @@ func (s *State) Dispatch(m interface{}) {
 		}()
 	case finishedDownloadingMessage:
 		if m.(finishedDownloadingMessage).Success {
-			srcDir, _ := s.services.Downloader.BoundSourceDir.Get()
+			srcDir := s.services.Prefs.SourceDirectory()
 			s.Dispatch(StartScanningMessage{srcDir})
 		}
 	}

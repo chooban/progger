@@ -7,7 +7,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/chooban/progger/exporter/app"
-	"github.com/chooban/progger/exporter/prefs"
+	"github.com/chooban/progger/exporter/services"
 )
 
 type cb func()
@@ -17,7 +17,7 @@ func NewSettingsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 
 	allSettings := container.New(
 		layout.NewVBoxLayout(),
-		directoriesContainer(fyneApp, a.RootWindow),
+		directoriesContainer(a, a.RootWindow),
 		widget.NewSeparator(),
 		rebellionContainer(fyneApp),
 	)
@@ -27,7 +27,7 @@ func NewSettingsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 
 func rebellionContainer(a fyne.App) *fyne.Container {
 	pass := widget.NewPasswordEntry()
-	pass.Bind(prefs.BoundRebellionPassword(a))
+	pass.Bind(services.BoundRebellionPassword(a))
 
 	formContainer := container.New(
 		layout.NewVBoxLayout(),
@@ -35,7 +35,7 @@ func rebellionContainer(a fyne.App) *fyne.Container {
 		container.New(
 			layout.NewFormLayout(),
 			widget.NewLabel("Username"),
-			widget.NewEntryWithData(prefs.BoundRebellionUsername(a)),
+			widget.NewEntryWithData(services.BoundRebellionUsername(a)),
 			widget.NewLabel("Password"),
 			pass,
 		),
@@ -44,9 +44,10 @@ func rebellionContainer(a fyne.App) *fyne.Container {
 	return formContainer
 }
 
-func directoriesContainer(a fyne.App, w fyne.Window) *fyne.Container {
-	boundSource := prefs.BoundSourceDir(a)
-	boundExport := prefs.BoundExportDir(a)
+func directoriesContainer(a *app.ProggerApp, w fyne.Window) *fyne.Container {
+	//boundSource := services.BoundSourceDir(a)
+	boundSource := a.AppService.Prefs.BoundSourceDir
+	boundExport := a.AppService.Prefs.BoundExportDir
 
 	directoriesFormContainer := container.New(
 		layout.NewFormLayout(),

@@ -10,8 +10,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
-	"github.com/chooban/progger/exporter/prefs"
-	"github.com/chooban/progger/exporter/services"
 	"slices"
 	"strings"
 )
@@ -33,10 +31,10 @@ func TabWindow(a *app.ProggerApp) fyne.CanvasObject {
 }
 
 func MainWindow(a *app.ProggerApp) fyne.CanvasObject {
-	boundSource := prefs.BoundSourceDir(a.FyneApp)
-
-	scannerButtonsPanel := buttonsContainer(a, boundSource)
-	displayPanel := displayContainer(a, boundSource)
+	// TODO: This is not usefully bound
+	//boundSource := binding.NewString()
+	scannerButtonsPanel := buttonsContainer(a)
+	displayPanel := displayContainer(a)
 
 	return container.NewBorder(
 		nil,
@@ -128,12 +126,12 @@ func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
 	return c
 }
 
-func displayContainer(a *app.ProggerApp, boundSource binding.String) fyne.CanvasObject {
+func displayContainer(a *app.ProggerApp) fyne.CanvasObject {
 	scannerProgressContainer := newScannerContainer()
 	downloadProgressContainer := newDownloadProgressContainer()
 	sourceDirectoryLabel := container.NewCenter(
 		container.NewVBox(
-			widget.NewLabelWithData(boundSource),
+			widget.NewLabelWithData(a.AppService.Prefs.BoundSourceDir),
 		),
 	)
 
@@ -197,14 +195,12 @@ func newDownloadProgressContainer() *fyne.Container {
 	return centeredBar
 }
 
-func buttonsContainer(a *app.ProggerApp, boundSource binding.String) fyne.CanvasObject {
-	exporter := a.AppService.Exporter
-
-	exportButton := ExportButton(a, exporter)
+func buttonsContainer(a *app.ProggerApp) fyne.CanvasObject {
+	exportButton := ExportButton(a)
 	exportButton.Hide()
 
 	scanButton := widget.NewButton("Scan Directory", func() {
-		dirToScan, _ := boundSource.Get()
+		dirToScan := a.AppService.Prefs.SourceDirectory()
 		a.State.Dispatch(app.StartScanningMessage{Directory: dirToScan})
 	})
 
@@ -238,7 +234,10 @@ func buttonsContainer(a *app.ProggerApp, boundSource binding.String) fyne.Canvas
 	)
 }
 
-func ExportButton(a *app.ProggerApp, exporter *services.Exporter) *widget.Button {
+func ExportButton(a *app.ProggerApp) *widget.Button {
+	exporter := a.AppService.Exporter
+	prefsService := a.AppService.Prefs
+
 	exportButton := widget.NewButton("Export Story", func() {
 		stories, err := a.State.Stories.Get()
 		if err != nil {
@@ -261,7 +260,7 @@ func ExportButton(a *app.ProggerApp, exporter *services.Exporter) *widget.Button
 			onClose := func(b bool) {
 				if b {
 					fname, _ := filename.Get()
-					if err := exporter.Export(toExport, fname); err != nil {
+					if err := exporter.Export(toExport, prefsService.SourceDirectory(), prefsService.ExportDirectory(), fname); err != nil {
 						dialog.ShowError(err, a.RootWindow)
 					} else {
 						dialog.ShowInformation("Export", "File successfully exported", a.RootWindow)

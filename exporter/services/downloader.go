@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fyne.io/fyne/v2/data/binding"
 	"github.com/chooban/progger/download"
 	downloadApi "github.com/chooban/progger/download/api"
 	"github.com/go-logr/logr"
@@ -11,8 +10,8 @@ import (
 )
 
 type Downloader struct {
-	ctxt           context.Context
-	BoundSourceDir binding.String
+	ctxt context.Context
+	//BoundSourceDir binding.String
 }
 
 func (d *Downloader) Download(sourceDir, username, password string) error {
@@ -48,9 +47,9 @@ func (d *Downloader) Download(sourceDir, username, password string) error {
 	return nil
 }
 
-func NewDownloader(ctx context.Context, srcDir binding.String) *Downloader {
+func NewDownloader(ctx context.Context) *Downloader {
 	return &Downloader{
-		ctxt:           ctx,
-		BoundSourceDir: srcDir,
+		ctxt: ctx,
+		//BoundSourceDir: srcDir,
 	}
 }

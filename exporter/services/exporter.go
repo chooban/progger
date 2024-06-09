@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"fyne.io/fyne/v2/data/binding"
 	api2 "github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/scan"
 	"github.com/chooban/progger/scan/api"
@@ -14,21 +13,10 @@ import (
 )
 
 type Exporter struct {
-	ctx            context.Context
-	BoundSourceDir binding.String
-	BoundExportDir binding.String
+	ctx context.Context
 }
 
-func (e *Exporter) Export(stories []*api2.Story, filename string) error {
-	sourceDir, err := e.BoundSourceDir.Get()
-	if err != nil {
-		return err
-	}
-	exportDir, err := e.BoundExportDir.Get()
-	if err != nil {
-		return err
-	}
-
+func (e *Exporter) Export(stories []*api2.Story, sourceDir, exportDir, filename string) error {
 	toExport := make([]api.ExportPage, 0)
 	for _, story := range stories {
 		if story.ToExport {
@@ -53,7 +41,7 @@ func (e *Exporter) Export(stories []*api2.Story, filename string) error {
 	})
 
 	// Do the export
-	err = scan.Build(e.ctx, toExport, filepath.Join(exportDir, filename))
+	err := scan.Build(e.ctx, toExport, filepath.Join(exportDir, filename))
 	if err != nil {
 		return err
 	}
@@ -61,8 +49,8 @@ func (e *Exporter) Export(stories []*api2.Story, filename string) error {
 	return nil
 }
 
-func NewExporter(ctx context.Context, src, export binding.String) *Exporter {
+func NewExporter(ctx context.Context) *Exporter {
 	return &Exporter{
-		ctx, src, export,
+		ctx,
 	}
 }

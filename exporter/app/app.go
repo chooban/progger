@@ -4,13 +4,11 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"github.com/chooban/progger/exporter/context"
-	"github.com/chooban/progger/exporter/prefs"
 	"github.com/chooban/progger/exporter/services"
 )
 
 type ProggerApp struct {
 	State      *State
-	Prefs      *prefs.Prefs
 	FyneApp    fyne.App
 	RootWindow fyne.Window
 	AppService *services.AppServices
