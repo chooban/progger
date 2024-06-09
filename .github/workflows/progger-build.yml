@@ -25,7 +25,7 @@ jobs:
       CGO_ENABLED: 1
       LD_LIBRARY_PATH: "/usr/local/lib/pdfium/lib"
       PKG_CONFIG_PATH: "/usr/local/lib/pkgconfig"
-      FYNE_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || env.BUILDNUM_FOR_WORKFLOW }}
+      FYNE_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '0.0.0' }}
     runs-on: macos-latest
     steps:
       - name: Checkout repository
