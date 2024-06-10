@@ -1,15 +1,9 @@
 name: Progger - DMG Build
 
 on:
-  workflow_run:
-    branches:
-      - 'main'
-    tags:
-      - '*.*.*'
-    workflows:
-      - "Tests"
-    types:
-      - completed
+  push:
+    # Publish semver tags as releases.
+    tags: [ '*.*.*' ]
   workflow_dispatch:
     inputs:
       tag:
@@ -20,6 +14,8 @@ env:
   PDFIUM_OS: "mac-arm64"
 
 jobs:
+  run_tests:
+    uses: ./.github/workflows/tests.yml
   build-dmg:
     permissions:
       contents: write

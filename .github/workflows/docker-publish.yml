@@ -9,13 +9,6 @@ on:
   push:
     # Publish semver tags as releases.
     tags: [ '*.*.*' ]
-  workflow_run:
-    workflows:
-      - "Tests"
-    types:
-      - completed
-    branches:
-      - main
 
 env:
   # Use docker.io for Docker Hub if empty
@@ -25,8 +18,9 @@ env:
 
 
 jobs:
+  run_tests:
+    uses: ./.github/workflows/tests.yml
   build:
-
     runs-on: ubuntu-latest
     permissions:
       contents: read

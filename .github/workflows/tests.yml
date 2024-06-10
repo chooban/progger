@@ -4,9 +4,8 @@ on:
   push:
     branches:
       - '*'
-    tags:
-      - '*.*.*'
   workflow_dispatch:
+  workflow_call:
 
 env:
   PDFIUM_VERSION: "6406"
