@@ -10,7 +10,6 @@ import (
 	"github.com/klippa-app/go-pdfium/references"
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/klippa-app/go-pdfium/responses"
-	pdfApi "github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"math"
 	"os"
@@ -74,40 +73,13 @@ func (p *Reader) Bookmarks(filename string) ([]pdf.EpisodeDetails, error) {
 }
 
 func (p *Reader) Build(episodes []api.ExportPage, outputPath string) (buildError error) {
-	var destination *responses.FPDF_CreateNewDocument
-	if destination, buildError = p.Instance.FPDF_CreateNewDocument(&requests.FPDF_CreateNewDocument{}); buildError != nil {
-		p.Log.Error(buildError, "Could not create new document")
-		return
-	}
-
-	var source *responses.FPDF_LoadDocument
-	copyPages := func(sourceFile *string, pageFrom, pageTo, insertIndex int) {
-		if buildError != nil {
-			return
-		}
-		if source, buildError = p.Instance.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
-			Path: sourceFile,
-		}); buildError != nil {
-			p.Log.Error(buildError, "Could not open source PDF", "file_name", sourceFile)
-			return
-		}
-		pageRange := fmt.Sprintf("%d-%d", pageFrom, pageTo)
-		p.Log.V(1).Info("Adding pages", "page_range", pageRange, "index", insertIndex, "filename", sourceFile)
-		if _, buildError = p.Instance.FPDF_ImportPages(&requests.FPDF_ImportPages{
-			Source:      source.Document,
-			Destination: destination.Document,
-			PageRange:   &pageRange,
-			Index:       insertIndex,
-		}); buildError != nil {
-			p.Log.Error(buildError, "Could not import pages", "file_name", sourceFile)
-			return
-		}
-	}
+	builder := pdfBuilder{instance: p.Instance}
+	builder.OpenDestination()
 
 	pageCount := 0
 	bookmarks := make([]pdfcpu.Bookmark, 0, len(episodes))
 	for _, episode := range episodes {
-		copyPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
+		builder.CopyPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
 		if len(episode.Title) > 0 {
 			bookmarks = append(bookmarks, pdfcpu.Bookmark{
 				Title:    episode.Title,
@@ -117,26 +89,10 @@ func (p *Reader) Build(episodes []api.ExportPage, outputPath string) (buildError
 		}
 		pageCount += (episode.PageTo - episode.PageFrom) + 1
 	}
+	builder.Save(outputPath)
+	builder.AddBookmarks(bookmarks)
 
-	if buildError != nil {
-		p.Log.Error(buildError, "Could not copy all pages to document", "file_name", outputPath)
-		return
-	}
-
-	saveAsCopy, buildError := p.Instance.FPDF_SaveAsCopy(&requests.FPDF_SaveAsCopy{
-		Flags:    requests.SaveFlagIncremental,
-		Document: destination.Document,
-		FilePath: &outputPath,
-	})
-	if buildError != nil {
-		p.Log.Error(buildError, "Could not save document", "file_name", outputPath)
-		return
-	}
-
-	p.Log.Info("Attempting to add bookmarks", "filepath", *saveAsCopy.FilePath)
-	buildError = pdfApi.AddBookmarksFile(*saveAsCopy.FilePath, *saveAsCopy.FilePath, bookmarks, true, nil)
-
-	return
+	return builder.BuildError
 }
 
 func (p *Reader) Credits(filename string, startPage int, endPage int) (credits string, err error) {
