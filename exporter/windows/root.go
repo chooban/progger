@@ -31,8 +31,6 @@ func TabWindow(a *app.ProggerApp) fyne.CanvasObject {
 }
 
 func MainWindow(a *app.ProggerApp) fyne.CanvasObject {
-	// TODO: This is not usefully bound
-	//boundSource := binding.NewString()
 	scannerButtonsPanel := buttonsContainer(a)
 	displayPanel := displayContainer(a)
 
