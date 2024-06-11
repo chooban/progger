@@ -12,7 +12,7 @@ import (
 
 type cb func()
 
-func NewSettingsCanvas(a *app.ProggerApp) fyne.CanvasObject {
+func newSettingsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 	fyneApp := a.FyneApp
 
 	allSettings := container.New(

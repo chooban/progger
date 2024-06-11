@@ -28,7 +28,7 @@ This software uses a variety of Open Source Software to run.
 * [PDFium](https://github.com/chromium/pdfium) ([Apache License 2.0](https://github.com/chromium/pdfium/blob/main/LICENSE))
 `
 
-func NewAbout(app *app.ProggerApp) fyne.CanvasObject {
+func newAboutCanvas(app *app.ProggerApp) fyne.CanvasObject {
 	r := bytes.NewReader(icon)
 	img, err := png.Decode(r)
 	if err != nil {

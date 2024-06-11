@@ -9,7 +9,11 @@ import (
 	"github.com/chooban/progger/exporter/app"
 )
 
-func NewDownloads(a *app.ProggerApp) fyne.CanvasObject {
+type Dispatcher interface {
+	Dispatch(msg interface{})
+}
+
+func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 	mainPanel := container.New(
 		layout.NewVBoxLayout(),
 		widget.NewProgressBarInfinite(),
