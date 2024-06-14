@@ -22,6 +22,7 @@ func (s *State) Dispatch(m interface{}) {
 
 		go func() {
 			defer func() {
+				println("Setting scanning to false")
 				if err := s.IsScanning.Set(false); err != nil {
 					println(err.Error())
 				}
@@ -32,6 +33,7 @@ func (s *State) Dispatch(m interface{}) {
 			for i, v := range stories {
 				_stories[i] = v
 			}
+			println("Setting the scanned stories")
 			if err := s.Stories.Set(_stories); err != nil {
 				println(err.Error())
 			}
@@ -54,6 +56,7 @@ func (s *State) Dispatch(m interface{}) {
 
 		}()
 	case finishedDownloadingMessage:
+		s.IsScanning.Set(false)
 		if m.(finishedDownloadingMessage).Success {
 			srcDir := s.services.Prefs.SourceDirectory()
 			s.Dispatch(StartScanningMessage{srcDir})

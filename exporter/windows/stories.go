@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
@@ -13,17 +14,67 @@ import (
 	"strings"
 )
 
-func newStoriesCanvas(a *app.ProggerApp) fyne.CanvasObject {
-	scannerButtonsPanel := buttonsContainer(a)
-	displayPanel := displayContainer(a)
+func showHide(container *fyne.Container, toShow fyne.CanvasObject) {
+	for i := 0; i < len(container.Objects); i++ {
+		container.Objects[i].Hide()
+	}
+	toShow.Show()
+}
 
-	return container.NewBorder(
-		nil,
-		scannerButtonsPanel,
-		nil,
-		nil,
-		displayPanel,
+func newStoriesCanvas(a *app.ProggerApp) fyne.CanvasObject {
+	noStoriesPanel := noStoriesContainer(a)
+	storiesPanel := displayContainer(a)
+	scannerProgress := newScannerProgressContainer()
+	downloadProgress := newDownloadProgressContainer()
+
+	centralLayout := container.New(
+		layout.NewStackLayout(),
+		noStoriesPanel,
+		storiesPanel,
+		scannerProgress,
+		downloadProgress,
 	)
+
+	boundStories := a.State.Stories
+	boundStories.AddListener(binding.NewDataListener(func() {
+		stories, _ := boundStories.Get()
+		if len(stories) == 0 {
+			showHide(centralLayout, noStoriesPanel)
+		} else {
+			showHide(centralLayout, storiesPanel)
+		}
+	}))
+
+	a.State.IsScanning.AddListener(binding.NewDataListener(func() {
+		isScanning, _ := a.State.IsScanning.Get()
+		if isScanning {
+			showHide(centralLayout, scannerProgress)
+		} else {
+			stories, _ := boundStories.Get()
+			if len(stories) == 0 {
+				showHide(centralLayout, noStoriesPanel)
+			} else {
+				showHide(centralLayout, storiesPanel)
+			}
+		}
+	}))
+
+	a.State.IsDownloading.AddListener(binding.NewDataListener(func() {
+		isDownloading, _ := a.State.IsDownloading.Get()
+		if isDownloading {
+			showHide(centralLayout, downloadProgress)
+		}
+	}))
+
+	storiesLayout := container.NewBorder(
+		nil,
+		nil,
+		nil,
+		nil,
+		centralLayout,
+	)
+
+	return storiesLayout
 }
 
 func newScannerProgressContainer() *fyne.Container {
@@ -107,61 +158,28 @@ func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
 	return c
 }
 
-func displayContainer(a *app.ProggerApp) fyne.CanvasObject {
-	scannerProgressContainer := newScannerProgressContainer()
-	downloadProgressContainer := newDownloadProgressContainer()
-	sourceDirectoryLabel := container.NewCenter(
-		container.NewVBox(
-			widget.NewLabelWithData(a.AppService.Prefs.BoundSourceDir),
-		),
+func noStoriesContainer(a *app.ProggerApp) fyne.CanvasObject {
+	scanButton := widget.NewButton("Scan Directory", func() {
+		dirToScan := a.AppService.Prefs.SourceDirectory()
+		a.State.Dispatch(app.StartScanningMessage{Directory: dirToScan})
+	})
+	content := container.NewVBox(widget.NewLabelWithData(a.AppService.Prefs.BoundSourceDir), scanButton)
+
+	contentWrapper := container.NewCenter(
+		content,
 	)
 
-	listContainer := container.NewStack(newStoryListWidget(a.State.Stories))
+	return contentWrapper
+}
+
+func displayContainer(a *app.ProggerApp) fyne.CanvasObject {
+	listContainer := container.NewBorder(
+		nil, buttonsContainer(a), nil, nil,
+		newStoryListWidget(a.State.Stories),
+	)
 	listContainer.Hide()
 
-	layout := container.NewStack(
-		sourceDirectoryLabel,
-		scannerProgressContainer,
-		downloadProgressContainer,
-		listContainer,
-	)
-
-	a.State.IsDownloading.AddListener(binding.NewDataListener(func() {
-		if isDownloading, _ := a.State.IsDownloading.Get(); isDownloading == true {
-			sourceDirectoryLabel.Hide()
-			scannerProgressContainer.Hide()
-			downloadProgressContainer.Show()
-		} else {
-			sourceDirectoryLabel.Show()
-			scannerProgressContainer.Show()
-			downloadProgressContainer.Hide()
-		}
-	}))
-
-	a.State.IsScanning.AddListener(binding.NewDataListener(func() {
-		if isScanning, _ := a.State.IsScanning.Get(); isScanning == true {
-			sourceDirectoryLabel.Hide()
-			downloadProgressContainer.Hide()
-			scannerProgressContainer.Show()
-		} else {
-			stories, err := a.State.Stories.Get()
-
-			if err != nil {
-				println(err.Error())
-				return
-			}
-			if len(stories) == 0 {
-				sourceDirectoryLabel.Show()
-				scannerProgressContainer.Hide()
-			} else {
-				sourceDirectoryLabel.Hide()
-				scannerProgressContainer.Hide()
-				listContainer.Show()
-			}
-		}
-	}))
-
-	return layout
+	return listContainer
 }
 
 func newDownloadProgressContainer() *fyne.Container {
@@ -177,45 +195,20 @@ func newDownloadProgressContainer() *fyne.Container {
 }
 
 func buttonsContainer(a *app.ProggerApp) fyne.CanvasObject {
-	exportButton := ExportButton(a)
-	exportButton.Hide()
+	exportButton := exportButton(a)
 
-	scanButton := widget.NewButton("Scan Directory", func() {
+	scanButton := widget.NewButton("Force Rescan", func() {
 		dirToScan := a.AppService.Prefs.SourceDirectory()
 		a.State.Dispatch(app.StartScanningMessage{Directory: dirToScan})
 	})
 
-	a.State.IsDownloading.AddListener(binding.NewDataListener(func() {
-		isDownloading, _ := a.State.IsDownloading.Get()
-		if isDownloading {
-			scanButton.Disable()
-		} else {
-			scanButton.Enable()
-		}
-	}))
-
-	a.State.IsScanning.AddListener(binding.NewDataListener(func() {
-		isScanning, _ := a.State.IsScanning.Get()
-		if isScanning {
-			scanButton.Disable()
-		} else {
-			stories, _ := a.State.Stories.Get()
-			if len(stories) == 0 {
-				scanButton.Enable()
-			} else {
-				scanButton.Hide()
-				exportButton.Show()
-			}
-		}
-	}))
-
 	return container.NewVBox(
-		scanButton,
 		exportButton,
+		scanButton,
 	)
 }
 
-func ExportButton(a *app.ProggerApp) *widget.Button {
+func exportButton(a *app.ProggerApp) *widget.Button {
 	exporter := a.AppService.Exporter
 	prefsService := a.AppService.Prefs
 

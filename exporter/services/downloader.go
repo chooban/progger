@@ -11,7 +11,6 @@ import (
 
 type Downloader struct {
 	ctxt context.Context
-	//BoundSourceDir binding.String
 }
 
 func (d *Downloader) Download(sourceDir, username, password string) error {
@@ -50,6 +49,5 @@ func (d *Downloader) Download(sourceDir, username, password string) error {
 func NewDownloader(ctx context.Context) *Downloader {
 	return &Downloader{
 		ctxt: ctx,
-		//BoundSourceDir: srcDir,
 	}
 }
