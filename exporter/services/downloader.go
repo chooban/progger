@@ -10,21 +10,20 @@ import (
 )
 
 type Downloader struct {
-	ctxt context.Context
 }
 
-func (d *Downloader) Download(sourceDir, username, password string) error {
+func (d *Downloader) Download(ctx context.Context, sourceDir, username, password string) error {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		return err
 	}
 	browserDir := path.Join(configDir, "proggerbrowser")
 
-	logger := logr.FromContextOrDiscard(d.ctxt)
-	ctx := download.WithLoginDetails(d.ctxt, username, password)
-	ctx = download.WithBrowserContextDir(ctx, browserDir)
+	logger := logr.FromContextOrDiscard(ctx)
+	ctxt := download.WithLoginDetails(ctx, username, password)
+	ctxt = download.WithBrowserContextDir(ctx, browserDir)
 
-	list, err := download.ListAvailableProgs(ctx)
+	list, err := download.ListAvailableProgs(ctxt)
 	if err != nil {
 		logger.Error(err, "failed to list available progs")
 		return err
@@ -46,8 +45,6 @@ func (d *Downloader) Download(sourceDir, username, password string) error {
 	return nil
 }
 
-func NewDownloader(ctx context.Context) *Downloader {
-	return &Downloader{
-		ctxt: ctx,
-	}
+func NewDownloader() *Downloader {
+	return &Downloader{}
 }

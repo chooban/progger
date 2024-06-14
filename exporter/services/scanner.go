@@ -1,9 +1,9 @@
 package services
 
 import (
-	"context"
 	"fmt"
 	api2 "github.com/chooban/progger/exporter/api"
+	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/scan"
 	"github.com/chooban/progger/scan/api"
 	"golang.org/x/exp/maps"
@@ -11,7 +11,6 @@ import (
 )
 
 type Scanner struct {
-	ctxt context.Context
 }
 
 func toStories(issues []api.Issue) []*api2.Story {
@@ -62,13 +61,12 @@ func toStories(issues []api.Issue) []*api2.Story {
 }
 
 func (s *Scanner) Scan(path string) []*api2.Story {
-	issues := scan.Dir(s.ctxt, path, 0)
+	ctx, _ := context.WithLogger()
+	issues := scan.Dir(ctx, path, 0)
 
 	return toStories(issues)
 }
 
-func NewScanner(ctx context.Context) *Scanner {
-	return &Scanner{
-		ctxt: ctx,
-	}
+func NewScanner() *Scanner {
+	return &Scanner{}
 }

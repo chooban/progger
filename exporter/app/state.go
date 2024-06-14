@@ -2,6 +2,7 @@ package app
 
 import (
 	"fyne.io/fyne/v2/data/binding"
+	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/exporter/services"
 )
 
@@ -48,7 +49,8 @@ func (s *State) Dispatch(m interface{}) {
 			srcDir := s.services.Prefs.SourceDirectory()
 			rUser, rPass := s.services.Prefs.RebellionDetails()
 
-			if err := s.services.Downloader.Download(srcDir, rUser, rPass); err != nil {
+			ctx, _ := context.WithLogger()
+			if err := s.services.Downloader.Download(ctx, srcDir, rUser, rPass); err != nil {
 				s.Dispatch(finishedDownloadingMessage{Success: false})
 			} else {
 				s.Dispatch(finishedDownloadingMessage{Success: true})

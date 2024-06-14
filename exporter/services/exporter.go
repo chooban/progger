@@ -13,10 +13,9 @@ import (
 )
 
 type Exporter struct {
-	ctx context.Context
 }
 
-func (e *Exporter) Export(stories []*api2.Story, sourceDir, exportDir, filename string) error {
+func (e *Exporter) Export(ctx context.Context, stories []*api2.Story, sourceDir, exportDir, filename string) error {
 	toExport := make([]api.ExportPage, 0)
 	for _, story := range stories {
 		if story.ToExport {
@@ -41,7 +40,7 @@ func (e *Exporter) Export(stories []*api2.Story, sourceDir, exportDir, filename 
 	})
 
 	// Do the export
-	err := scan.Build(e.ctx, toExport, filepath.Join(exportDir, filename))
+	err := scan.Build(ctx, toExport, filepath.Join(exportDir, filename))
 	if err != nil {
 		return err
 	}
@@ -49,8 +48,6 @@ func (e *Exporter) Export(stories []*api2.Story, sourceDir, exportDir, filename 
 	return nil
 }
 
-func NewExporter(ctx context.Context) *Exporter {
-	return &Exporter{
-		ctx,
-	}
+func NewExporter() *Exporter {
+	return &Exporter{}
 }

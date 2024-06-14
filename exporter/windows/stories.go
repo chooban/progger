@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
+	"github.com/chooban/progger/exporter/context"
 	"slices"
 	"strings"
 )
@@ -108,14 +109,18 @@ func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
 			ctr, _ := o.(*fyne.Container)
 			// ideally we should check `ok` for each one of those casting
 			// but we know that they are those types for sure
-			l := ctr.Objects[0].(*widget.Label)
-			c := ctr.Objects[1].(*widget.Check)
+			label := ctr.Objects[0].(*widget.Label)
+			check := ctr.Objects[1].(*widget.Check)
 			diu, _ := di.(binding.Untyped).Get()
 			story := diu.(*api.Story)
 
+			check.OnChanged = func(checked bool) {
+				println(fmt.Sprintf("Binding for %s changed", story.Display()))
+			}
+
 			b := binding.BindBool(&story.ToExport)
-			l.SetText(fmt.Sprintf("%s (%s)", story.Display(), story.IssueSummary()))
-			c.Bind(b)
+			label.SetText(fmt.Sprintf("%s (%s)", story.Display(), story.IssueSummary()))
+			check.Bind(b)
 		},
 	)
 
@@ -234,7 +239,8 @@ func exportButton(a *app.ProggerApp) *widget.Button {
 			onClose := func(b bool) {
 				if b {
 					fname, _ := filename.Get()
-					if err := exporter.Export(toExport, prefsService.SourceDirectory(), prefsService.ExportDirectory(), fname); err != nil {
+					ctx, _ := context.WithLogger()
+					if err := exporter.Export(ctx, toExport, prefsService.SourceDirectory(), prefsService.ExportDirectory(), fname); err != nil {
 						dialog.ShowError(err, a.RootWindow)
 					} else {
 						dialog.ShowInformation("Export", "File successfully exported", a.RootWindow)
