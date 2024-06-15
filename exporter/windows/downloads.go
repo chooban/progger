@@ -14,31 +14,29 @@ type Dispatcher interface {
 }
 
 func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
-	mainPanel := container.New(
-		layout.NewVBoxLayout(),
-		widget.NewProgressBarInfinite(),
-		widget.NewLabel("Downloading..."),
-	)
-	mainPanel.Hide()
-	centeredPanel := container.NewCenter(mainPanel)
-
+	progress := downloadProgress()
 	dButton := downloadButton(a.State)
+
+	mainPanel := container.NewStack(
+		progress,
+		dButton,
+	)
+
+	centeredPanel := container.NewCenter(mainPanel)
 
 	a.State.IsDownloading.AddListener(binding.NewDataListener(func() {
 		isDownloading, _ := a.State.IsDownloading.Get()
 
 		if isDownloading {
-			mainPanel.Show()
-			dButton.Disable()
+			showHide(mainPanel, progress)
 		} else {
-			mainPanel.Hide()
-			dButton.Enable()
+			showHide(mainPanel, dButton)
 		}
 	}))
 
 	c := container.NewBorder(
 		nil,
-		dButton,
+		nil,
 		nil,
 		nil,
 		centeredPanel,
@@ -46,9 +44,20 @@ func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 
 	return c
 }
+
+func downloadProgress() *fyne.Container {
+	mainPanel := container.New(
+		layout.NewVBoxLayout(),
+		widget.NewProgressBarInfinite(),
+		widget.NewLabel("Downloading..."),
+	)
+
+	return mainPanel
+}
+
 func downloadButton(d Dispatcher) *widget.Button {
-	downloadButton := widget.NewButton("Download Progs", func() {
-		d.Dispatch(app.StartDownloadingMessage{})
+	downloadButton := widget.NewButton("Download Prog List", func() {
+		d.Dispatch(app.StartDownloadingProgListMessage{})
 	})
 
 	return downloadButton

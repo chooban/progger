@@ -10,18 +10,28 @@ import (
 )
 
 type Downloader struct {
+	browserDir string
 }
 
-func (d *Downloader) Download(ctx context.Context, sourceDir, username, password string) error {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return err
-	}
-	browserDir := path.Join(configDir, "proggerbrowser")
-
+func (d *Downloader) ProgList(ctx context.Context, username, password string) ([]downloadApi.DigitalComic, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	ctxt := download.WithLoginDetails(ctx, username, password)
-	ctxt = download.WithBrowserContextDir(ctx, browserDir)
+	ctxt = download.WithBrowserContextDir(ctx, d.browserDir)
+
+	logger.Info("Logging in", "username", username, "password", password)
+	list, err := download.ListAvailableProgs(ctxt)
+	if err != nil {
+		logger.Error(err, "failed to list available progs")
+		return nil, err
+	}
+
+	return list, nil
+}
+
+func (d *Downloader) DownloadAllProgs(ctx context.Context, sourceDir, username, password string) error {
+	logger := logr.FromContextOrDiscard(ctx)
+	ctxt := download.WithLoginDetails(ctx, username, password)
+	ctxt = download.WithBrowserContextDir(ctx, d.browserDir)
 
 	list, err := download.ListAvailableProgs(ctxt)
 	if err != nil {
@@ -46,5 +56,13 @@ func (d *Downloader) Download(ctx context.Context, sourceDir, username, password
 }
 
 func NewDownloader() *Downloader {
-	return &Downloader{}
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		panic("could not get user config dir")
+	}
+	browserDir := path.Join(configDir, "proggerbrowser")
+
+	return &Downloader{
+		browserDir: browserDir,
+	}
 }

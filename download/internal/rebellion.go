@@ -27,8 +27,11 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 		return
 	}
 	if _, err = page.Goto(signinUrl); err != nil {
+		logger.V(1).Info("Failed to navigate to signin page")
 		return
 	}
+
+	logger.V(1).Info("Opened page", "url", page.URL())
 
 	if page.URL() == accountUrl {
 		logger.Info("Skipping login procedure")
@@ -46,26 +49,28 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 	}
 
 	if err = emailInput.Fill(username); err != nil {
+		logger.V(1).Info("Failed to fill email address")
 		return
 	}
 	if err = passwordInput.Fill(password); err != nil {
+		logger.V(1).Info("Failed to fill password")
 		return
 	}
 
 	if err = loginButton.Click(); err != nil {
+		logger.V(1).Info("Failed to click login button")
 		return
 	}
 
 	if _, err = page.ExpectEvent("navigated", func() error {
 		currentUrl := page.URL()
-		logger.Info("Current URL: " + currentUrl)
 		if currentUrl != accountUrl {
-			logger.Info("Looks like login failed")
+			logger.Info("Looks like login failed", "current_url", currentUrl, "expected_url", accountUrl)
+			logger.V(1).Info(page.Content())
 			return errors.New("login failed")
 		}
 		return nil
 	}); err != nil {
-		logger.Info("Returning an error")
 		return err
 	}
 	logger.Info("Login succeeded")
