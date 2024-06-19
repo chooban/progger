@@ -14,7 +14,7 @@ func WithLogger() (context.Context, logr.Logger) {
 		Out:        os.Stdout,
 		TimeFormat: time.RFC3339,
 	}
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	logger := zerolog.New(writer)
 	logger = logger.With().Caller().Logger()
 	var log = zerologr.New(&logger)

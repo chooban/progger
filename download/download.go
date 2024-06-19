@@ -29,7 +29,12 @@ func ListAvailableProgs(ctx context.Context) ([]api.DigitalComic, error) {
 		logger.Error(err, "Could not start browser")
 		return []api.DigitalComic{}, err
 	}
-	u, p := LoginDetails(ctx)
+	u, p, err := LoginDetails(ctx)
+
+	if err != nil {
+		logger.Error(err, "no credentials found")
+		return []api.DigitalComic{}, err
+	}
 
 	if err = internal.Login(ctx, bContext, u, p); err != nil {
 		logger.Error(err, "Failed to login")
@@ -74,7 +79,10 @@ func Download(ctx context.Context, comic api.DigitalComic, dir string, filetype 
 		logger.Error(err, "Could not start browser")
 		return "", fmt.Errorf("could not start browser: %w", err)
 	}
-	u, p := LoginDetails(ctx)
+	u, p, err := LoginDetails(ctx)
+	if err != nil {
+		return "", errors.New("no credentials found")
+	}
 
 	if err = internal.Login(ctx, bContext, u, p); err != nil {
 		return "", fmt.Errorf("could not login: %w", err)

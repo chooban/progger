@@ -25,6 +25,7 @@ func main() {
 	list, err := download.ListAvailableProgs(ctx)
 
 	logger.Info(fmt.Sprintf("Found %d progs", len(list)), "duration", time.Since(start))
+	logger.Info(fmt.Sprintf("%+v", list[0]))
 }
 
 func withLogger(ctx context.Context) (context.Context, logr.Logger) {

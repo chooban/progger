@@ -114,10 +114,6 @@ func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
 			diu, _ := di.(binding.Untyped).Get()
 			story := diu.(*api.Story)
 
-			check.OnChanged = func(checked bool) {
-				println(fmt.Sprintf("Binding for %s changed", story.Display()))
-			}
-
 			b := binding.BindBool(&story.ToExport)
 			label.SetText(fmt.Sprintf("%s (%s)", story.Display(), story.IssueSummary()))
 			check.Bind(b)
