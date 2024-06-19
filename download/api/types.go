@@ -17,6 +17,7 @@ func (f *FileType) String() string {
 type DigitalComic struct {
 	Url         string
 	IssueNumber int
+	IssueDate   string
 	Downloads   map[FileType]string
 }
 

@@ -16,9 +16,8 @@ type Downloader struct {
 func (d *Downloader) ProgList(ctx context.Context, username, password string) ([]downloadApi.DigitalComic, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	ctxt := download.WithLoginDetails(ctx, username, password)
-	ctxt = download.WithBrowserContextDir(ctx, d.browserDir)
+	ctxt = download.WithBrowserContextDir(ctxt, d.browserDir)
 
-	logger.Info("Logging in", "username", username, "password", password)
 	list, err := download.ListAvailableProgs(ctxt)
 	if err != nil {
 		logger.Error(err, "failed to list available progs")

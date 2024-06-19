@@ -39,7 +39,7 @@ func BrowserContextDir(ctx context.Context) (d string, err error) {
 	return d, err
 }
 
-func LoginDetails(ctx context.Context) (username, password string) {
+func LoginDetails(ctx context.Context) (username, password string, err error) {
 	if u := ctx.Value(contextKeyUsername); u != nil {
 		username = u.(string)
 	} else {
@@ -48,7 +48,7 @@ func LoginDetails(ctx context.Context) (username, password string) {
 	if p := ctx.Value(contextKeyPassword); p != nil {
 		password = p.(string)
 	} else {
-		return "", ""
+		return "", "", errors.New("credentials not found")
 	}
 
 	return
