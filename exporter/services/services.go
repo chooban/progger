@@ -2,6 +2,8 @@ package services
 
 import (
 	"fyne.io/fyne/v2"
+	"os"
+	"path/filepath"
 )
 
 type AppServices struct {
@@ -9,14 +11,30 @@ type AppServices struct {
 	Exporter   *Exporter
 	Scanner    *Scanner
 	Prefs      *Prefs
+	Storage    *Storage
 }
 
 func NewAppServices(a fyne.App) *AppServices {
 
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		panic("could not get user config dir")
+	}
+	proggerConfigDir := filepath.Join(configDir, "progger")
+	_, err = os.Stat(proggerConfigDir)
+	if os.IsNotExist(err) {
+		err = os.Mkdir(proggerConfigDir, 0755)
+		if err != nil {
+			println(err.Error())
+			panic("could not create progger config dir")
+		}
+	}
+
 	return &AppServices{
-		Downloader: NewDownloader(),
+		Downloader: NewDownloader(configDir),
 		Exporter:   NewExporter(),
 		Scanner:    NewScanner(),
 		Prefs:      NewPrefs(a),
+		Storage:    NewStorage(proggerConfigDir),
 	}
 }

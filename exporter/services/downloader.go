@@ -5,7 +5,6 @@ import (
 	"github.com/chooban/progger/download"
 	downloadApi "github.com/chooban/progger/download/api"
 	"github.com/go-logr/logr"
-	"os"
 	"path"
 )
 
@@ -54,12 +53,8 @@ func (d *Downloader) DownloadAllProgs(ctx context.Context, sourceDir, username, 
 	return nil
 }
 
-func NewDownloader() *Downloader {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		panic("could not get user config dir")
-	}
-	browserDir := path.Join(configDir, "proggerbrowser")
+func NewDownloader(storageRoot string) *Downloader {
+	browserDir := path.Join(storageRoot, "browser")
 
 	return &Downloader{
 		browserDir: browserDir,

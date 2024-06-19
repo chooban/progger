@@ -39,6 +39,7 @@ require (
 	github.com/hashicorp/go-hclog v1.6.2 // indirect
 	github.com/hashicorp/go-plugin v1.6.0 // indirect
 	github.com/hashicorp/yamux v0.1.1 // indirect
+	github.com/jcelliott/lumber v0.0.0-20160324203708-dd349441af25 // indirect
 	github.com/jsummers/gobmp v0.0.0-20151104160322-e2ba15ffa76e // indirect
 	github.com/klippa-app/go-pdfium v1.10.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -48,6 +49,7 @@ require (
 	github.com/oklog/run v1.0.0 // indirect
 	github.com/playwright-community/playwright-go v0.4101.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/sdomino/scribble v0.0.0-20230717151034-b95d4df19aa8 // indirect
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
