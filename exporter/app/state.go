@@ -63,6 +63,22 @@ func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 	// IsDownloading is pretty much a synonym for "is interacting with Rebellion account"
 	s.IsDownloading.Set(true)
 
+	storedProgs := s.services.Storage.ReadProgs()
+	if m.Refresh == false && len(storedProgs) > 0 {
+		println("Found progs")
+		progs := make([]interface{}, len(storedProgs))
+		for i, v := range storedProgs {
+			progs[i] = v
+		}
+		err := s.AvailableProgs.Set(progs)
+		if err != nil {
+			println(err.Error())
+		}
+		s.Dispatch(finishedDownloadingMessage{Success: true})
+		s.IsDownloading.Set(false)
+		return
+	}
+
 	go func() {
 		defer func() {
 			s.IsDownloading.Set(false)
@@ -78,6 +94,10 @@ func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 				progs[i] = v
 			}
 			s.AvailableProgs.Set(progs)
+			err := s.services.Storage.SaveProgs(list)
+			if err != nil {
+				println(err.Error())
+			}
 			s.Dispatch(finishedDownloadingMessage{Success: true})
 		}
 	}()
@@ -119,7 +139,9 @@ type StartScanningMessage struct {
 type StartDownloadingMessage struct{}
 
 // StartDownloadingProgListMessage requests downloading a list of available progs from the Rebellion account
-type StartDownloadingProgListMessage struct{}
+type StartDownloadingProgListMessage struct {
+	Refresh bool
+}
 
 type finishedDownloadingMessage struct {
 	Success bool

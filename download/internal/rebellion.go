@@ -22,9 +22,6 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 	logger := logr.FromContextOrDiscard(ctx)
 	assertions := playwright.NewPlaywrightAssertions()
 
-	logger.Info(fmt.Sprintf("username: %s", username))
-	logger.Info(fmt.Sprintf("password: %s", password))
-
 	page, err := bContext.NewPage()
 	defer func() {
 		page.Close()
