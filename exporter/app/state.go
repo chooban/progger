@@ -2,8 +2,10 @@ package app
 
 import (
 	"fyne.io/fyne/v2/data/binding"
+	"github.com/chooban/progger/download/api"
 	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/exporter/services"
+	"sort"
 )
 
 type State struct {
@@ -65,7 +67,6 @@ func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 
 	storedProgs := s.services.Storage.ReadProgs()
 	if m.Refresh == false && len(storedProgs) > 0 {
-		println("Found progs")
 		progs := make([]interface{}, len(storedProgs))
 		for i, v := range storedProgs {
 			progs[i] = v
@@ -119,13 +120,41 @@ func (s *State) Dispatch(m interface{}) {
 	}
 }
 
+func buildProgList(progs []api.DigitalComic) []interface{} {
+	if len(progs) == 0 {
+		return make([]interface{}, 0)
+	}
+	sort.Slice(progs, func(a, b int) bool {
+		return progs[a].IssueNumber > progs[b].IssueNumber
+	})
+	untypedProgs := make([]interface{}, len(progs))
+	for i, v := range progs {
+		untypedProgs[i] = v
+	}
+
+	return untypedProgs
+}
+
 func NewAppState(s *services.AppServices) *State {
+	savedProgs := s.Storage.ReadProgs()
+	availableProgs := binding.NewUntypedList()
+
+	if len(savedProgs) > 0 {
+		convertedProgs := buildProgList(savedProgs)
+		if len(convertedProgs) > 0 {
+			err := availableProgs.Set(convertedProgs)
+			if err != nil {
+				println(err.Error())
+			}
+		}
+	}
+
 	c := State{
 		services:       s,
 		IsDownloading:  binding.NewBool(),
 		IsScanning:     binding.NewBool(),
 		Stories:        binding.NewUntypedList(),
-		AvailableProgs: binding.NewUntypedList(),
+		AvailableProgs: availableProgs,
 	}
 
 	return &c
