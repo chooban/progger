@@ -1,6 +1,8 @@
 module github.com/chooban/progger/exporter
 
-go 1.22.4
+go 1.22.2
+
+toolchain go1.22.4
 
 require (
 	fyne.io/fyne/v2 v2.4.4
