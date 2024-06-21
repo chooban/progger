@@ -2,7 +2,7 @@ package app
 
 import (
 	"fyne.io/fyne/v2/data/binding"
-	"github.com/chooban/progger/download/api"
+	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/exporter/services"
 	"sort"
@@ -65,21 +65,6 @@ func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 	// IsDownloading is pretty much a synonym for "is interacting with Rebellion account"
 	s.IsDownloading.Set(true)
 
-	storedProgs := s.services.Storage.ReadProgs()
-	if m.Refresh == false && len(storedProgs) > 0 {
-		progs := make([]interface{}, len(storedProgs))
-		for i, v := range storedProgs {
-			progs[i] = v
-		}
-		err := s.AvailableProgs.Set(progs)
-		if err != nil {
-			println(err.Error())
-		}
-		s.Dispatch(finishedDownloadingMessage{Success: true})
-		s.IsDownloading.Set(false)
-		return
-	}
-
 	go func() {
 		defer func() {
 			s.IsDownloading.Set(false)
@@ -90,12 +75,18 @@ func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 		if list, err := s.services.Downloader.ProgList(ctx, rUser, rPass); err != nil {
 			s.Dispatch(finishedDownloadingMessage{Success: false})
 		} else {
-			progs := make([]interface{}, len(list))
+			downloadableList := make([]api.Downloadable, len(list))
 			for i, v := range list {
-				progs[i] = v
+				p := api.Downloadable{
+					Comic:      v,
+					ToDownload: false,
+					Downloaded: false,
+				}
+				downloadableList[i] = p
 			}
+			progs := buildProgList(downloadableList)
 			s.AvailableProgs.Set(progs)
-			err := s.services.Storage.SaveProgs(list)
+			err := s.services.Storage.SaveProgs(downloadableList)
 			if err != nil {
 				println(err.Error())
 			}
@@ -120,12 +111,12 @@ func (s *State) Dispatch(m interface{}) {
 	}
 }
 
-func buildProgList(progs []api.DigitalComic) []interface{} {
+func buildProgList(progs []api.Downloadable) []interface{} {
 	if len(progs) == 0 {
 		return make([]interface{}, 0)
 	}
 	sort.Slice(progs, func(a, b int) bool {
-		return progs[a].IssueNumber > progs[b].IssueNumber
+		return progs[a].Comic.IssueNumber > progs[b].Comic.IssueNumber
 	})
 	untypedProgs := make([]interface{}, len(progs))
 	for i, v := range progs {

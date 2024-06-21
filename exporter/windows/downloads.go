@@ -7,7 +7,7 @@ import (
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	downloadApi "github.com/chooban/progger/download/api"
+	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
 	"time"
 )
@@ -18,14 +18,16 @@ type Dispatcher interface {
 
 func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 	progress := downloadProgress()
-	dButton := downloadButton(a.State)
+	dButton := downloadButton(a.State, "Download Prog List")
+
 	progListWidget := progList(a.State.AvailableProgs, a.State)
+	progListContainer := container.NewBorder(nil, downloadButton(a.State, "Re-download Prog List"), nil, nil, progListWidget)
 
 	mainPanel := container.New(
 		layout.NewStackLayout(),
 		progress,
 		dButton,
-		progListWidget,
+		progListContainer,
 	)
 
 	a.State.IsDownloading.AddListener(binding.NewDataListener(func() {
@@ -35,7 +37,7 @@ func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 		} else {
 			availableProgs, _ := a.State.AvailableProgs.Get()
 			if len(availableProgs) > 0 {
-				showHide(mainPanel, progListWidget)
+				showHide(mainPanel, progListContainer)
 			} else {
 				showHide(mainPanel, dButton)
 			}
@@ -70,13 +72,13 @@ func progList(progs binding.UntypedList, d Dispatcher) fyne.CanvasObject {
 			label := ctr.Objects[0].(*widget.Label)
 			//check := ctr.Objects[1].(*widget.Check)
 			diu, _ := di.(binding.Untyped).Get()
-			prog := diu.(downloadApi.DigitalComic)
+			prog := diu.(api.Downloadable)
 
 			//b := binding.BindBool(&story.ToExport)
 			//check.Bind(b)
-			progDate, _ := time.Parse("2006-01-02", prog.IssueDate)
+			progDate, _ := time.Parse("2006-01-02", prog.Comic.IssueDate)
 			formattedDate := formatDateWithOrdinal(progDate)
-			label.SetText(fmt.Sprintf("Prog %d (%s)", prog.IssueNumber, formattedDate))
+			label.SetText(fmt.Sprintf("Prog %d (%s)", prog.Comic.IssueNumber, formattedDate))
 		},
 	)
 
@@ -97,8 +99,8 @@ func downloadProgress() *fyne.Container {
 	return container.NewCenter(mainPanel)
 }
 
-func downloadButton(d Dispatcher) fyne.CanvasObject {
-	downloadButton := widget.NewButton("Download Prog List", func() {
+func downloadButton(d Dispatcher, label string) fyne.CanvasObject {
+	downloadButton := widget.NewButton(label, func() {
 		d.Dispatch(app.StartDownloadingProgListMessage{})
 	})
 

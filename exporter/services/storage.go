@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/chooban/progger/download/api"
+	"github.com/chooban/progger/exporter/api"
 	"github.com/sdomino/scribble"
 )
 
@@ -13,13 +13,13 @@ type Storage struct {
 	db         *scribble.Driver
 }
 
-func (s *Storage) SaveProgs(progs []api.DigitalComic) error {
+func (s *Storage) SaveProgs(progs []api.Downloadable) error {
 	if s.db == nil {
 		return errors.New("db not initialized")
 	}
 	var err error
 	for _, p := range progs {
-		err = s.db.Write("proglist", fmt.Sprintf("prog_%d", p.IssueNumber), p)
+		err = s.db.Write("proglist", fmt.Sprintf("prog_%d", p.Comic.IssueNumber), p)
 		if err != nil {
 			break
 		}
@@ -27,15 +27,15 @@ func (s *Storage) SaveProgs(progs []api.DigitalComic) error {
 	return err
 }
 
-func (s *Storage) ReadProgs() []api.DigitalComic {
+func (s *Storage) ReadProgs() []api.Downloadable {
 	records, err := s.db.ReadAll("proglist")
 	if err != nil {
 		println(err.Error())
-		return make([]api.DigitalComic, 0)
+		return make([]api.Downloadable, 0)
 	}
-	progs := make([]api.DigitalComic, 0, len(records))
+	progs := make([]api.Downloadable, 0, len(records))
 	for _, p := range records {
-		readProg := api.DigitalComic{}
+		readProg := api.Downloadable{}
 		if err := json.Unmarshal(p, &readProg); err != nil {
 			fmt.Println("Error", err)
 		}
