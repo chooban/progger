@@ -60,6 +60,5 @@ func (s *Story) IssueSummary() string {
 
 type Downloadable struct {
 	Comic      downloadApi.DigitalComic
-	ToDownload bool
 	Downloaded bool
 }

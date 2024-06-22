@@ -3,12 +3,15 @@ package windows
 import (
 	"fmt"
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
+	"image/color"
+	"reflect"
 	"time"
 )
 
@@ -67,18 +70,35 @@ func progList(progs binding.UntypedList, d Dispatcher) fyne.CanvasObject {
 		},
 		func(di binding.DataItem, o fyne.CanvasObject) {
 			ctr, _ := o.(*fyne.Container)
-			// ideally we should check `ok` for each one of those casting
-			// but we know that they are those types for sure
-			label := ctr.Objects[0].(*widget.Label)
-			//check := ctr.Objects[1].(*widget.Check)
 			diu, _ := di.(binding.Untyped).Get()
 			prog := diu.(api.Downloadable)
 
-			//b := binding.BindBool(&story.ToExport)
-			//check.Bind(b)
 			progDate, _ := time.Parse("2006-01-02", prog.Comic.IssueDate)
 			formattedDate := formatDateWithOrdinal(progDate)
-			label.SetText(fmt.Sprintf("Prog %d (%s)", prog.Comic.IssueNumber, formattedDate))
+
+			labelText := fmt.Sprintf("Prog %d (%s)", prog.Comic.IssueNumber, formattedDate)
+			if prog.Downloaded {
+				check := ctr.Objects[1].(*widget.Check)
+				check.SetChecked(true)
+				check.Disable()
+
+				newLabel := canvas.NewText(labelText, color.Gray{
+					Y: 128,
+				})
+				ctr.Objects[0] = newLabel
+			} else {
+				check := ctr.Objects[1].(*widget.Check)
+				check.SetChecked(false)
+				check.Enable()
+
+				if reflect.TypeOf(ctr.Objects[1]).String() == "*widget.Label" {
+					label := ctr.Objects[0].(*widget.Label)
+					label.SetText(fmt.Sprintf("Prog %d (%s)", prog.Comic.IssueNumber, formattedDate))
+				} else {
+					label := widget.NewLabel(labelText)
+					ctr.Objects[0] = label
+				}
+			}
 		},
 	)
 

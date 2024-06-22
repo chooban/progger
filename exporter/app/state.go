@@ -1,10 +1,14 @@
 package app
 
 import (
+	"errors"
 	"fyne.io/fyne/v2/data/binding"
+	downloadApi "github.com/chooban/progger/download/api"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/exporter/services"
+	"os"
+	"path/filepath"
 	"sort"
 )
 
@@ -79,12 +83,11 @@ func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 			for i, v := range list {
 				p := api.Downloadable{
 					Comic:      v,
-					ToDownload: false,
 					Downloaded: false,
 				}
 				downloadableList[i] = p
 			}
-			progs := buildProgList(downloadableList)
+			progs := s.buildProgList(downloadableList)
 			s.AvailableProgs.Set(progs)
 			err := s.services.Storage.SaveProgs(downloadableList)
 			if err != nil {
@@ -93,6 +96,24 @@ func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 			s.Dispatch(finishedDownloadingMessage{Success: true})
 		}
 	}()
+}
+
+func (s *State) buildProgList(progs []api.Downloadable) []interface{} {
+	if len(progs) == 0 {
+		return make([]interface{}, 0)
+	}
+	sort.Slice(progs, func(a, b int) bool {
+		return progs[a].Comic.IssueNumber > progs[b].Comic.IssueNumber
+	})
+	untypedProgs := make([]interface{}, len(progs))
+	for i, v := range progs {
+		maybePath := filepath.Join(s.services.Prefs.SourceDirectory(), v.Comic.Filename(downloadApi.Pdf))
+		_, err := os.Stat(maybePath)
+		v.Downloaded = !errors.Is(err, os.ErrNotExist)
+		untypedProgs[i] = v
+	}
+
+	return untypedProgs
 }
 
 func (s *State) Dispatch(m interface{}) {
@@ -111,34 +132,9 @@ func (s *State) Dispatch(m interface{}) {
 	}
 }
 
-func buildProgList(progs []api.Downloadable) []interface{} {
-	if len(progs) == 0 {
-		return make([]interface{}, 0)
-	}
-	sort.Slice(progs, func(a, b int) bool {
-		return progs[a].Comic.IssueNumber > progs[b].Comic.IssueNumber
-	})
-	untypedProgs := make([]interface{}, len(progs))
-	for i, v := range progs {
-		untypedProgs[i] = v
-	}
-
-	return untypedProgs
-}
-
 func NewAppState(s *services.AppServices) *State {
 	savedProgs := s.Storage.ReadProgs()
 	availableProgs := binding.NewUntypedList()
-
-	if len(savedProgs) > 0 {
-		convertedProgs := buildProgList(savedProgs)
-		if len(convertedProgs) > 0 {
-			err := availableProgs.Set(convertedProgs)
-			if err != nil {
-				println(err.Error())
-			}
-		}
-	}
 
 	c := State{
 		services:       s,
@@ -146,6 +142,16 @@ func NewAppState(s *services.AppServices) *State {
 		IsScanning:     binding.NewBool(),
 		Stories:        binding.NewUntypedList(),
 		AvailableProgs: availableProgs,
+	}
+
+	if len(savedProgs) > 0 {
+		convertedProgs := c.buildProgList(savedProgs)
+		if len(convertedProgs) > 0 {
+			err := availableProgs.Set(convertedProgs)
+			if err != nil {
+				println(err.Error())
+			}
+		}
 	}
 
 	return &c
