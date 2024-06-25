@@ -31,11 +31,13 @@ func browser(ctx context.Context) (playwright.BrowserContext, error) {
 	if err != nil {
 		headless = false
 	}
+	timeout := float64(10 * 1000)
 	bContext, err := pw.Chromium.LaunchPersistentContext(
 		contextDir,
 		playwright.BrowserTypeLaunchPersistentContextOptions{
 			Headless:          boolPointer(!headless),
 			JavaScriptEnabled: boolPointer(false),
+			Timeout:           &timeout,
 		},
 	)
 	if err != nil {

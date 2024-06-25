@@ -39,6 +39,7 @@ func (s *Storage) ReadProgs() []api.Downloadable {
 		if err := json.Unmarshal(p, &readProg); err != nil {
 			fmt.Println("Error", err)
 		}
+		readProg.Downloaded = false
 		progs = append(progs, readProg)
 	}
 	return progs

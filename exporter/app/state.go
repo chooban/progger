@@ -1,14 +1,11 @@
 package app
 
 import (
-	"errors"
+	"fmt"
 	"fyne.io/fyne/v2/data/binding"
-	downloadApi "github.com/chooban/progger/download/api"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/exporter/services"
-	"os"
-	"path/filepath"
 	"sort"
 )
 
@@ -105,11 +102,9 @@ func (s *State) buildProgList(progs []api.Downloadable) []interface{} {
 	sort.Slice(progs, func(a, b int) bool {
 		return progs[a].Comic.IssueNumber > progs[b].Comic.IssueNumber
 	})
+	println(fmt.Sprintf("Checking %s for progs", s.services.Prefs.SourceDirectory()))
 	untypedProgs := make([]interface{}, len(progs))
 	for i, v := range progs {
-		maybePath := filepath.Join(s.services.Prefs.SourceDirectory(), v.Comic.Filename(downloadApi.Pdf))
-		_, err := os.Stat(maybePath)
-		v.Downloaded = !errors.Is(err, os.ErrNotExist)
 		untypedProgs[i] = v
 	}
 
@@ -133,9 +128,7 @@ func (s *State) Dispatch(m interface{}) {
 }
 
 func NewAppState(s *services.AppServices) *State {
-	savedProgs := s.Storage.ReadProgs()
 	availableProgs := binding.NewUntypedList()
-
 	c := State{
 		services:       s,
 		IsDownloading:  binding.NewBool(),
@@ -144,15 +137,22 @@ func NewAppState(s *services.AppServices) *State {
 		AvailableProgs: availableProgs,
 	}
 
-	if len(savedProgs) > 0 {
-		convertedProgs := c.buildProgList(savedProgs)
-		if len(convertedProgs) > 0 {
-			err := availableProgs.Set(convertedProgs)
-			if err != nil {
-				println(err.Error())
+	refreshProgs := func() {
+		println("Refreshing progs")
+		savedProgs := s.Storage.ReadProgs()
+		if len(savedProgs) > 0 {
+			convertedProgs := c.buildProgList(savedProgs)
+			if len(convertedProgs) > 0 {
+				println(fmt.Sprintf("Found %d progs", len(convertedProgs)))
+				if err := availableProgs.Set(convertedProgs); err == nil {
+					// Do nothing
+				}
 			}
 		}
 	}
+	c.services.Prefs.BoundSourceDir.AddListener(binding.NewDataListener(refreshProgs))
+
+	refreshProgs()
 
 	return &c
 }
