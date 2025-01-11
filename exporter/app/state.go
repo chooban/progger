@@ -105,6 +105,7 @@ func (s *State) buildProgList(progs []api.Downloadable) []interface{} {
 	println(fmt.Sprintf("Checking %s for progs", s.services.Prefs.SourceDirectory()))
 	untypedProgs := make([]interface{}, len(progs))
 	for i, v := range progs {
+		// TODO: Check to see if the prog has already been downloaded.
 		untypedProgs[i] = v
 	}
 

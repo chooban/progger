@@ -47,7 +47,6 @@ func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 					candidates = append(candidates, p)
 				}
 			}
-			println(fmt.Sprintf("Setting %d download candidates", len(candidates)))
 			downloadableCandidates.Set(candidates)
 		}
 	}
@@ -123,8 +122,17 @@ func newProgList(progs binding.UntypedList) fyne.CanvasObject {
 
 			labelText := fmt.Sprintf("Prog %d (%s)", prog.Comic.IssueNumber, formattedDate)
 			check := ctr.Objects[1].(*widget.Check)
-			check.SetChecked(false)
-			check.Enable()
+
+			if prog.Downloaded {
+				check.SetChecked(true)
+			} else {
+				check.SetChecked(false)
+				check.Enable()
+			}
+
+			// TODO: use check.onChanged to toggle whether or not we should download this prog when requested.
+			// Since this information is state and should persist between window changes, we'll need to maintain
+			// the list outside of this component
 
 			if reflect.TypeOf(ctr.Objects[1]).String() == "*widget.Label" {
 				label := ctr.Objects[0].(*widget.Label)
