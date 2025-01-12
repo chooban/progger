@@ -3,9 +3,12 @@ package app
 import (
 	"fmt"
 	"fyne.io/fyne/v2/data/binding"
+	downloadApi "github.com/chooban/progger/download/api"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/exporter/services"
+	"os"
+	"path/filepath"
 	"sort"
 )
 
@@ -62,6 +65,66 @@ func (s *State) startDownloadingHandler(_m StartDownloadingMessage) {
 	}()
 }
 
+// refreshProgList loops through the list of available issues and marks those we have as downloaded
+func (s *State) refreshProgList() {
+	availableProgs, _ := s.AvailableProgs.Get()
+
+	var issue api.Downloadable
+	for i, v := range availableProgs {
+		issue = v.(api.Downloadable)
+		if _, err := os.Stat(filepath.Join(s.services.Prefs.SourceDirectory(), issue.Comic.Filename(downloadApi.Pdf))); err == nil {
+			println(fmt.Sprintf("%s is downloaded", issue.Comic.IssueNumber))
+			issue.Downloaded = true
+
+			availableProgs[i] = issue
+		}
+	}
+
+	err := s.AvailableProgs.Set(availableProgs)
+	if err != nil {
+		println(err.Error())
+	}
+}
+
+func (s *State) downloadSelectedProgs(m DownloadLatestMessage) {
+	if err := s.IsDownloading.Set(true); err != nil {
+		println(err.Error())
+	}
+
+	go func() {
+		defer func() {
+			if err := s.IsDownloading.Set(false); err != nil {
+				println(err.Error())
+			}
+			s.refreshProgList()
+		}()
+		rUser, rPass := s.services.Prefs.RebellionDetails()
+
+		ctx, _ := context.WithLogger()
+
+		var prog *api.Downloadable
+		availableProgs, _ := s.AvailableProgs.Get()
+
+		for i := len(availableProgs) - 1; i >= 0; i-- {
+			di, _ := s.AvailableProgs.GetValue(i)
+			_prog := di.(api.Downloadable)
+			if !_prog.Downloaded {
+				prog = &_prog
+			}
+		}
+
+		if prog == nil {
+			return
+		}
+		if err := s.services.Downloader.DownloadProg(ctx, prog.Comic, s.services.Prefs.SourceDirectory(), rUser, rPass); err != nil {
+			println(err.Error())
+			return
+		} else {
+			prog.Downloaded = true
+		}
+	}()
+}
+
 func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 	// IsDownloading is pretty much a synonym for "is interacting with Rebellion account"
 	s.IsDownloading.Set(true)
@@ -105,7 +168,9 @@ func (s *State) buildProgList(progs []api.Downloadable) []interface{} {
 	println(fmt.Sprintf("Checking %s for progs", s.services.Prefs.SourceDirectory()))
 	untypedProgs := make([]interface{}, len(progs))
 	for i, v := range progs {
-		// TODO: Check to see if the prog has already been downloaded.
+		if _, err := os.Stat(filepath.Join(s.services.Prefs.SourceDirectory(), v.Comic.Filename(downloadApi.Pdf))); err == nil {
+			v.Downloaded = true
+		}
 		untypedProgs[i] = v
 	}
 
@@ -120,6 +185,8 @@ func (s *State) Dispatch(m interface{}) {
 		s.startDownloadingHandler(m.(StartDownloadingMessage))
 	case StartDownloadingProgListMessage:
 		s.downloadProgListHandler(m.(StartDownloadingProgListMessage))
+	case DownloadLatestMessage:
+		s.downloadSelectedProgs(m.(DownloadLatestMessage))
 	case finishedDownloadingMessage:
 		if m.(finishedDownloadingMessage).Success {
 			srcDir := s.services.Prefs.SourceDirectory()
@@ -164,6 +231,9 @@ type StartScanningMessage struct {
 
 // StartDownloadingMessage requests that all available progs be downloaded
 type StartDownloadingMessage struct{}
+
+// DownloadLatestMessage requests that the latest prog be downloaded
+type DownloadLatestMessage struct{}
 
 // StartDownloadingProgListMessage requests downloading a list of available progs from the Rebellion account
 type StartDownloadingProgListMessage struct {

@@ -61,8 +61,8 @@ func newStoriesCanvas(a *app.ProggerApp) fyne.CanvasObject {
 	}))
 
 	a.State.IsDownloading.AddListener(binding.NewDataListener(func() {
-		isDownloading, _ := a.State.IsDownloading.Get()
-		if isDownloading {
+		if isDownloading, _ := a.State.IsDownloading.Get(); isDownloading == true {
+			println("State isDownloading is true")
 			showHide(centralLayout, downloadProgress)
 		}
 	}))

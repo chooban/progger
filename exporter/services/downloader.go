@@ -17,13 +17,27 @@ func (d *Downloader) ProgList(ctx context.Context, username, password string) ([
 	ctxt := download.WithLoginDetails(ctx, username, password)
 	ctxt = download.WithBrowserContextDir(ctxt, d.browserDir)
 
-	list, err := download.ListAvailableProgs(ctxt)
-	if err != nil {
+	if list, err := download.ListAvailableProgs(ctxt); err == nil {
+		return list, nil
+	} else {
 		logger.Error(err, "failed to list available progs")
 		return nil, err
 	}
+}
 
-	return list, nil
+func (d *Downloader) DownloadProg(ctx context.Context, issue downloadApi.DigitalComic, sourceDir, username, password string) error {
+	logger := logr.FromContextOrDiscard(ctx)
+	ctxt := download.WithLoginDetails(ctx, username, password)
+	ctxt = download.WithBrowserContextDir(ctx, d.browserDir)
+
+	logger.Info("Downloading issue", "issue_number", issue.IssueNumber)
+	if fp, err := download.Download(ctxt, issue, sourceDir, downloadApi.Pdf); err != nil {
+		logger.Error(err, "could not download file")
+		return err
+	} else {
+		logger.Info("Downloaded a file", "file", fp)
+	}
+	return nil
 }
 
 func (d *Downloader) DownloadAllProgs(ctx context.Context, sourceDir, username, password string) error {
@@ -31,23 +45,24 @@ func (d *Downloader) DownloadAllProgs(ctx context.Context, sourceDir, username, 
 	ctxt := download.WithLoginDetails(ctx, username, password)
 	ctxt = download.WithBrowserContextDir(ctx, d.browserDir)
 
-	list, err := download.ListAvailableProgs(ctxt)
-	if err != nil {
-		logger.Error(err, "failed to list available progs")
-		return err
-	}
-	if len(list) > 0 {
-		logger.Info("Found progs to download", "count", len(list))
-		for i := 0; i < len(list); i++ {
-			logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
-			if fp, err := download.Download(ctx, list[i], sourceDir, downloadApi.Pdf); err != nil {
-				logger.Error(err, "could not download file")
-			} else {
-				logger.Info("Downloaded a file", "file", fp)
+	if list, err := download.ListAvailableProgs(ctxt); err == nil {
+		if len(list) > 0 {
+			logger.Info("Found progs to download", "count", len(list))
+			//for i := 0; i < len(list); i++ {
+			for i := 0; i < 10; i++ {
+				logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
+				if fp, err := download.Download(ctxt, list[i], sourceDir, downloadApi.Pdf); err != nil {
+					logger.Error(err, "could not download file")
+				} else {
+					logger.Info("Downloaded a file", "file", fp)
+				}
 			}
+		} else {
+			logger.Info("No progs to download")
 		}
 	} else {
-		logger.Info("No progs to download")
+		logger.Error(err, "failed to list available progs")
+		return err
 	}
 
 	return nil

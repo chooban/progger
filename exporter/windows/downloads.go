@@ -1,18 +1,14 @@
 package windows
 
 import (
-	"errors"
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	downloadApi "github.com/chooban/progger/download/api"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
-	"os"
-	"path/filepath"
 	"reflect"
 	"time"
 )
@@ -22,11 +18,13 @@ type Dispatcher interface {
 }
 
 func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
-	downloadableCandidates := binding.NewUntypedList()
+	//downloadableCandidates := binding.NewUntypedList()
+
+	//downloadableCandidates := a.State.AvailableProgs
 
 	progress := newDownloadProgress()
 	dButton := downloadButton(a.State, "Download Prog List")
-	progListContainer := newProgListContainer(downloadableCandidates, a.State)
+	progListContainer := newProgListContainer(a.State.AvailableProgs, a.State)
 
 	mainPanel := container.New(
 		layout.NewStackLayout(),
@@ -34,25 +32,6 @@ func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 		dButton,
 		progListContainer,
 	)
-
-	refreshDownloadableProgs := func() {
-		downloads, _ := a.State.AvailableProgs.Get()
-		if len(downloads) > 0 {
-			candidates := make([]interface{}, 0, len(downloads))
-			for _, v := range downloads {
-				p := v.(api.Downloadable)
-				maybePath := filepath.Join(a.AppService.Prefs.SourceDirectory(), p.Comic.Filename(downloadApi.Pdf))
-				_, err := os.Stat(maybePath)
-				if errors.Is(err, os.ErrNotExist) {
-					candidates = append(candidates, p)
-				}
-			}
-			downloadableCandidates.Set(candidates)
-		}
-	}
-
-	a.State.AvailableProgs.AddListener(binding.NewDataListener(refreshDownloadableProgs))
-	a.AppService.Prefs.BoundSourceDir.AddListener(binding.NewDataListener(refreshDownloadableProgs))
 
 	a.State.IsDownloading.AddListener(binding.NewDataListener(func() {
 		isDownloading, _ := a.State.IsDownloading.Get()
@@ -81,14 +60,17 @@ func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 
 func newProgListContainer(progs binding.UntypedList, d Dispatcher) *fyne.Container {
 	progListWidget := newProgList(progs)
-	downloadButton := widget.NewButton("Re-download Prog List", func() {
+	refreshDownloadListButton := widget.NewButton("Refresh Prog List", func() {
 		d.Dispatch(app.StartDownloadingProgListMessage{})
+	})
+	downloadAllButton := widget.NewButton("Download Latest Prog", func() {
+		d.Dispatch(app.DownloadLatestMessage{})
 	})
 
 	nothingToDownload := widget.NewLabel("No new progs to download")
 	mainDisplay := container.NewStack(progListWidget, nothingToDownload)
-
-	progListContainer := container.NewBorder(nil, container.NewCenter(downloadButton), nil, nil, mainDisplay)
+	progListContainer := container.NewBorder(nil, container.NewCenter(
+		container.NewHBox(refreshDownloadListButton, downloadAllButton)), nil, nil, mainDisplay)
 
 	progs.AddListener(binding.NewDataListener(func() {
 		downloadCandidates, _ := progs.Get()
@@ -125,6 +107,7 @@ func newProgList(progs binding.UntypedList) fyne.CanvasObject {
 
 			if prog.Downloaded {
 				check.SetChecked(true)
+				check.Disable()
 			} else {
 				check.SetChecked(false)
 				check.Enable()
