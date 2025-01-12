@@ -233,6 +233,7 @@ func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]api.Digit
 		}
 
 		progs[i] = api.DigitalComic{
+			Publication: "2000AD",
 			Url:         productUrl,
 			IssueNumber: issueNumber,
 			IssueDate:   d.Format("2006-01-02"),

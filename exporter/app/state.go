@@ -73,7 +73,6 @@ func (s *State) refreshProgList() {
 	for i, v := range availableProgs {
 		issue = v.(api.Downloadable)
 		if _, err := os.Stat(filepath.Join(s.services.Prefs.SourceDirectory(), issue.Comic.Filename(downloadApi.Pdf))); err == nil {
-			println(fmt.Sprintf("%s is downloaded", issue.Comic.IssueNumber))
 			issue.Downloaded = true
 
 			availableProgs[i] = issue

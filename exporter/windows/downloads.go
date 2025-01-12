@@ -1,7 +1,6 @@
 package windows
 
 import (
-	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
@@ -10,7 +9,6 @@ import (
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
 	"reflect"
-	"time"
 )
 
 type Dispatcher interface {
@@ -99,10 +97,7 @@ func newProgList(progs binding.UntypedList) fyne.CanvasObject {
 			diu, _ := di.(binding.Untyped).Get()
 			prog := diu.(api.Downloadable)
 
-			progDate, _ := time.Parse("2006-01-02", prog.Comic.IssueDate)
-			formattedDate := formatDateWithOrdinal(progDate)
-
-			labelText := fmt.Sprintf("Prog %d (%s)", prog.Comic.IssueNumber, formattedDate)
+			labelText := prog.Comic.String()
 			check := ctr.Objects[1].(*widget.Check)
 
 			if prog.Downloaded {
@@ -119,7 +114,7 @@ func newProgList(progs binding.UntypedList) fyne.CanvasObject {
 
 			if reflect.TypeOf(ctr.Objects[1]).String() == "*widget.Label" {
 				label := ctr.Objects[0].(*widget.Label)
-				label.SetText(fmt.Sprintf("Prog %d (%s)", prog.Comic.IssueNumber, formattedDate))
+				label.SetText(prog.Comic.String())
 			} else {
 				label := widget.NewLabel(labelText)
 				ctr.Objects[0] = label
@@ -150,23 +145,4 @@ func downloadButton(d Dispatcher, label string) fyne.CanvasObject {
 	})
 
 	return container.NewCenter(downloadButton)
-}
-
-// formatDateWithOrdinal prints a given time in the format 1st January 2000.
-func formatDateWithOrdinal(t time.Time) string {
-	return fmt.Sprintf("%s %s %d", addOrdinal(t.Day()), t.Month(), t.Year())
-}
-
-// addOrdinal takes a number and adds its ordinal (like st or th) to the end.
-func addOrdinal(n int) string {
-	switch n {
-	case 1, 21, 31:
-		return fmt.Sprintf("%dst", n)
-	case 2, 22:
-		return fmt.Sprintf("%dnd", n)
-	case 3, 23:
-		return fmt.Sprintf("%drd", n)
-	default:
-		return fmt.Sprintf("%dth", n)
-	}
 }

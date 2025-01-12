@@ -23,47 +23,31 @@ func showHide(container *fyne.Container, toShow fyne.CanvasObject) {
 }
 
 func newStoriesCanvas(a *app.ProggerApp) fyne.CanvasObject {
-	noStoriesPanel := noStoriesContainer(a)
-	storiesPanel := displayContainer(a)
+	storiesPanel := storiesContainer(a)
 	scannerProgress := newScannerProgressContainer()
 	downloadProgress := newDownloadProgressContainer()
 
 	centralLayout := container.New(
 		layout.NewStackLayout(),
-		noStoriesPanel,
 		storiesPanel,
 		scannerProgress,
 		downloadProgress,
 	)
 
-	boundStories := a.State.Stories
-	boundStories.AddListener(binding.NewDataListener(func() {
-		stories, _ := boundStories.Get()
-		if len(stories) == 0 {
-			showHide(centralLayout, noStoriesPanel)
+	a.State.IsScanning.AddListener(binding.NewDataListener(func() {
+		if isScanning, _ := a.State.IsScanning.Get(); isScanning == true {
+			showHide(centralLayout, scannerProgress)
 		} else {
 			showHide(centralLayout, storiesPanel)
 		}
 	}))
 
-	a.State.IsScanning.AddListener(binding.NewDataListener(func() {
-		isScanning, _ := a.State.IsScanning.Get()
-		if isScanning {
-			showHide(centralLayout, scannerProgress)
-		} else {
-			stories, _ := boundStories.Get()
-			if len(stories) == 0 {
-				showHide(centralLayout, noStoriesPanel)
-			} else {
-				showHide(centralLayout, storiesPanel)
-			}
-		}
-	}))
-
 	a.State.IsDownloading.AddListener(binding.NewDataListener(func() {
 		if isDownloading, _ := a.State.IsDownloading.Get(); isDownloading == true {
-			println("State isDownloading is true")
+			println("Showing the download progress")
 			showHide(centralLayout, downloadProgress)
+		} else {
+			showHide(centralLayout, storiesPanel)
 		}
 	}))
 
@@ -74,6 +58,14 @@ func newStoriesCanvas(a *app.ProggerApp) fyne.CanvasObject {
 		nil,
 		centralLayout,
 	)
+
+	if isDownloading, _ := a.State.IsDownloading.Get(); isDownloading == true {
+		println("Showing the download progress")
+		showHide(centralLayout, downloadProgress)
+	} else {
+		println("Showing the stories panel")
+		showHide(centralLayout, storiesPanel)
+	}
 
 	return storiesLayout
 }
@@ -173,14 +165,26 @@ func noStoriesContainer(a *app.ProggerApp) fyne.CanvasObject {
 	return contentWrapper
 }
 
-func displayContainer(a *app.ProggerApp) fyne.CanvasObject {
+func storiesContainer(a *app.ProggerApp) fyne.CanvasObject {
 	listContainer := container.NewBorder(
-		nil, buttonsContainer(a), nil, nil,
+		nil, storiesButtonsContainer(a), nil, nil,
 		newStoryListWidget(a.State.Stories),
 	)
-	listContainer.Hide()
+	noListContainer := noStoriesContainer(a)
 
-	return listContainer
+	c := container.New(layout.NewStackLayout(), listContainer, noListContainer)
+
+	boundStories := a.State.Stories
+	boundStories.AddListener(binding.NewDataListener(func() {
+		stories, _ := boundStories.Get()
+		if len(stories) == 0 {
+			showHide(c, noListContainer)
+		} else {
+			showHide(c, listContainer)
+		}
+	}))
+
+	return c
 }
 
 func newDownloadProgressContainer() *fyne.Container {
@@ -195,7 +199,7 @@ func newDownloadProgressContainer() *fyne.Container {
 	return centeredBar
 }
 
-func buttonsContainer(a *app.ProggerApp) fyne.CanvasObject {
+func storiesButtonsContainer(a *app.ProggerApp) fyne.CanvasObject {
 	exportButton := exportButton(a)
 
 	scanButton := widget.NewButton("Force Rescan", func() {
