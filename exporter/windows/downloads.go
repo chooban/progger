@@ -57,18 +57,23 @@ func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 }
 
 func newProgListContainer(progs binding.UntypedList, d Dispatcher) *fyne.Container {
-	progListWidget := newProgList(progs)
-	refreshDownloadListButton := widget.NewButton("Refresh Prog List", func() {
+	refreshDownloadListButton := widget.NewButton("Refresh Downloads List", func() {
 		d.Dispatch(app.StartDownloadingProgListMessage{})
 	})
-	downloadAllButton := widget.NewButton("Download Latest Prog", func() {
-		d.Dispatch(app.DownloadLatestMessage{})
+	downloadAllButton := widget.NewButton("Download Selected", func() {
+		d.Dispatch(app.DownloadSelectedMessage{})
 	})
 
 	nothingToDownload := widget.NewLabel("No new progs to download")
+
+	progListWidget := newProgList(progs, func(issue api.Downloadable, shouldDownload bool) {
+		if shouldDownload {
+			d.Dispatch(app.AddToDownloadsMessage{Issue: issue})
+		} else {
+			d.Dispatch(app.RemoveFromDownloadsMessage{Issue: issue})
+		}
+	})
 	mainDisplay := container.NewStack(progListWidget, nothingToDownload)
-	progListContainer := container.NewBorder(nil, container.NewCenter(
-		container.NewHBox(refreshDownloadListButton, downloadAllButton)), nil, nil, mainDisplay)
 
 	progs.AddListener(binding.NewDataListener(func() {
 		downloadCandidates, _ := progs.Get()
@@ -79,10 +84,14 @@ func newProgListContainer(progs binding.UntypedList, d Dispatcher) *fyne.Contain
 		}
 	}))
 
-	return progListContainer
+	buttonsContainer := container.NewHBox(refreshDownloadListButton, downloadAllButton)
+
+	return container.NewBorder(nil, container.NewCenter(buttonsContainer), nil, nil, mainDisplay)
 }
 
-func newProgList(progs binding.UntypedList) fyne.CanvasObject {
+type issueToggler func(issue api.Downloadable, shouldDownload bool)
+
+func newProgList(progs binding.UntypedList, onCheck issueToggler) fyne.CanvasObject {
 	listOfProgs := widget.NewListWithData(
 		progs,
 		func() fyne.CanvasObject {
@@ -95,12 +104,10 @@ func newProgList(progs binding.UntypedList) fyne.CanvasObject {
 		func(di binding.DataItem, o fyne.CanvasObject) {
 			ctr, _ := o.(*fyne.Container)
 			diu, _ := di.(binding.Untyped).Get()
-			prog := diu.(api.Downloadable)
+			downloadable := diu.(api.Downloadable)
 
-			labelText := prog.Comic.String()
 			check := ctr.Objects[1].(*widget.Check)
-
-			if prog.Downloaded {
+			if downloadable.Downloaded {
 				check.SetChecked(true)
 				check.Disable()
 			} else {
@@ -108,15 +115,18 @@ func newProgList(progs binding.UntypedList) fyne.CanvasObject {
 				check.Enable()
 			}
 
-			// TODO: use check.onChanged to toggle whether or not we should download this prog when requested.
+			// TODO: use check.onChanged to toggle whether or not we should download this downloadable when requested.
 			// Since this information is state and should persist between window changes, we'll need to maintain
 			// the list outside of this component
+			check.OnChanged = func(checked bool) {
+				onCheck(downloadable, checked)
+			}
 
 			if reflect.TypeOf(ctr.Objects[1]).String() == "*widget.Label" {
 				label := ctr.Objects[0].(*widget.Label)
-				label.SetText(prog.Comic.String())
+				label.SetText(downloadable.Comic.String())
 			} else {
-				label := widget.NewLabel(labelText)
+				label := widget.NewLabel(downloadable.Comic.String())
 				ctr.Objects[0] = label
 			}
 		},

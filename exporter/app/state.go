@@ -9,6 +9,7 @@ import (
 	"github.com/chooban/progger/exporter/services"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 )
 
@@ -18,6 +19,7 @@ type State struct {
 	IsScanning     binding.Bool
 	Stories        binding.UntypedList
 	AvailableProgs binding.UntypedList
+	ToDownload     []api.Downloadable
 }
 
 func (s *State) startScanningHandler(m StartScanningMessage) {
@@ -85,7 +87,7 @@ func (s *State) refreshProgList() {
 	}
 }
 
-func (s *State) downloadSelectedProgs(m DownloadLatestMessage) {
+func (s *State) downloadSelectedProgs(m DownloadSelectedMessage) {
 	if err := s.IsDownloading.Set(true); err != nil {
 		println(err.Error())
 	}
@@ -95,31 +97,20 @@ func (s *State) downloadSelectedProgs(m DownloadLatestMessage) {
 			if err := s.IsDownloading.Set(false); err != nil {
 				println(err.Error())
 			}
+			s.ToDownload = make([]api.Downloadable, 0)
 			s.refreshProgList()
 		}()
 		rUser, rPass := s.services.Prefs.RebellionDetails()
 
 		ctx, _ := context.WithLogger()
 
-		var prog *api.Downloadable
-		availableProgs, _ := s.AvailableProgs.Get()
-
-		for i := len(availableProgs) - 1; i >= 0; i-- {
-			di, _ := s.AvailableProgs.GetValue(i)
-			_prog := di.(api.Downloadable)
-			if !_prog.Downloaded {
-				prog = &_prog
+		for _, v := range s.ToDownload {
+			if err := s.services.Downloader.DownloadProg(ctx, v.Comic, s.services.Prefs.SourceDirectory(), rUser, rPass); err != nil {
+				println(err.Error())
+				return
+			} else {
+				v.Downloaded = true
 			}
-		}
-
-		if prog == nil {
-			return
-		}
-		if err := s.services.Downloader.DownloadProg(ctx, prog.Comic, s.services.Prefs.SourceDirectory(), rUser, rPass); err != nil {
-			println(err.Error())
-			return
-		} else {
-			prog.Downloaded = true
 		}
 	}()
 }
@@ -184,8 +175,20 @@ func (s *State) Dispatch(m interface{}) {
 		s.startDownloadingHandler(m.(StartDownloadingMessage))
 	case StartDownloadingProgListMessage:
 		s.downloadProgListHandler(m.(StartDownloadingProgListMessage))
-	case DownloadLatestMessage:
-		s.downloadSelectedProgs(m.(DownloadLatestMessage))
+	case DownloadSelectedMessage:
+		s.downloadSelectedProgs(m.(DownloadSelectedMessage))
+	case AddToDownloadsMessage:
+		_m := m.(AddToDownloadsMessage)
+		s.ToDownload = append(s.ToDownload, _m.Issue)
+	case RemoveFromDownloadsMessage:
+		_m := m.(RemoveFromDownloadsMessage)
+		idx := slices.IndexFunc(s.ToDownload, func(downloadable api.Downloadable) bool {
+			return downloadable.Comic.Publication == _m.Issue.Comic.Publication && downloadable.Comic.IssueNumber == _m.Issue.Comic.IssueNumber
+		})
+		if idx >= 0 {
+			s.ToDownload[idx] = s.ToDownload[len(s.ToDownload)-1]
+			s.ToDownload = s.ToDownload[:len(s.ToDownload)-1]
+		}
 	case finishedDownloadingMessage:
 		if m.(finishedDownloadingMessage).Success {
 			srcDir := s.services.Prefs.SourceDirectory()
@@ -202,6 +205,7 @@ func NewAppState(s *services.AppServices) *State {
 		IsScanning:     binding.NewBool(),
 		Stories:        binding.NewUntypedList(),
 		AvailableProgs: availableProgs,
+		ToDownload:     make([]api.Downloadable, 0),
 	}
 
 	refreshProgs := func() {
@@ -231,8 +235,8 @@ type StartScanningMessage struct {
 // StartDownloadingMessage requests that all available progs be downloaded
 type StartDownloadingMessage struct{}
 
-// DownloadLatestMessage requests that the latest prog be downloaded
-type DownloadLatestMessage struct{}
+// DownloadSelectedMessage requests that the selected issues be downloaded
+type DownloadSelectedMessage struct{}
 
 // StartDownloadingProgListMessage requests downloading a list of available progs from the Rebellion account
 type StartDownloadingProgListMessage struct {
@@ -241,4 +245,12 @@ type StartDownloadingProgListMessage struct {
 
 type finishedDownloadingMessage struct {
 	Success bool
+}
+
+type AddToDownloadsMessage struct {
+	Issue api.Downloadable
+}
+
+type RemoveFromDownloadsMessage struct {
+	Issue api.Downloadable
 }
