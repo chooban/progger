@@ -22,7 +22,7 @@ func main() {
 	ctx = download.WithBrowserContextDir(ctx, configDir)
 
 	start := time.Now()
-	list, err := download.ListAvailableProgs(ctx)
+	list, err := download.ListAvailableProgs(ctx, true)
 
 	logger.Info(fmt.Sprintf("Found %d progs", len(list)), "duration", time.Since(start))
 	logger.Info(fmt.Sprintf("%+v", list[0]))

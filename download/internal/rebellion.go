@@ -9,6 +9,7 @@ import (
 	"github.com/playwright-community/playwright-go"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -16,7 +17,8 @@ import (
 var signinUrl = "https://shop.2000ad.com/account/sign-in"
 var accountUrl = "https://shop.2000ad.com/account"
 var listUrl = "https://shop.2000ad.com/account/downloads?sort-by=released&direction=desc"
-var downloadPageUrl = "https://shop.2000ad.com/account/downloads?sort-by=granted&direction=desc&page=%d"
+
+//var downloadPageUrl = "https://shop.2000ad.com/account/downloads?sort-by=granted&direction=desc&page=%d"
 
 func Login(ctx context.Context, bContext playwright.BrowserContext, username, password string) (err error) {
 	logger := logr.FromContextOrDiscard(ctx)
@@ -75,17 +77,6 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 			return errors.New("login failed")
 		}
 
-		//if _, err = page.ExpectEvent("navigated", func() error {
-		//	currentUrl := page.URL()
-		//	if currentUrl != accountUrl {
-		//		logger.Info("Looks like login failed", "current_url", currentUrl, "expected_url", accountUrl)
-		//		logger.V(1).Info(page.Content())
-		//		return errors.New("login failed")
-		//	}
-		//	return nil
-		//}); err != nil {
-		//	return err
-		//}
 		return
 	}
 
@@ -145,7 +136,7 @@ func pageDownloader(ctx context.Context, bContext playwright.BrowserContext, pag
 	}()
 	start := time.Now()
 	if _, err := page.Goto(url); err != nil {
-		logger.Error(err, "Failed to load page", "url", downloadPageUrl)
+		logger.Error(err, "Failed to load page", "url", url)
 	} else {
 		logger.Info("Downloaded page", "duration", time.Since(start))
 		if newProgs, err := extractProgsFromPage(logger, page); err == nil {
@@ -156,6 +147,12 @@ func pageDownloader(ctx context.Context, bContext playwright.BrowserContext, pag
 		}
 	}
 	return progs
+}
+
+func ListIssuesOnPage(ctx context.Context, bContext playwright.BrowserContext, pageNumber int) (issues []api.DigitalComic, err error) {
+	issues = pageDownloader(ctx, bContext, pageNumber)
+
+	return
 }
 
 func ListProgs(ctx context.Context, bContext playwright.BrowserContext, latestOnly bool) (allProgs []api.DigitalComic, err error) {
@@ -230,11 +227,11 @@ func Download(ctx context.Context, bContext playwright.BrowserContext, comic api
 }
 
 func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]api.DigitalComic, error) {
-	titleMatcher := regexp.MustCompile(`(?si)2000\s+AD\s+prog\s+\d{1,}`)
+	titleMatcher := regexp.MustCompile(`(?si)2000\s+AD\s+prog\s+\d{1,}|Judge\s+Dredd\s+Megazine\s+\d{1,}`)
 	ordinalDateMatch := regexp.MustCompile("(\\d+)(st|rd|th|nd)")
 	titleFilter := playwright.LocatorFilterOptions{HasText: titleMatcher}
 
-	issueNumberMatcher, _ := regexp.Compile(`(?si)PRG(?P<Issue>\d{1,})D`)
+	issueNumberMatcher, _ := regexp.Compile(`(?si)(PRG|MEG)(?P<Issue>\d{1,})D`)
 
 	locators, err := page.GetByRole("listitem").Filter(titleFilter).All()
 	if err != nil {
@@ -263,9 +260,14 @@ func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]api.Digit
 		if err != nil {
 			logger.Error(err, "could not get date")
 		}
-
+		title := v.Locator("h2").Filter(titleFilter).First()
+		titleText, _ := title.InnerText()
+		publication := "2000AD"
+		if strings.Contains(titleText, "Megazine") {
+			publication = "Megazine"
+		}
 		progs[i] = api.DigitalComic{
-			Publication: "2000AD",
+			Publication: publication,
 			Url:         productUrl,
 			IssueNumber: issueNumber,
 			IssueDate:   d.Format("2006-01-02"),

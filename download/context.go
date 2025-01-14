@@ -43,7 +43,7 @@ func LoginDetails(ctx context.Context) (username, password string, err error) {
 	if u := ctx.Value(contextKeyUsername); u != nil {
 		username = u.(string)
 	} else {
-		return
+		return "", "", errors.New("username not found")
 	}
 	if p := ctx.Value(contextKeyPassword); p != nil {
 		password = p.(string)

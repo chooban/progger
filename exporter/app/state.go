@@ -129,13 +129,16 @@ func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 		if list, err := s.services.Downloader.ProgList(ctx, rUser, rPass); err != nil {
 			s.Dispatch(finishedDownloadingMessage{Success: false})
 		} else {
-			downloadableList := make([]api.Downloadable, len(list))
-			for i, v := range list {
+			downloadableList := make([]api.Downloadable, 0, len(list))
+			for _, v := range list {
+				if v.Publication != "2000AD" {
+					continue
+				}
 				p := api.Downloadable{
 					Comic:      v,
 					Downloaded: false,
 				}
-				downloadableList[i] = p
+				downloadableList = append(downloadableList, p)
 			}
 			progs := s.buildProgList(downloadableList)
 			s.AvailableProgs.Set(progs)

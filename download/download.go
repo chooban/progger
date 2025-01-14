@@ -13,17 +13,34 @@ import (
 	"slices"
 )
 
+func ListIssuesOnPage(ctx context.Context, pageNumber int) (issues []api.DigitalComic, err error) {
+	logger := logr.FromContextOrDiscard(ctx)
+	bContext, err := browser(ctx)
+
+	if err != nil {
+		logger.Error(err, "Could not start browser")
+		return []api.DigitalComic{}, err
+	}
+	u, p, err := LoginDetails(ctx)
+
+	if err != nil {
+		logger.Error(err, "no credentials found")
+		return []api.DigitalComic{}, err
+	}
+
+	if err = internal.Login(ctx, bContext, u, p); err != nil {
+		logger.Error(err, "Failed to login")
+		return []api.DigitalComic{}, err
+	}
+
+	issues, err = internal.ListIssuesOnPage(ctx, bContext, pageNumber)
+
+	return issues, nil
+}
+
 func ListAvailableProgs(ctx context.Context, latestOnly bool) ([]api.DigitalComic, error) {
 	logger := logr.FromContextOrDiscard(ctx)
-
 	bContext, err := browser(ctx)
-	//defer func(bContext playwright.BrowserContext) {
-	//	logger.Info("Closing the browser")
-	//	err := bContext.Close()
-	//	if err != nil {
-	//		logger.Error(err, "failed to close browser")
-	//	}
-	//}(bContext)
 
 	if err != nil {
 		logger.Error(err, "Could not start browser")
