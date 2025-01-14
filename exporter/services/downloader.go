@@ -45,7 +45,7 @@ func (d *Downloader) DownloadAllProgs(ctx context.Context, sourceDir, username, 
 	ctxt := download.WithLoginDetails(ctx, username, password)
 	ctxt = download.WithBrowserContextDir(ctx, d.browserDir)
 
-	if list, err := download.ListAvailableProgs(ctxt); err == nil {
+	if list, err := download.ListAvailableProgs(ctxt, false); err == nil {
 		if len(list) > 0 {
 			logger.Info("Found progs to download", "count", len(list))
 			//for i := 0; i < len(list); i++ {
