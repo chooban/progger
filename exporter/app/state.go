@@ -1,9 +1,16 @@
 package app
 
 import (
+	"fmt"
 	"fyne.io/fyne/v2/data/binding"
+	downloadApi "github.com/chooban/progger/download/api"
+	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/exporter/services"
+	"os"
+	"path/filepath"
+	"slices"
+	"sort"
 )
 
 type State struct {
@@ -12,6 +19,7 @@ type State struct {
 	IsScanning     binding.Bool
 	Stories        binding.UntypedList
 	AvailableProgs binding.UntypedList
+	ToDownload     []api.Downloadable
 }
 
 func (s *State) startScanningHandler(m StartScanningMessage) {
@@ -59,6 +67,54 @@ func (s *State) startDownloadingHandler(_m StartDownloadingMessage) {
 	}()
 }
 
+// refreshProgList loops through the list of available issues and marks those we have as downloaded
+func (s *State) refreshProgList() {
+	availableProgs, _ := s.AvailableProgs.Get()
+
+	var issue api.Downloadable
+	for i, v := range availableProgs {
+		issue = v.(api.Downloadable)
+		if _, err := os.Stat(filepath.Join(s.services.Prefs.SourceDirectory(), issue.Comic.Filename(downloadApi.Pdf))); err == nil {
+			issue.Downloaded = true
+
+			availableProgs[i] = issue
+		}
+	}
+
+	err := s.AvailableProgs.Set(availableProgs)
+	if err != nil {
+		println(err.Error())
+	}
+}
+
+func (s *State) downloadSelectedProgs(m DownloadSelectedMessage) {
+	if err := s.IsDownloading.Set(true); err != nil {
+		println(err.Error())
+	}
+
+	go func() {
+		defer func() {
+			if err := s.IsDownloading.Set(false); err != nil {
+				println(err.Error())
+			}
+			s.ToDownload = make([]api.Downloadable, 0)
+			s.refreshProgList()
+		}()
+		rUser, rPass := s.services.Prefs.RebellionDetails()
+
+		ctx, _ := context.WithLogger()
+
+		for _, v := range s.ToDownload {
+			if err := s.services.Downloader.DownloadProg(ctx, v.Comic, s.services.Prefs.SourceDirectory(), rUser, rPass); err != nil {
+				println(err.Error())
+				return
+			} else {
+				v.Downloaded = true
+			}
+		}
+	}()
+}
+
 func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 	// IsDownloading is pretty much a synonym for "is interacting with Rebellion account"
 	s.IsDownloading.Set(true)
@@ -73,14 +129,42 @@ func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 		if list, err := s.services.Downloader.ProgList(ctx, rUser, rPass); err != nil {
 			s.Dispatch(finishedDownloadingMessage{Success: false})
 		} else {
-			progs := make([]interface{}, len(list))
+			downloadableList := make([]api.Downloadable, len(list))
 			for i, v := range list {
-				progs[i] = v
+				p := api.Downloadable{
+					Comic:      v,
+					Downloaded: false,
+				}
+				downloadableList[i] = p
 			}
+			progs := s.buildProgList(downloadableList)
 			s.AvailableProgs.Set(progs)
+			err := s.services.Storage.SaveProgs(downloadableList)
+			if err != nil {
+				println(err.Error())
+			}
 			s.Dispatch(finishedDownloadingMessage{Success: true})
 		}
 	}()
+}
+
+func (s *State) buildProgList(progs []api.Downloadable) []interface{} {
+	if len(progs) == 0 {
+		return make([]interface{}, 0)
+	}
+	sort.Slice(progs, func(a, b int) bool {
+		return progs[a].Comic.IssueNumber > progs[b].Comic.IssueNumber
+	})
+	println(fmt.Sprintf("Checking %s for progs", s.services.Prefs.SourceDirectory()))
+	untypedProgs := make([]interface{}, len(progs))
+	for i, v := range progs {
+		if _, err := os.Stat(filepath.Join(s.services.Prefs.SourceDirectory(), v.Comic.Filename(downloadApi.Pdf))); err == nil {
+			v.Downloaded = true
+		}
+		untypedProgs[i] = v
+	}
+
+	return untypedProgs
 }
 
 func (s *State) Dispatch(m interface{}) {
@@ -91,6 +175,20 @@ func (s *State) Dispatch(m interface{}) {
 		s.startDownloadingHandler(m.(StartDownloadingMessage))
 	case StartDownloadingProgListMessage:
 		s.downloadProgListHandler(m.(StartDownloadingProgListMessage))
+	case DownloadSelectedMessage:
+		s.downloadSelectedProgs(m.(DownloadSelectedMessage))
+	case AddToDownloadsMessage:
+		_m := m.(AddToDownloadsMessage)
+		s.ToDownload = append(s.ToDownload, _m.Issue)
+	case RemoveFromDownloadsMessage:
+		_m := m.(RemoveFromDownloadsMessage)
+		idx := slices.IndexFunc(s.ToDownload, func(downloadable api.Downloadable) bool {
+			return downloadable.Comic.Publication == _m.Issue.Comic.Publication && downloadable.Comic.IssueNumber == _m.Issue.Comic.IssueNumber
+		})
+		if idx >= 0 {
+			s.ToDownload[idx] = s.ToDownload[len(s.ToDownload)-1]
+			s.ToDownload = s.ToDownload[:len(s.ToDownload)-1]
+		}
 	case finishedDownloadingMessage:
 		if m.(finishedDownloadingMessage).Success {
 			srcDir := s.services.Prefs.SourceDirectory()
@@ -100,13 +198,32 @@ func (s *State) Dispatch(m interface{}) {
 }
 
 func NewAppState(s *services.AppServices) *State {
+	availableProgs := binding.NewUntypedList()
 	c := State{
 		services:       s,
 		IsDownloading:  binding.NewBool(),
 		IsScanning:     binding.NewBool(),
 		Stories:        binding.NewUntypedList(),
-		AvailableProgs: binding.NewUntypedList(),
+		AvailableProgs: availableProgs,
+		ToDownload:     make([]api.Downloadable, 0),
 	}
+
+	refreshProgs := func() {
+		println("Refreshing progs")
+		savedProgs := s.Storage.ReadProgs()
+		if len(savedProgs) > 0 {
+			convertedProgs := c.buildProgList(savedProgs)
+			if len(convertedProgs) > 0 {
+				println(fmt.Sprintf("Found %d progs", len(convertedProgs)))
+				if err := availableProgs.Set(convertedProgs); err == nil {
+					// Do nothing
+				}
+			}
+		}
+	}
+	c.services.Prefs.BoundSourceDir.AddListener(binding.NewDataListener(refreshProgs))
+
+	refreshProgs()
 
 	return &c
 }
@@ -118,9 +235,22 @@ type StartScanningMessage struct {
 // StartDownloadingMessage requests that all available progs be downloaded
 type StartDownloadingMessage struct{}
 
+// DownloadSelectedMessage requests that the selected issues be downloaded
+type DownloadSelectedMessage struct{}
+
 // StartDownloadingProgListMessage requests downloading a list of available progs from the Rebellion account
-type StartDownloadingProgListMessage struct{}
+type StartDownloadingProgListMessage struct {
+	Refresh bool
+}
 
 type finishedDownloadingMessage struct {
 	Success bool
+}
+
+type AddToDownloadsMessage struct {
+	Issue api.Downloadable
+}
+
+type RemoveFromDownloadsMessage struct {
+	Issue api.Downloadable
 }

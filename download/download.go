@@ -7,36 +7,41 @@ import (
 	"github.com/chooban/progger/download/api"
 	"github.com/chooban/progger/download/internal"
 	"github.com/go-logr/logr"
-	"github.com/playwright-community/playwright-go"
 	"io"
 	"os"
 	"path"
 	"slices"
 )
 
-func ListAvailableProgs(ctx context.Context) ([]api.DigitalComic, error) {
+func ListAvailableProgs(ctx context.Context, latestOnly bool) ([]api.DigitalComic, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	bContext, err := browser(ctx)
-	defer func(bContext playwright.BrowserContext) {
-		err := bContext.Close()
-		if err != nil {
-			logger.Error(err, "failed to close browsr")
-		}
-	}(bContext)
+	//defer func(bContext playwright.BrowserContext) {
+	//	logger.Info("Closing the browser")
+	//	err := bContext.Close()
+	//	if err != nil {
+	//		logger.Error(err, "failed to close browser")
+	//	}
+	//}(bContext)
 
 	if err != nil {
 		logger.Error(err, "Could not start browser")
 		return []api.DigitalComic{}, err
 	}
-	u, p := LoginDetails(ctx)
+	u, p, err := LoginDetails(ctx)
+
+	if err != nil {
+		logger.Error(err, "no credentials found")
+		return []api.DigitalComic{}, err
+	}
 
 	if err = internal.Login(ctx, bContext, u, p); err != nil {
 		logger.Error(err, "Failed to login")
 		return []api.DigitalComic{}, err
 	}
 
-	if progs, err := internal.ListProgs(ctx, bContext); err != nil {
+	if progs, err := internal.ListProgs(ctx, bContext, latestOnly); err != nil {
 		logger.Error(err, "Could not list progs")
 		return []api.DigitalComic{}, err
 	} else {
@@ -74,7 +79,10 @@ func Download(ctx context.Context, comic api.DigitalComic, dir string, filetype 
 		logger.Error(err, "Could not start browser")
 		return "", fmt.Errorf("could not start browser: %w", err)
 	}
-	u, p := LoginDetails(ctx)
+	u, p, err := LoginDetails(ctx)
+	if err != nil {
+		return "", errors.New("no credentials found")
+	}
 
 	if err = internal.Login(ctx, bContext, u, p); err != nil {
 		return "", fmt.Errorf("could not login: %w", err)

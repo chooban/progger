@@ -22,83 +22,128 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 	logger := logr.FromContextOrDiscard(ctx)
 	assertions := playwright.NewPlaywrightAssertions()
 
-	page, err := bContext.NewPage()
+	page, err := getPage(ctx, bContext)
+	defer func() {
+		if err := page.Close(); err != nil {
+			logger.Error(err, "Failed to close page")
+			return
+		}
+	}()
+
 	if err != nil {
 		return
 	}
-	if _, err = page.Goto(signinUrl); err != nil {
-		logger.V(1).Info("Failed to navigate to signin page")
+	if _, err = page.Goto(accountUrl); err != nil {
+		logger.Info("Failed to navigate to login page")
 		return
 	}
 
-	logger.V(1).Info("Opened page", "url", page.URL())
-
-	if page.URL() == accountUrl {
-		logger.Info("Skipping login procedure")
-		return
-	}
-	var emailInput, passwordInput, loginButton playwright.Locator
-	emailInput = page.GetByLabel("Email Address")
-	passwordInput = page.GetByLabel("Password")
-	loginButton = page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Sign In"})
-
-	for _, v := range []playwright.Locator{emailInput, passwordInput, loginButton} {
-		if err = assertions.Locator(v).ToBeVisible(); err != nil {
+	var doLogin = func() (err error) {
+		if page.URL() == accountUrl {
+			logger.Info("Skipping login procedure")
 			return
 		}
-	}
 
-	if err = emailInput.Fill(username); err != nil {
-		logger.V(1).Info("Failed to fill email address")
-		return
-	}
-	if err = passwordInput.Fill(password); err != nil {
-		logger.V(1).Info("Failed to fill password")
-		return
-	}
+		logger.Info(fmt.Sprintf("Trying to log in %s", page.URL()))
 
-	if err = loginButton.Click(); err != nil {
-		logger.V(1).Info("Failed to click login button")
-		return
-	}
+		var emailInput, passwordInput, loginButton playwright.Locator
+		emailInput = page.GetByLabel("Email Address")
+		passwordInput = page.GetByLabel("Password")
+		loginButton = page.GetByRole("button", playwright.PageGetByRoleOptions{Name: "Sign In"})
 
-	if _, err = page.ExpectEvent("navigated", func() error {
-		currentUrl := page.URL()
-		if currentUrl != accountUrl {
-			logger.Info("Looks like login failed", "current_url", currentUrl, "expected_url", accountUrl)
+		for _, v := range []playwright.Locator{emailInput, passwordInput, loginButton} {
+			if err = assertions.Locator(v).ToBeVisible(); err != nil {
+				return
+			}
+		}
+
+		if err = emailInput.Fill(username); err != nil {
+			return
+		}
+		if err = passwordInput.Fill(password); err != nil {
+			return
+		}
+
+		if err = loginButton.Click(); err != nil {
+			return
+		}
+
+		var timeout float64 = 5000
+		if err := page.WaitForURL(accountUrl, playwright.PageWaitForURLOptions{Timeout: &timeout}); err != nil {
+			logger.Info("Looks like login failed", "current_url", page.URL(), "expected_url", accountUrl)
 			logger.V(1).Info(page.Content())
 			return errors.New("login failed")
 		}
-		return nil
-	}); err != nil {
-		return err
+
+		//if _, err = page.ExpectEvent("navigated", func() error {
+		//	currentUrl := page.URL()
+		//	if currentUrl != accountUrl {
+		//		logger.Info("Looks like login failed", "current_url", currentUrl, "expected_url", accountUrl)
+		//		logger.V(1).Info(page.Content())
+		//		return errors.New("login failed")
+		//	}
+		//	return nil
+		//}); err != nil {
+		//	return err
+		//}
+		return
 	}
-	logger.Info("Login succeeded")
+
+	for attempts := 0; attempts < 3; attempts++ {
+		err = doLogin()
+		if err == nil {
+			logger.Info("Login succeeded")
+			break
+		}
+		logger.Error(err, "Failed to login")
+		time.Sleep(3 * time.Second)
+		if _, err := page.Goto(signinUrl); err != nil {
+			logger.Error(err, "Failed to open page", "url", signinUrl)
+		}
+	}
+
 	return
 }
 
-func getPage(ctx context.Context, bContext playwright.BrowserContext) (playwright.Page, error) {
+func getPage(ctx context.Context, bContext playwright.BrowserContext) (page playwright.Page, err error) {
 	logger := logr.FromContextOrDiscard(ctx)
-	page, err := bContext.NewPage()
-	if err != nil {
-		return nil, err
+	if page, err = bContext.NewPage(); err != nil {
+		logger.Error(err, "Failed to create page")
+		return
 	}
 	r, _ := regexp.Compile("png|jpg|gif|woff|css")
 	err = page.Route(r, func(route playwright.Route) {
-		route.Abort()
+		if err := route.Abort(); err != nil {
+			logger.Error(err, "Failed to abort route")
+		}
 	})
 	if err != nil {
 		logger.Error(err, "Could not set Route intercept")
 	}
-	return page, nil
+	return
 }
 
 func pageDownloader(ctx context.Context, bContext playwright.BrowserContext, pageNumber int) []api.DigitalComic {
 	logger := logr.FromContextOrDiscard(ctx)
 	url := listUrl + fmt.Sprintf("&page=%d", pageNumber)
-	page, _ := getPage(ctx, bContext)
-	start := time.Now()
+	logger.Info(fmt.Sprintf("Downloading page %s", url))
+	var page playwright.Page
+	var err error
 	progs := make([]api.DigitalComic, 0)
+	if page, err = getPage(ctx, bContext); err != nil {
+		logger.Error(err, "Failed to get page from list")
+		return progs
+	}
+	defer func() {
+		if page.IsClosed() {
+			return
+		}
+		if err := page.Close(); err != nil {
+			logger.Error(err, "Failed to close page")
+			return
+		}
+	}()
+	start := time.Now()
 	if _, err := page.Goto(url); err != nil {
 		logger.Error(err, "Failed to load page", "url", downloadPageUrl)
 	} else {
@@ -106,45 +151,49 @@ func pageDownloader(ctx context.Context, bContext playwright.BrowserContext, pag
 		if newProgs, err := extractProgsFromPage(logger, page); err == nil {
 			logger.Info("Found new progs", "count", len(newProgs))
 			progs = newProgs
+		} else {
+			logger.Error(err, "Failed to extract progs")
 		}
 	}
 	return progs
 }
 
-func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs []api.DigitalComic, err error) {
+func ListProgs(ctx context.Context, bContext playwright.BrowserContext, latestOnly bool) (allProgs []api.DigitalComic, err error) {
 	logger := logr.FromContextOrDiscard(ctx)
-	page, _ := bContext.NewPage()
-	if _, err := page.Goto(listUrl); err != nil {
-		logger.Error(err, "Failed to load page", "url", listUrl)
-		return progs, err
-	}
 
-	links := page.Locator("ul.pagination").GetByRole("link").Filter(playwright.LocatorFilterOptions{HasNotText: "Next"}).Last()
-	maxPageText, err := links.InnerText()
-	if err != nil {
-		logger.Error(err, "could not get text of last link")
-		return
+	maxPage := 1
+	if !latestOnly {
+		logger.Info(fmt.Sprintf("Listing all progs..."))
+		page, _ := getPage(ctx, bContext)
+		if _, err := page.Goto(listUrl); err != nil {
+			logger.Error(err, "Failed to load list page", "url", listUrl)
+			return allProgs, err
+		}
+
+		links := page.Locator("ul.pagination").GetByRole("link").Filter(playwright.LocatorFilterOptions{HasNotText: "Next"}).Last()
+		if maxPageText, _err := links.InnerText(); _err != nil {
+			logger.Error(err, "could not get text of last link")
+			return nil, _err
+		} else {
+			maxPage, _ = strconv.Atoi(maxPageText)
+		}
+		page.Close()
+	} else {
+		logger.Info("Only retrieving most recent issues")
 	}
-	logger.Info("Converting max page text", "text", maxPageText)
-	maxPage, _ := strconv.Atoi(maxPageText)
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
-	logger.Info("Found max page count", "max_page", maxPage)
-
-	progs = make([]api.DigitalComic, 0, maxPage*10)
+	allProgs = make([]api.DigitalComic, 0, maxPage*10)
 	for p := range maxPage {
-		if p == 0 {
-			continue
-		}
 		wg.Add(1)
 		go func() {
-			defer wg.Done()
-			_progs := pageDownloader(ctx, bContext, p)
+			progsFromPage := pageDownloader(ctx, bContext, p+1)
 			mu.Lock()
-			defer mu.Unlock()
-			progs = append(progs, _progs...)
+			allProgs = append(allProgs, progsFromPage...)
+			mu.Unlock()
+			wg.Done()
 		}()
 	}
 
@@ -155,7 +204,7 @@ func ListProgs(ctx context.Context, bContext playwright.BrowserContext) (progs [
 
 func Download(ctx context.Context, bContext playwright.BrowserContext, comic api.DigitalComic) (string, error) {
 	logger := logr.FromContextOrDiscard(ctx)
-	page, err := bContext.NewPage()
+	page, err := getPage(ctx, bContext)
 	if err != nil {
 		return "", fmt.Errorf("could not open page %g", err)
 	}
@@ -181,12 +230,12 @@ func Download(ctx context.Context, bContext playwright.BrowserContext, comic api
 }
 
 func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]api.DigitalComic, error) {
-	titleMatcher, err := regexp.Compile(`(?si)2000\s+AD\s+prog\s+\d{1,}`)
-	issueNumberMatcher, _ := regexp.Compile(`(?si)PRG(?P<Issue>\d{1,})D`)
+	titleMatcher := regexp.MustCompile(`(?si)2000\s+AD\s+prog\s+\d{1,}`)
+	ordinalDateMatch := regexp.MustCompile("(\\d+)(st|rd|th|nd)")
 	titleFilter := playwright.LocatorFilterOptions{HasText: titleMatcher}
-	if err != nil {
-		return []api.DigitalComic{}, err
-	}
+
+	issueNumberMatcher, _ := regexp.Compile(`(?si)PRG(?P<Issue>\d{1,})D`)
+
 	locators, err := page.GetByRole("listitem").Filter(titleFilter).All()
 	if err != nil {
 		return []api.DigitalComic{}, err
@@ -206,9 +255,20 @@ func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]api.Digit
 		cbzForm := v.Locator("form").Filter(playwright.LocatorFilterOptions{HasText: "CBZ"})
 		cbzUrl, _ := cbzForm.GetAttribute("action")
 
+		issueDate := v.Locator("[class=subheader]").First()
+		dateString, err := issueDate.InnerText()
+
+		dateString = ordinalDateMatch.ReplaceAllString(dateString, "$1")
+		d, err := time.Parse("2 January 2006", dateString)
+		if err != nil {
+			logger.Error(err, "could not get date")
+		}
+
 		progs[i] = api.DigitalComic{
+			Publication: "2000AD",
 			Url:         productUrl,
 			IssueNumber: issueNumber,
+			IssueDate:   d.Format("2006-01-02"),
 			Downloads: map[api.FileType]string{
 				api.Pdf: pdfUrl,
 				api.Cbz: cbzUrl,
