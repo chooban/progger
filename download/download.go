@@ -7,23 +7,23 @@ import (
 	"github.com/chooban/progger/download/api"
 	"github.com/chooban/progger/download/internal"
 	"github.com/go-logr/logr"
-	"github.com/playwright-community/playwright-go"
 	"io"
 	"os"
 	"path"
 	"slices"
 )
 
-func ListAvailableProgs(ctx context.Context) ([]api.DigitalComic, error) {
+func ListAvailableProgs(ctx context.Context, latestOnly bool) ([]api.DigitalComic, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	bContext, err := browser(ctx)
-	defer func(bContext playwright.BrowserContext) {
-		err := bContext.Close()
-		if err != nil {
-			logger.Error(err, "failed to close browsr")
-		}
-	}(bContext)
+	//defer func(bContext playwright.BrowserContext) {
+	//	logger.Info("Closing the browser")
+	//	err := bContext.Close()
+	//	if err != nil {
+	//		logger.Error(err, "failed to close browser")
+	//	}
+	//}(bContext)
 
 	if err != nil {
 		logger.Error(err, "Could not start browser")
@@ -41,7 +41,7 @@ func ListAvailableProgs(ctx context.Context) ([]api.DigitalComic, error) {
 		return []api.DigitalComic{}, err
 	}
 
-	if progs, err := internal.ListProgs(ctx, bContext); err != nil {
+	if progs, err := internal.ListProgs(ctx, bContext, latestOnly); err != nil {
 		logger.Error(err, "Could not list progs")
 		return []api.DigitalComic{}, err
 	} else {

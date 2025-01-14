@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/chooban/progger/download"
-	"github.com/chooban/progger/download/api"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
@@ -32,6 +31,9 @@ func main() {
 	var listAvailable bool
 	flag.BoolVar(&listAvailable, "list", false, "List available downloads")
 
+	var listLatest bool
+	flag.BoolVar(&listLatest, "latest", false, "List latest downloads")
+
 	var browserDir string
 	flag.StringVar(&browserDir, "browser-dir", configDir, "Directory for browser cache")
 
@@ -55,7 +57,7 @@ func main() {
 	ctx = download.WithLoginDetails(ctx, os.Getenv("REBELLION_USERNAME"), os.Getenv("REBELLION_PASSWORD"))
 	ctx = download.WithBrowserContextDir(ctx, browserDir)
 
-	list, err := download.ListAvailableProgs(ctx)
+	list, err := download.ListAvailableProgs(ctx, listLatest)
 
 	if err != nil {
 		logger.Error(err, "Error listing progs")
@@ -73,14 +75,14 @@ func main() {
 		return
 	}
 
-	for i := 0; i < downloadCount && i < len(list); i++ {
-		logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
-		if filepath, err := download.Download(ctx, list[i], downloadDir, api.Pdf); err != nil {
-			logger.Error(err, "could not download file")
-		} else {
-			logger.Info("Downloaded a file", "file", filepath)
-		}
-	}
+	//for i := 0; i < downloadCount && i < len(list); i++ {
+	//	logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
+	//	if filepath, err := download.Download(ctx, list[i], downloadDir, api.Pdf); err != nil {
+	//		logger.Error(err, "could not download file")
+	//	} else {
+	//		logger.Info("Downloaded a file", "file", filepath)
+	//	}
+	//}
 }
 
 func withLogger(ctx context.Context) (context.Context, logr.Logger) {

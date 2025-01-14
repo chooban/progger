@@ -17,7 +17,7 @@ func (d *Downloader) ProgList(ctx context.Context, username, password string) ([
 	ctxt := download.WithLoginDetails(ctx, username, password)
 	ctxt = download.WithBrowserContextDir(ctxt, d.browserDir)
 
-	if list, err := download.ListAvailableProgs(ctxt); err == nil {
+	if list, err := download.ListAvailableProgs(ctxt, false); err == nil {
 		return list, nil
 	} else {
 		logger.Error(err, "failed to list available progs")
