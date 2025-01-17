@@ -157,9 +157,12 @@ func newProgList(progs binding.UntypedList, onCheck issueToggler, isMarked isMar
 }
 
 func newDownloadProgress() *fyne.Container {
+	activity := widget.NewActivity()
+	activity.Start()
+	
 	mainPanel := container.New(
 		layout.NewVBoxLayout(),
-		widget.NewProgressBarInfinite(),
+		activity,
 		widget.NewLabel("Downloading..."),
 	)
 
