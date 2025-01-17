@@ -60,9 +60,12 @@ func toStories(issues []api.Issue) []*api2.Story {
 	return stories
 }
 
-func (s *Scanner) Scan(path string) []*api2.Story {
+func (s *Scanner) Scan(paths []string) []*api2.Story {
 	ctx, _ := context.WithLogger()
-	issues := scan.Dir(ctx, path, 0)
+	issues := make([]api.Issue, 0)
+	for _, v := range paths {
+		issues = append(issues, scan.Dir(ctx, v, 0)...)
+	}
 
 	return toStories(issues)
 }

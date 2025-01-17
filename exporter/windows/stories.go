@@ -153,8 +153,7 @@ func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
 
 func noStoriesContainer(a *app.ProggerApp) fyne.CanvasObject {
 	scanButton := widget.NewButton("Scan Directory", func() {
-		dirToScan := a.AppService.Prefs.ProgSourceDirectory()
-		a.State.Dispatch(app.StartScanningMessage{Directory: dirToScan})
+		a.State.Dispatch(app.StartScanningMessage{})
 	})
 	content := container.NewVBox(widget.NewLabelWithData(a.AppService.Prefs.ProgSourceDir), scanButton)
 
@@ -203,8 +202,7 @@ func storiesButtonsContainer(a *app.ProggerApp) fyne.CanvasObject {
 	exportButton := exportButton(a)
 
 	scanButton := widget.NewButton("Force Rescan", func() {
-		dirToScan := a.AppService.Prefs.ProgSourceDirectory()
-		a.State.Dispatch(app.StartScanningMessage{Directory: dirToScan})
+		a.State.Dispatch(app.StartScanningMessage{})
 	})
 
 	return container.NewVBox(

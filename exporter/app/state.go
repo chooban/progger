@@ -29,19 +29,18 @@ func (s *State) startScanningHandler(m StartScanningMessage) {
 
 	go func() {
 		defer func() {
-			println("Setting scanning to false")
 			if err := s.IsScanning.Set(false); err != nil {
 				println(err.Error())
 			}
 		}()
 
-		stories := s.services.Scanner.Scan(m.Directory)
-		_stories := make([]interface{}, len(stories))
-		for i, v := range stories {
-			_stories[i] = v
+		dirsToScan := []string{s.services.Prefs.ProgSourceDirectory(), s.services.Prefs.MegSourceDirectory()}
+		foundStories := s.services.Scanner.Scan(dirsToScan)
+		untypedStories := make([]interface{}, len(foundStories))
+		for i, v := range foundStories {
+			untypedStories[i] = v
 		}
-		println("Setting the scanned stories")
-		if err := s.Stories.Set(_stories); err != nil {
+		if err := s.Stories.Set(untypedStories); err != nil {
 			println(err.Error())
 		}
 	}()
@@ -206,15 +205,14 @@ func (s *State) Dispatch(m interface{}) {
 		}
 	case finishedDownloadingMessage:
 		if m.(finishedDownloadingMessage).Success {
-			srcDir := s.services.Prefs.ProgSourceDirectory()
-			s.Dispatch(StartScanningMessage{srcDir})
+			s.Dispatch(StartScanningMessage{})
 		}
 	}
 }
 
 func NewAppState(s *services.AppServices) *State {
 	availableProgs := binding.NewUntypedList()
-	c := State{
+	appState := State{
 		services:       s,
 		IsDownloading:  binding.NewBool(),
 		IsScanning:     binding.NewBool(),
@@ -226,7 +224,7 @@ func NewAppState(s *services.AppServices) *State {
 	refreshIssues := func() {
 		savedProgs := s.Storage.ReadIssues()
 		if len(savedProgs) > 0 {
-			convertedProgs := c.buildIssueList(savedProgs)
+			convertedProgs := appState.buildIssueList(savedProgs)
 			if len(convertedProgs) > 0 {
 				if err := availableProgs.Set(convertedProgs); err != nil {
 					println(err.Error())
@@ -234,17 +232,15 @@ func NewAppState(s *services.AppServices) *State {
 			}
 		}
 	}
-	c.services.Prefs.ProgSourceDir.AddListener(binding.NewDataListener(refreshIssues))
-	c.services.Prefs.MegazineSourceDir.AddListener(binding.NewDataListener(refreshIssues))
+	appState.services.Prefs.ProgSourceDir.AddListener(binding.NewDataListener(refreshIssues))
+	appState.services.Prefs.MegazineSourceDir.AddListener(binding.NewDataListener(refreshIssues))
 
 	refreshIssues()
 
-	return &c
+	return &appState
 }
 
-type StartScanningMessage struct {
-	Directory string
-}
+type StartScanningMessage struct{}
 
 // StartDownloadingMessage requests that all available progs be downloaded
 type StartDownloadingMessage struct{}
