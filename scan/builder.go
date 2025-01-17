@@ -85,7 +85,7 @@ func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, 
 	issue := api.Issue{
 		Publication: "2000 AD",
 		IssueNumber: issueNumber,
-		Filename:    filepath.Base(filename),
+		Filename:    filename,
 		Episodes:    allEpisodes,
 	}
 

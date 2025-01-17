@@ -2,7 +2,7 @@ package services
 
 import (
 	"fmt"
-	api2 "github.com/chooban/progger/exporter/api"
+	exporterApi "github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/scan"
 	"github.com/chooban/progger/scan/api"
@@ -13,14 +13,14 @@ import (
 type Scanner struct {
 }
 
-func toStories(issues []api.Issue) []*api2.Story {
-	storyMap := make(map[string]*api2.Story)
+func toStories(issues []api.Issue) []*exporterApi.Story {
+	storyMap := make(map[string]*exporterApi.Story)
 
 	for _, issue := range issues {
 		for _, episode := range issue.Episodes {
 			// If the series - story combo exists, add to its episodes
 			if story, ok := storyMap[fmt.Sprintf("%s - %s", episode.Series, episode.Title)]; ok {
-				story.Episodes = append(story.Episodes, api2.Episode{Episode: episode, Filename: issue.Filename, IssueNumber: issue.IssueNumber})
+				story.Episodes = append(story.Episodes, exporterApi.Episode{Episode: episode, Filename: issue.Filename, IssueNumber: issue.IssueNumber})
 				sort.Slice(story.Episodes, func(i, j int) bool {
 					return story.Episodes[i].IssueNumber < story.Episodes[j].IssueNumber
 				})
@@ -32,10 +32,14 @@ func toStories(issues []api.Issue) []*api2.Story {
 					story.LastIssue = issue.IssueNumber
 				}
 			} else {
-				s := api2.Story{
-					Title:      episode.Title,
-					Series:     episode.Series,
-					Episodes:   []api2.Episode{{episode, issue.Filename, issue.IssueNumber}},
+				s := exporterApi.Story{
+					Title:  episode.Title,
+					Series: episode.Series,
+					Episodes: []exporterApi.Episode{{
+						Episode:     episode,
+						Filename:    issue.Filename,
+						IssueNumber: issue.IssueNumber,
+					}},
 					FirstIssue: issue.IssueNumber,
 					LastIssue:  issue.IssueNumber,
 					Issues:     []int{issue.IssueNumber},
@@ -60,7 +64,7 @@ func toStories(issues []api.Issue) []*api2.Story {
 	return stories
 }
 
-func (s *Scanner) Scan(paths []string) []*api2.Story {
+func (s *Scanner) Scan(paths []string) []*exporterApi.Story {
 	ctx, _ := context.WithLogger()
 	issues := make([]api.Issue, 0)
 	for _, v := range paths {

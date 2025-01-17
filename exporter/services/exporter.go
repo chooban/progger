@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	api2 "github.com/chooban/progger/exporter/api"
+	exporterApi "github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/scan"
 	"github.com/chooban/progger/scan/api"
 	"path/filepath"
@@ -15,13 +15,13 @@ import (
 type Exporter struct {
 }
 
-func (e *Exporter) Export(ctx context.Context, stories []*api2.Story, sourceDir, exportDir, filename string) error {
+func (e *Exporter) Export(ctx context.Context, stories []*exporterApi.Story, exportDir, filename string) error {
 	toExport := make([]api.ExportPage, 0)
 	for _, story := range stories {
 		if story.ToExport {
 			for _, e := range story.Episodes {
 				toExport = append(toExport, api.ExportPage{
-					Filename:    filepath.Join(sourceDir, e.Filename),
+					Filename:    e.Filename,
 					PageFrom:    e.FirstPage,
 					PageTo:      e.LastPage,
 					IssueNumber: e.IssueNumber,

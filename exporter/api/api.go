@@ -11,6 +11,7 @@ import (
 
 type Episode struct {
 	*scanApi.Episode
+	Issue       *downloadApi.DigitalComic
 	Filename    string
 	IssueNumber int
 }

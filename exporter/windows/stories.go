@@ -238,7 +238,7 @@ func exportButton(a *app.ProggerApp) *widget.Button {
 				if b {
 					fname, _ := filename.Get()
 					ctx, _ := context.WithLogger()
-					if err := exporter.Export(ctx, toExport, prefsService.ProgSourceDirectory(), prefsService.ExportDirectory(), fname); err != nil {
+					if err := exporter.Export(ctx, toExport, prefsService.ExportDirectory(), fname); err != nil {
 						dialog.ShowError(err, a.RootWindow)
 					} else {
 						dialog.ShowInformation("Export", "File successfully exported", a.RootWindow)
