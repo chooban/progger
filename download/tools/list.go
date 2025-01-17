@@ -24,7 +24,7 @@ func main() {
 	ctx := context.Background()
 	ctx = logr.NewContext(ctx, log)
 
-	progs, _ := download.ListAvailableProgs(ctx)
+	progs, _ := download.ListAvailableIssues(ctx)
 
 	println(fmt.Sprintf("%+v", progs))
 }

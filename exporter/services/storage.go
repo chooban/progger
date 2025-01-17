@@ -13,7 +13,7 @@ type Storage struct {
 	db         *scribble.Driver
 }
 
-func (s *Storage) SaveProgs(progs []api.Downloadable) error {
+func (s *Storage) SaveIssues(progs []api.Downloadable) error {
 	if s.db == nil {
 		return errors.New("db not initialized")
 	}
@@ -27,7 +27,7 @@ func (s *Storage) SaveProgs(progs []api.Downloadable) error {
 	return err
 }
 
-func (s *Storage) ReadProgs() []api.Downloadable {
+func (s *Storage) ReadIssues() []api.Downloadable {
 	records, err := s.db.ReadAll("proglist")
 	if err != nil {
 		println(err.Error())

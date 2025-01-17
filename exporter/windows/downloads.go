@@ -9,6 +9,7 @@ import (
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
 	"reflect"
+	"slices"
 )
 
 type Dispatcher interface {
@@ -16,13 +17,9 @@ type Dispatcher interface {
 }
 
 func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
-	//downloadableCandidates := binding.NewUntypedList()
-
-	//downloadableCandidates := a.State.AvailableProgs
-
 	progress := newDownloadProgress()
 	dButton := downloadButton(a.State, "Download Prog List")
-	progListContainer := newProgListContainer(a.State.AvailableProgs, a.State)
+	progListContainer := newProgListContainer(a.State, a.State)
 
 	mainPanel := container.New(
 		layout.NewStackLayout(),
@@ -56,7 +53,8 @@ func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 	return c
 }
 
-func newProgListContainer(progs binding.UntypedList, d Dispatcher) *fyne.Container {
+func newProgListContainer(s *app.State, d Dispatcher) *fyne.Container {
+	progs := s.AvailableProgs
 	refreshDownloadListButton := widget.NewButton("Refresh Downloads List", func() {
 		d.Dispatch(app.StartDownloadingProgListMessage{})
 	})
@@ -66,13 +64,29 @@ func newProgListContainer(progs binding.UntypedList, d Dispatcher) *fyne.Contain
 
 	nothingToDownload := widget.NewLabel("No new progs to download")
 
-	progListWidget := newProgList(progs, func(issue api.Downloadable, shouldDownload bool) {
-		if shouldDownload {
-			d.Dispatch(app.AddToDownloadsMessage{Issue: issue})
-		} else {
-			d.Dispatch(app.RemoveFromDownloadsMessage{Issue: issue})
+	onChecked := func(issue api.Downloadable, shouldDownload bool) {
+		// This fires when we programmatically change the state in the list as well. Since the
+		// list items are reused, it's always firing. We need to compensate for that.
+
+		// If we've already downloaded the issue, then don't do anything. There's no functionality
+		// for deleting or re-downloading
+		if !issue.Downloaded {
+			if shouldDownload {
+				d.Dispatch(app.AddToDownloadsMessage{Issue: issue})
+			} else {
+				d.Dispatch(app.RemoveFromDownloadsMessage{Issue: issue})
+			}
 		}
-	})
+	}
+
+	isMarked := func(issue api.Downloadable) bool {
+		idx := slices.IndexFunc(s.ToDownload, func(c api.Downloadable) bool {
+			return c.Comic.Equals(issue.Comic)
+		})
+		return idx >= 0
+	}
+
+	progListWidget := newProgList(progs, onChecked, isMarked)
 	mainDisplay := container.NewStack(progListWidget, nothingToDownload)
 
 	progs.AddListener(binding.NewDataListener(func() {
@@ -90,8 +104,9 @@ func newProgListContainer(progs binding.UntypedList, d Dispatcher) *fyne.Contain
 }
 
 type issueToggler func(issue api.Downloadable, shouldDownload bool)
+type isMarkedForDownload func(issue api.Downloadable) bool
 
-func newProgList(progs binding.UntypedList, onCheck issueToggler) fyne.CanvasObject {
+func newProgList(progs binding.UntypedList, onCheck issueToggler, isMarked isMarkedForDownload) fyne.CanvasObject {
 	listOfProgs := widget.NewListWithData(
 		progs,
 		func() fyne.CanvasObject {
@@ -107,22 +122,24 @@ func newProgList(progs binding.UntypedList, onCheck issueToggler) fyne.CanvasObj
 			downloadable := diu.(api.Downloadable)
 
 			check := ctr.Objects[1].(*widget.Check)
+
+			check.OnChanged = func(checked bool) {}
 			if downloadable.Downloaded {
 				check.SetChecked(true)
 				check.Disable()
 			} else {
-				check.SetChecked(false)
+				if isMarked(downloadable) {
+					check.SetChecked(true)
+				} else {
+					check.SetChecked(false)
+				}
 				check.Enable()
 			}
-
-			// TODO: use check.onChanged to toggle whether or not we should download this downloadable when requested.
-			// Since this information is state and should persist between window changes, we'll need to maintain
-			// the list outside of this component
 			check.OnChanged = func(checked bool) {
 				onCheck(downloadable, checked)
 			}
 
-			if reflect.TypeOf(ctr.Objects[1]).String() == "*widget.Label" {
+			if reflect.TypeOf(ctr.Objects[0]).String() == "*widget.Label" {
 				label := ctr.Objects[0].(*widget.Label)
 				label.SetText(downloadable.Comic.String())
 			} else {

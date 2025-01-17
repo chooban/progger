@@ -54,11 +54,11 @@ func (s *State) startDownloadingHandler(_m StartDownloadingMessage) {
 		defer func() {
 			s.IsDownloading.Set(false)
 		}()
-		srcDir := s.services.Prefs.SourceDirectory()
+		srcDir := s.services.Prefs.ProgSourceDirectory()
 		rUser, rPass := s.services.Prefs.RebellionDetails()
 
 		ctx, _ := context.WithLogger()
-		if err := s.services.Downloader.DownloadAllProgs(ctx, srcDir, rUser, rPass); err != nil {
+		if err := s.services.Downloader.DownloadAllIssues(ctx, srcDir, rUser, rPass); err != nil {
 			s.Dispatch(finishedDownloadingMessage{Success: false})
 		} else {
 			s.Dispatch(finishedDownloadingMessage{Success: true})
@@ -74,7 +74,7 @@ func (s *State) refreshProgList() {
 	var issue api.Downloadable
 	for i, v := range availableProgs {
 		issue = v.(api.Downloadable)
-		if _, err := os.Stat(filepath.Join(s.services.Prefs.SourceDirectory(), issue.Comic.Filename(downloadApi.Pdf))); err == nil {
+		if _, err := os.Stat(filepath.Join(s.services.Prefs.ProgSourceDirectory(), issue.Comic.Filename(downloadApi.Pdf))); err == nil {
 			issue.Downloaded = true
 
 			availableProgs[i] = issue
@@ -105,7 +105,11 @@ func (s *State) downloadSelectedProgs(m DownloadSelectedMessage) {
 		ctx, _ := context.WithLogger()
 
 		for _, v := range s.ToDownload {
-			if err := s.services.Downloader.DownloadProg(ctx, v.Comic, s.services.Prefs.SourceDirectory(), rUser, rPass); err != nil {
+			targetDir := s.services.Prefs.ProgSourceDirectory()
+			if v.Comic.Publication == "Megazine" {
+				targetDir = s.services.Prefs.MegSourceDirectory()
+			}
+			if err := s.services.Downloader.DownloadIssue(ctx, v.Comic, targetDir, rUser, rPass); err != nil {
 				println(err.Error())
 				return
 			} else {
@@ -126,23 +130,20 @@ func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 		rUser, rPass := s.services.Prefs.RebellionDetails()
 
 		ctx, _ := context.WithLogger()
-		if list, err := s.services.Downloader.ProgList(ctx, rUser, rPass); err != nil {
+		if list, err := s.services.Downloader.GetIssuesList(ctx, rUser, rPass); err != nil {
 			s.Dispatch(finishedDownloadingMessage{Success: false})
 		} else {
 			downloadableList := make([]api.Downloadable, 0, len(list))
 			for _, v := range list {
-				if v.Publication != "2000AD" {
-					continue
-				}
 				p := api.Downloadable{
 					Comic:      v,
 					Downloaded: false,
 				}
 				downloadableList = append(downloadableList, p)
 			}
-			progs := s.buildProgList(downloadableList)
+			progs := s.buildIssueList(downloadableList)
 			s.AvailableProgs.Set(progs)
-			err := s.services.Storage.SaveProgs(downloadableList)
+			err := s.services.Storage.SaveIssues(downloadableList)
 			if err != nil {
 				println(err.Error())
 			}
@@ -151,23 +152,27 @@ func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
 	}()
 }
 
-func (s *State) buildProgList(progs []api.Downloadable) []interface{} {
-	if len(progs) == 0 {
+func (s *State) buildIssueList(issues []api.Downloadable) []interface{} {
+	if len(issues) == 0 {
 		return make([]interface{}, 0)
 	}
-	sort.Slice(progs, func(a, b int) bool {
-		return progs[a].Comic.IssueNumber > progs[b].Comic.IssueNumber
+	sort.Slice(issues, func(a, b int) bool {
+		return issues[a].Comic.IssueNumber > issues[b].Comic.IssueNumber
 	})
-	println(fmt.Sprintf("Checking %s for progs", s.services.Prefs.SourceDirectory()))
-	untypedProgs := make([]interface{}, len(progs))
-	for i, v := range progs {
-		if _, err := os.Stat(filepath.Join(s.services.Prefs.SourceDirectory(), v.Comic.Filename(downloadApi.Pdf))); err == nil {
+	println(fmt.Sprintf("Checking %s for issues", s.services.Prefs.ProgSourceDirectory()))
+	untypedIssues := make([]interface{}, len(issues))
+	for i, v := range issues {
+		targetDir := s.services.Prefs.ProgSourceDirectory()
+		if v.Comic.Publication == "Megazine" {
+			targetDir = s.services.Prefs.MegSourceDirectory()
+		}
+		if _, err := os.Stat(filepath.Join(targetDir, v.Comic.Filename(downloadApi.Pdf))); err == nil {
 			v.Downloaded = true
 		}
-		untypedProgs[i] = v
+		untypedIssues[i] = v
 	}
 
-	return untypedProgs
+	return untypedIssues
 }
 
 func (s *State) Dispatch(m interface{}) {
@@ -182,11 +187,18 @@ func (s *State) Dispatch(m interface{}) {
 		s.downloadSelectedProgs(m.(DownloadSelectedMessage))
 	case AddToDownloadsMessage:
 		_m := m.(AddToDownloadsMessage)
-		s.ToDownload = append(s.ToDownload, _m.Issue)
+		idx := slices.IndexFunc(s.ToDownload, func(downloadable api.Downloadable) bool {
+			return downloadable.Comic.Equals(_m.Issue.Comic)
+		})
+		if idx < 0 {
+			s.ToDownload = append(s.ToDownload, _m.Issue)
+		}
+
+		println(fmt.Sprintf("To download is: %+v", s.ToDownload))
 	case RemoveFromDownloadsMessage:
 		_m := m.(RemoveFromDownloadsMessage)
 		idx := slices.IndexFunc(s.ToDownload, func(downloadable api.Downloadable) bool {
-			return downloadable.Comic.Publication == _m.Issue.Comic.Publication && downloadable.Comic.IssueNumber == _m.Issue.Comic.IssueNumber
+			return downloadable.Comic.Equals(_m.Issue.Comic)
 		})
 		if idx >= 0 {
 			s.ToDownload[idx] = s.ToDownload[len(s.ToDownload)-1]
@@ -194,7 +206,7 @@ func (s *State) Dispatch(m interface{}) {
 		}
 	case finishedDownloadingMessage:
 		if m.(finishedDownloadingMessage).Success {
-			srcDir := s.services.Prefs.SourceDirectory()
+			srcDir := s.services.Prefs.ProgSourceDirectory()
 			s.Dispatch(StartScanningMessage{srcDir})
 		}
 	}
@@ -211,22 +223,21 @@ func NewAppState(s *services.AppServices) *State {
 		ToDownload:     make([]api.Downloadable, 0),
 	}
 
-	refreshProgs := func() {
-		println("Refreshing progs")
-		savedProgs := s.Storage.ReadProgs()
+	refreshIssues := func() {
+		savedProgs := s.Storage.ReadIssues()
 		if len(savedProgs) > 0 {
-			convertedProgs := c.buildProgList(savedProgs)
+			convertedProgs := c.buildIssueList(savedProgs)
 			if len(convertedProgs) > 0 {
-				println(fmt.Sprintf("Found %d progs", len(convertedProgs)))
-				if err := availableProgs.Set(convertedProgs); err == nil {
-					// Do nothing
+				if err := availableProgs.Set(convertedProgs); err != nil {
+					println(err.Error())
 				}
 			}
 		}
 	}
-	c.services.Prefs.BoundSourceDir.AddListener(binding.NewDataListener(refreshProgs))
+	c.services.Prefs.ProgSourceDir.AddListener(binding.NewDataListener(refreshIssues))
+	c.services.Prefs.MegazineSourceDir.AddListener(binding.NewDataListener(refreshIssues))
 
-	refreshProgs()
+	refreshIssues()
 
 	return &c
 }

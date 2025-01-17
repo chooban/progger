@@ -153,10 +153,10 @@ func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
 
 func noStoriesContainer(a *app.ProggerApp) fyne.CanvasObject {
 	scanButton := widget.NewButton("Scan Directory", func() {
-		dirToScan := a.AppService.Prefs.SourceDirectory()
+		dirToScan := a.AppService.Prefs.ProgSourceDirectory()
 		a.State.Dispatch(app.StartScanningMessage{Directory: dirToScan})
 	})
-	content := container.NewVBox(widget.NewLabelWithData(a.AppService.Prefs.BoundSourceDir), scanButton)
+	content := container.NewVBox(widget.NewLabelWithData(a.AppService.Prefs.ProgSourceDir), scanButton)
 
 	contentWrapper := container.NewCenter(
 		content,
@@ -203,7 +203,7 @@ func storiesButtonsContainer(a *app.ProggerApp) fyne.CanvasObject {
 	exportButton := exportButton(a)
 
 	scanButton := widget.NewButton("Force Rescan", func() {
-		dirToScan := a.AppService.Prefs.SourceDirectory()
+		dirToScan := a.AppService.Prefs.ProgSourceDirectory()
 		a.State.Dispatch(app.StartScanningMessage{Directory: dirToScan})
 	})
 
@@ -240,7 +240,7 @@ func exportButton(a *app.ProggerApp) *widget.Button {
 				if b {
 					fname, _ := filename.Get()
 					ctx, _ := context.WithLogger()
-					if err := exporter.Export(ctx, toExport, prefsService.SourceDirectory(), prefsService.ExportDirectory(), fname); err != nil {
+					if err := exporter.Export(ctx, toExport, prefsService.ProgSourceDirectory(), prefsService.ExportDirectory(), fname); err != nil {
 						dialog.ShowError(err, a.RootWindow)
 					} else {
 						dialog.ShowInformation("Export", "File successfully exported", a.RootWindow)

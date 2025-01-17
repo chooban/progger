@@ -2,6 +2,8 @@ package api
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -30,10 +32,17 @@ func (d *DigitalComic) Filename(f FileType) string {
 }
 
 func (d *DigitalComic) String() string {
-	issueDate, _ := time.Parse("2006-01-02", d.IssueDate)
-	formattedDate := formatDateWithOrdinal(issueDate)
+	issueDate, err := time.Parse("2006-01-02", d.IssueDate)
+	if err != nil {
+		return ""
+	}
+	formattedDate := concat("(", formatDateWithOrdinal(issueDate), ")")
 
-	return fmt.Sprintf("%s %d (%s)", d.Publication, d.IssueNumber, formattedDate)
+	return concat(d.Publication, " ", strconv.Itoa(d.IssueNumber), " ", formattedDate)
+}
+
+func (d *DigitalComic) Equals(e DigitalComic) bool {
+	return d.Publication == e.Publication && d.IssueNumber == e.IssueNumber
 }
 
 // formatDateWithOrdinal prints a given time in the format 1st January 2000.
@@ -53,4 +62,8 @@ func addOrdinal(n int) string {
 	default:
 		return fmt.Sprintf("%dth", n)
 	}
+}
+
+func concat(strs ...string) string {
+	return strings.Join(strs, "")
 }

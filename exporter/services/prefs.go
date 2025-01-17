@@ -52,9 +52,10 @@ func boundStringValue(app fyne.App, bindName string) binding.String {
 }
 
 type Prefs struct {
-	app            fyne.App
-	BoundSourceDir binding.String
-	BoundExportDir binding.String
+	app               fyne.App
+	ProgSourceDir     binding.String
+	MegazineSourceDir binding.String
+	BoundExportDir    binding.String
 }
 
 func (p *Prefs) RebellionDetails() (string, string) {
@@ -63,8 +64,14 @@ func (p *Prefs) RebellionDetails() (string, string) {
 	return username, password
 }
 
-func (p *Prefs) SourceDirectory() string {
-	srcDir, _ := p.BoundSourceDir.Get()
+func (p *Prefs) ProgSourceDirectory() string {
+	srcDir, _ := p.ProgSourceDir.Get()
+
+	return srcDir
+}
+
+func (p *Prefs) MegSourceDirectory() string {
+	srcDir, _ := p.MegazineSourceDir.Get()
 
 	return srcDir
 }
@@ -76,5 +83,10 @@ func (p *Prefs) ExportDirectory() string {
 }
 
 func NewPrefs(a fyne.App) *Prefs {
-	return &Prefs{app: a, BoundSourceDir: boundSourceDir(a), BoundExportDir: boundExportDir(a)}
+	return &Prefs{
+		app:               a,
+		ProgSourceDir:     boundStringValue(a, "ProgSourceDir"),
+		MegazineSourceDir: boundStringValue(a, "MegazineSourceDir"),
+		BoundExportDir:    boundStringValue(a, "ExportDir"),
+	}
 }

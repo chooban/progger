@@ -17,17 +17,15 @@ var (
 	contextKeyBrowserContext = contextKey("progger-browser-context")
 )
 
-func WithLoginDetails(ctx context.Context, username, password string) context.Context {
-	ctx = context.WithValue(ctx, contextKeyUsername, username)
-	ctx = context.WithValue(ctx, contextKeyPassword, password)
+func WithLoginDetails(parent context.Context, username, password string) context.Context {
+	child := context.WithValue(parent, contextKeyUsername, username)
+	child = context.WithValue(child, contextKeyPassword, password)
 
-	return ctx
+	return child
 }
 
 func WithBrowserContextDir(ctx context.Context, dir string) context.Context {
-	ctx = context.WithValue(ctx, contextKeyBrowserContext, dir)
-
-	return ctx
+	return context.WithValue(ctx, contextKeyBrowserContext, dir)
 }
 
 func BrowserContextDir(ctx context.Context) (d string, err error) {
@@ -48,6 +46,7 @@ func LoginDetails(ctx context.Context) (username, password string, err error) {
 	if p := ctx.Value(contextKeyPassword); p != nil {
 		password = p.(string)
 	} else {
+		println("password not found")
 		return "", "", errors.New("credentials not found")
 	}
 

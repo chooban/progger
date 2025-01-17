@@ -10,8 +10,6 @@ import (
 	"github.com/chooban/progger/exporter/services"
 )
 
-type cb func()
-
 func newSettingsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 	fyneApp := a.FyneApp
 
@@ -45,22 +43,34 @@ func rebellionContainer(a fyne.App) *fyne.Container {
 }
 
 func directoriesContainer(a *app.ProggerApp, w fyne.Window) *fyne.Container {
-	//boundSource := services.BoundSourceDir(a)
-	boundSource := a.AppService.Prefs.BoundSourceDir
+	progSource := a.AppService.Prefs.ProgSourceDir
+	megSource := a.AppService.Prefs.MegazineSourceDir
 	boundExport := a.AppService.Prefs.BoundExportDir
 
 	directoriesFormContainer := container.New(
 		layout.NewFormLayout(),
-		widget.NewLabelWithData(boundSource),
-		widget.NewButton("Choose Input Directory", func() {
+		widget.NewLabelWithData(progSource),
+		widget.NewButton("Choose Prog Input Directory", func() {
 			dialog.ShowFolderOpen(func(l fyne.ListableURI, err error) {
-				boundSource.Set(l.Path())
+				if l != nil {
+					progSource.Set(l.Path())
+				}
+			}, w)
+		}),
+		widget.NewLabelWithData(megSource),
+		widget.NewButton("Choose Megazine Input Directory", func() {
+			dialog.ShowFolderOpen(func(l fyne.ListableURI, err error) {
+				if l != nil {
+					megSource.Set(l.Path())
+				}
 			}, w)
 		}),
 		widget.NewLabelWithData(boundExport),
 		widget.NewButton("Choose Export Directory", func() {
 			dialog.ShowFolderOpen(func(l fyne.ListableURI, err error) {
-				boundExport.Set(l.Path())
+				if l != nil {
+					boundExport.Set(l.Path())
+				}
 			}, w)
 		}),
 	)

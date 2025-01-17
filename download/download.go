@@ -10,7 +10,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"slices"
 )
 
 func ListIssuesOnPage(ctx context.Context, pageNumber int) (issues []api.DigitalComic, err error) {
@@ -38,7 +37,7 @@ func ListIssuesOnPage(ctx context.Context, pageNumber int) (issues []api.Digital
 	return issues, nil
 }
 
-func ListAvailableProgs(ctx context.Context, latestOnly bool) ([]api.DigitalComic, error) {
+func ListAvailableIssues(ctx context.Context, latestOnly bool) ([]api.DigitalComic, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	bContext, err := browser(ctx)
 
@@ -62,9 +61,9 @@ func ListAvailableProgs(ctx context.Context, latestOnly bool) ([]api.DigitalComi
 		logger.Error(err, "Could not list progs")
 		return []api.DigitalComic{}, err
 	} else {
-		slices.SortFunc(progs, func(i, j api.DigitalComic) int {
-			return j.IssueNumber - i.IssueNumber
-		})
+		//slices.SortFunc(progs, func(i, j api.DigitalComic) int {
+		//	return j.IssueNumber - i.IssueNumber
+		//})
 		return progs, nil
 	}
 }
@@ -98,6 +97,7 @@ func Download(ctx context.Context, comic api.DigitalComic, dir string, filetype 
 	}
 	u, p, err := LoginDetails(ctx)
 	if err != nil {
+		logger.Error(err, "no credentials found")
 		return "", errors.New("no credentials found")
 	}
 

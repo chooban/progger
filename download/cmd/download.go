@@ -65,7 +65,7 @@ func main() {
 	if listPage > 0 {
 		list, err = download.ListIssuesOnPage(ctx, listPage)
 	} else {
-		list, err = download.ListAvailableProgs(ctx, listLatest)
+		list, err = download.ListAvailableIssues(ctx, listLatest)
 	}
 
 	if err != nil {
