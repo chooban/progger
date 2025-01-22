@@ -45,6 +45,38 @@ func (s *Storage) ReadIssues() []api.Downloadable {
 	return progs
 }
 
+func (s *Storage) StoreStories(stories []api.Story) error {
+	if s.db == nil {
+		return errors.New("db not initialized")
+	}
+	var err error
+	for _, p := range stories {
+		err = s.db.Write("stories_list", fmt.Sprintf("story_%s_%s_%d", p.Series, p.Title, p.FirstIssue), p)
+		if err != nil {
+			break
+		}
+	}
+	return err
+
+}
+
+func (s *Storage) ReadStories() []api.Story {
+	records, err := s.db.ReadAll("stories_list")
+	if err != nil {
+		println(err.Error())
+		return make([]api.Story, 0)
+	}
+	stories := make([]api.Story, 0, len(records))
+	for _, p := range records {
+		readStory := api.Story{}
+		if err := json.Unmarshal(p, &readStory); err != nil {
+			fmt.Println("Error", err)
+		}
+		stories = append(stories, readStory)
+	}
+	return stories
+}
+
 func NewStorage(storageRoot string) *Storage {
 	db, err := scribble.New(storageRoot, nil)
 	if err != nil {

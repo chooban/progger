@@ -37,12 +37,15 @@ func (s *State) startScanningHandler(m StartScanningMessage) {
 		dirsToScan := []string{s.services.Prefs.ProgSourceDirectory(), s.services.Prefs.MegSourceDirectory()}
 		foundStories := s.services.Scanner.Scan(dirsToScan)
 		untypedStories := make([]interface{}, len(foundStories))
+		storiesToStore := make([]api.Story, len(foundStories))
 		for i, v := range foundStories {
 			untypedStories[i] = v
+			storiesToStore[i] = *v
 		}
 		if err := s.Stories.Set(untypedStories); err != nil {
 			println(err.Error())
 		}
+		s.services.Storage.StoreStories(storiesToStore)
 	}()
 }
 
@@ -221,6 +224,13 @@ func NewAppState(s *services.AppServices) *State {
 		ToDownload:     make([]api.Downloadable, 0),
 	}
 
+	storedStories := s.Storage.ReadStories()
+	untypedStories := make([]interface{}, len(storedStories))
+	for i, v := range storedStories {
+		untypedStories[i] = &v
+	}
+	appState.Stories.Set(untypedStories)
+
 	refreshIssues := func() {
 		savedProgs := s.Storage.ReadIssues()
 		if len(savedProgs) > 0 {
@@ -232,6 +242,7 @@ func NewAppState(s *services.AppServices) *State {
 			}
 		}
 	}
+
 	appState.services.Prefs.ProgSourceDir.AddListener(binding.NewDataListener(refreshIssues))
 	appState.services.Prefs.MegazineSourceDir.AddListener(binding.NewDataListener(refreshIssues))
 
