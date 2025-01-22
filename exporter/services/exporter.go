@@ -15,7 +15,7 @@ import (
 type Exporter struct {
 }
 
-func (e *Exporter) Export(ctx context.Context, stories []*exporterApi.Story, exportDir, filename string) error {
+func (e *Exporter) Export(ctx context.Context, stories []*exporterApi.Story, artistsEdition bool, exportDir, filename string) error {
 	toExport := make([]api.ExportPage, 0)
 	for _, story := range stories {
 		if story.ToExport {
@@ -33,6 +33,7 @@ func (e *Exporter) Export(ctx context.Context, stories []*exporterApi.Story, exp
 	if len(toExport) == 0 {
 		return errors.New("no stories to export")
 	}
+
 	// Sort by issue number. We sometimes have issues being wrongly grouped, but surely we never want anything
 	// other than issue order?
 	slices.SortFunc(toExport, func(i, j api.ExportPage) int {
@@ -40,7 +41,7 @@ func (e *Exporter) Export(ctx context.Context, stories []*exporterApi.Story, exp
 	})
 
 	// Do the export
-	err := scan.Build(ctx, toExport, filepath.Join(exportDir, filename))
+	err := scan.Build(ctx, toExport, artistsEdition, filepath.Join(exportDir, filename))
 	if err != nil {
 		return err
 	}

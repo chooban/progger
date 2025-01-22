@@ -46,7 +46,7 @@ func main() {
 		},
 	}
 
-	err := scan.Build(ctx, pages, "export.pdf")
+	err := scan.Build(ctx, pages, false, "export.pdf")
 	if err != nil {
 		log.Error(err, "Failed to export")
 	}

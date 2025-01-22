@@ -9,12 +9,14 @@ import (
 	"strings"
 )
 
-func Build(ctx context.Context, pages []api.ExportPage, fileName string) error {
-	logger := logr.FromContextOrDiscard(ctx)
+// Build exports a PDF of the pages passed to it
+func Build(ctx context.Context, pages []api.ExportPage, artistsEdition bool, fileName string) error {
 	if !strings.HasSuffix(fileName, "pdf") {
 		return fmt.Errorf("file name must end with 'pdf'")
 	}
+
+	logger := logr.FromContextOrDiscard(ctx)
 	p := pdfium.NewPdfiumReader(logger)
 
-	return p.Build(pages, fileName)
+	return p.Build(pages, artistsEdition, fileName)
 }

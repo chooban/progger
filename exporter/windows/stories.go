@@ -234,11 +234,16 @@ func exportButton(a *app.ProggerApp) *widget.Button {
 			filename.Set(toExport[0].Display() + ".pdf")
 			fnameEntry := widget.NewEntryWithData(filename)
 
+			artistBool := binding.NewBool()
+			artistCheckbox := widget.NewCheckWithData("", artistBool)
+
 			onClose := func(b bool) {
 				if b {
 					fname, _ := filename.Get()
+					exportArtistEd, _ := artistBool.Get()
+
 					ctx, _ := context.WithLogger()
-					if err := exporter.Export(ctx, toExport, prefsService.ExportDirectory(), fname); err != nil {
+					if err := exporter.Export(ctx, toExport, exportArtistEd, prefsService.ExportDirectory(), fname); err != nil {
 						dialog.ShowError(err, a.RootWindow)
 					} else {
 						dialog.ShowInformation("Export", "File successfully exported", a.RootWindow)
@@ -252,6 +257,7 @@ func exportButton(a *app.ProggerApp) *widget.Button {
 				"Cancel",
 				[]*widget.FormItem{
 					{Text: "Filename", Widget: fnameEntry},
+					{Text: "Artists Edition", Widget: artistCheckbox},
 				},
 				onClose,
 				a.RootWindow,

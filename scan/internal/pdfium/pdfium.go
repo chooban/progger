@@ -72,14 +72,18 @@ func (p *Reader) Bookmarks(filename string) ([]pdf.EpisodeDetails, error) {
 	return details, nil
 }
 
-func (p *Reader) Build(episodes []api.ExportPage, outputPath string) (buildError error) {
+func (p *Reader) Build(episodes []api.ExportPage, artistsEdition bool, outputPath string) (buildError error) {
 	builder := pdfBuilder{instance: p.Instance}
 	builder.OpenDestination()
 
 	pageCount := 0
 	bookmarks := make([]pdfcpu.Bookmark, 0, len(episodes))
 	for _, episode := range episodes {
-		builder.CopyPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
+		if artistsEdition {
+			builder.CopyStrippedPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
+		} else {
+			builder.CopyPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
+		}
 		if len(episode.Title) > 0 {
 			bookmarks = append(bookmarks, pdfcpu.Bookmark{
 				Title:    episode.Title,
