@@ -9,6 +9,7 @@ import (
 	"github.com/klippa-app/go-pdfium/structs"
 	pdfApi "github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
+	"strings"
 )
 
 type pdfBuilder struct {
@@ -22,9 +23,9 @@ func (p *pdfBuilder) OpenDestination() {
 	p.destination, p.BuildError = p.instance.FPDF_CreateNewDocument(&requests.FPDF_CreateNewDocument{})
 }
 
-func (p *pdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, insertIndex int) {
+func (p *pdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, insertIndex int) (pageCount int) {
 	if p.BuildError != nil {
-		return
+		return 0
 	}
 	var source *responses.FPDF_LoadDocument
 	if source, p.BuildError = p.instance.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
@@ -32,10 +33,13 @@ func (p *pdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, ins
 	}); p.BuildError != nil {
 		return
 	}
-	for pageNum := pageFrom; pageNum <= pageTo; pageNum++ {
+	for pageNum := pageFrom - 1; pageNum < pageTo; pageNum++ {
+		if p.shouldSkipPage(source, pageNum) {
+			continue
+		}
 		ref, err := p.instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
 			Document: source.Document,
-			Index:    pageNum - 1,
+			Index:    pageNum,
 		})
 		if err != nil {
 			p.BuildError = err
@@ -78,10 +82,9 @@ func (p *pdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, ins
 		rawImage, _ := p.instance.FPDFImageObj_GetImageDataRaw(&requests.FPDFImageObj_GetImageDataRaw{
 			bgObject.PageObject,
 		})
-		//pageIndex := insertIndex + (pageFrom - pageNum)
 		newPage, _ := p.instance.FPDFPage_New(&requests.FPDFPage_New{
 			Document:  p.destination.Document,
-			PageIndex: insertIndex + (pageFrom + pageNum),
+			PageIndex: insertIndex + (pageCount),
 			Width:     width.Width,
 			Height:    height.Height,
 		})
@@ -128,18 +131,60 @@ func (p *pdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, ins
 		})
 
 		p.instance.FPDF_ClosePage(&requests.FPDF_ClosePage{Page: newPage.Page})
+
+		pageCount++
 	}
+	return
 }
 
-func (p *pdfBuilder) CopyPages(sourceFile *string, pageFrom, pageTo, insertIndex int) {
+func (p *pdfBuilder) shouldSkipPage(source *responses.FPDF_LoadDocument, pageIndex int) bool {
+	ref, err := p.instance.FPDFText_LoadPage(&requests.FPDFText_LoadPage{Page: requests.Page{
+		ByIndex: &requests.PageByIndex{
+			Document: source.Document,
+			Index:    pageIndex,
+		},
+	}})
+	if err != nil {
+		// Bad page ref?
+		println(err.Error())
+		return true
+	}
+	r, err := p.instance.FPDFText_GetText(&requests.FPDFText_GetText{
+		TextPage:   ref.TextPage,
+		StartIndex: 0,
+		Count:      100,
+	})
+	if err != nil {
+		// No text?
+		return true
+	}
+	if strings.Contains(strings.ToLower(r.Text), "on sale now") {
+		return true
+	}
+	return false
+}
+
+func (p *pdfBuilder) CopyPages(sourceFile *string, pageFrom, pageTo, insertIndex int) int {
 	if p.BuildError != nil {
-		return
+		return 0
 	}
 	var source *responses.FPDF_LoadDocument
 	if source, p.BuildError = p.instance.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
 		Path: sourceFile,
 	}); p.BuildError != nil {
-		return
+		return 0
+	}
+
+	// Sometimes the tail end of an episode has adverts. We can try and filter them out
+	for pageIndex := pageTo; pageIndex > pageFrom; pageIndex-- {
+		if p.shouldSkipPage(source, pageIndex) {
+			pageFrom--
+			continue
+		}
+
+		// If we didn't continue then assume we're into episode pages. Conceivably, the phrase "on sale now" might
+		// be in the dialogue, so going through all the pages doesn't make sense.
+		break
 	}
 	pageRange := fmt.Sprintf("%d-%d", pageFrom, pageTo)
 	_, p.BuildError = p.instance.FPDF_ImportPages(&requests.FPDF_ImportPages{
@@ -148,6 +193,8 @@ func (p *pdfBuilder) CopyPages(sourceFile *string, pageFrom, pageTo, insertIndex
 		PageRange:   &pageRange,
 		Index:       insertIndex,
 	})
+
+	return pageTo - pageFrom
 }
 
 func (p *pdfBuilder) Save(outputPath string) {

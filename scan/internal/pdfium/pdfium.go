@@ -79,19 +79,20 @@ func (p *Reader) Build(episodes []api.ExportPage, artistsEdition bool, outputPat
 	pageCount := 0
 	bookmarks := make([]pdfcpu.Bookmark, 0, len(episodes))
 	for _, episode := range episodes {
+		pagesAdded := 0
 		if artistsEdition {
-			builder.CopyStrippedPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
+			pagesAdded = builder.CopyStrippedPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
 		} else {
-			builder.CopyPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
+			pagesAdded = builder.CopyPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
 		}
 		if len(episode.Title) > 0 {
 			bookmarks = append(bookmarks, pdfcpu.Bookmark{
 				Title:    episode.Title,
 				PageFrom: pageCount + 1,
-				PageThru: pageCount + (episode.PageTo - episode.PageFrom) + 1,
+				PageThru: pageCount + pagesAdded + 1,
 			})
 		}
-		pageCount += (episode.PageTo - episode.PageFrom) + 1
+		pageCount += pagesAdded + 1
 	}
 	builder.Save(outputPath)
 	builder.AddBookmarks(bookmarks)

@@ -237,6 +237,17 @@ func exportButton(a *app.ProggerApp) *widget.Button {
 			artistBool := binding.NewBool()
 			artistCheckbox := widget.NewCheckWithData("", artistBool)
 
+			artistCheckbox.OnChanged = func(v bool) {
+				_f, _ := filename.Get()
+				if v {
+					_f = strings.TrimSuffix(_f, ".pdf") + " - Artists Edition.pdf"
+				} else {
+					_f = strings.TrimSuffix(_f, " - Artists Edition.pdf") + ".pdf"
+				}
+				filename.Set(_f)
+				artistBool.Set(v)
+			}
+
 			onClose := func(b bool) {
 				if b {
 					fname, _ := filename.Get()
