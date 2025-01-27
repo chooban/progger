@@ -4,71 +4,66 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/chooban/progger/download/api"
-	"github.com/chooban/progger/download/internal"
 	"github.com/go-logr/logr"
 	"io"
 	"os"
 	"path"
 )
 
-func ListIssuesOnPage(ctx context.Context, pageNumber int) (issues []api.DigitalComic, err error) {
+func ListIssuesOnPage(ctx context.Context, pageNumber int) (issues []DigitalComic, err error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	bContext, err := browser(ctx)
 
 	if err != nil {
 		logger.Error(err, "Could not start browser")
-		return []api.DigitalComic{}, err
+		return []DigitalComic{}, err
 	}
-	u, p, err := LoginDetails(ctx)
+	u, p, err := loginDetails(ctx)
 
 	if err != nil {
 		logger.Error(err, "no credentials found")
-		return []api.DigitalComic{}, err
+		return []DigitalComic{}, err
 	}
 
-	if err = internal.Login(ctx, bContext, u, p); err != nil {
+	if err = Login(ctx, bContext, u, p); err != nil {
 		logger.Error(err, "Failed to login")
-		return []api.DigitalComic{}, err
+		return []DigitalComic{}, err
 	}
 
-	issues, err = internal.ListIssuesOnPage(ctx, bContext, pageNumber)
+	issues, err = listIssuesOnPage(ctx, bContext, pageNumber)
 
 	return issues, nil
 }
 
-func ListAvailableIssues(ctx context.Context, latestOnly bool) ([]api.DigitalComic, error) {
+func ListAvailableIssues(ctx context.Context, latestOnly bool) ([]DigitalComic, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	bContext, err := browser(ctx)
 
 	if err != nil {
 		logger.Error(err, "Could not start browser")
-		return []api.DigitalComic{}, err
+		return []DigitalComic{}, err
 	}
-	u, p, err := LoginDetails(ctx)
+	u, p, err := loginDetails(ctx)
 
 	if err != nil {
 		logger.Error(err, "no credentials found")
-		return []api.DigitalComic{}, err
+		return []DigitalComic{}, err
 	}
 
-	if err = internal.Login(ctx, bContext, u, p); err != nil {
+	if err = Login(ctx, bContext, u, p); err != nil {
 		logger.Error(err, "Failed to login")
-		return []api.DigitalComic{}, err
+		return []DigitalComic{}, err
 	}
 
-	if progs, err := internal.ListProgs(ctx, bContext, latestOnly); err != nil {
+	if progs, err := listProgs(ctx, bContext, latestOnly); err != nil {
 		logger.Error(err, "Could not list progs")
-		return []api.DigitalComic{}, err
+		return []DigitalComic{}, err
 	} else {
-		//slices.SortFunc(progs, func(i, j api.DigitalComic) int {
-		//	return j.IssueNumber - i.IssueNumber
-		//})
 		return progs, nil
 	}
 }
 
-func Download(ctx context.Context, comic api.DigitalComic, dir string, filetype api.FileType) (string, error) {
+func Download(ctx context.Context, comic DigitalComic, dir string, filetype FileType) (string, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	info, err := os.Stat(dir)
@@ -95,19 +90,19 @@ func Download(ctx context.Context, comic api.DigitalComic, dir string, filetype 
 		logger.Error(err, "Could not start browser")
 		return "", fmt.Errorf("could not start browser: %w", err)
 	}
-	u, p, err := LoginDetails(ctx)
+	u, p, err := loginDetails(ctx)
 	if err != nil {
 		logger.Error(err, "no credentials found")
 		return "", errors.New("no credentials found")
 	}
 
-	if err = internal.Login(ctx, bContext, u, p); err != nil {
+	if err = Login(ctx, bContext, u, p); err != nil {
 		return "", fmt.Errorf("could not login: %w", err)
 	}
 
-	downloadedFile, err := internal.Download(ctx, bContext, comic)
+	downloadedFile, err := downloadComic(ctx, bContext, comic)
 	if err != nil {
-		return "", fmt.Errorf("failed to download file %g", err)
+		return "", fmt.Errorf("failed to downloadComic file %g", err)
 	}
 
 	destinationFile := path.Join(dir, comic.Filename(filetype))
@@ -120,4 +115,15 @@ func Download(ctx context.Context, comic api.DigitalComic, dir string, filetype 
 	}
 
 	return destinationFile, err
+}
+
+func WithLoginDetails(parent context.Context, username, password string) context.Context {
+	child := context.WithValue(parent, ContextKeyUsername, username)
+	child = context.WithValue(child, ContextKeyPassword, password)
+
+	return child
+}
+
+func WithBrowserContextDir(ctx context.Context, dir string) context.Context {
+	return context.WithValue(ctx, ContextKeyBrowserContext, dir)
 }

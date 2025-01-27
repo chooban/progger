@@ -3,7 +3,7 @@ package app
 import (
 	"fmt"
 	"fyne.io/fyne/v2/data/binding"
-	downloadApi "github.com/chooban/progger/download/api"
+	downloadApi "github.com/chooban/progger/download"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/exporter/services"
@@ -196,7 +196,6 @@ func (s *State) Dispatch(m interface{}) {
 			s.ToDownload = append(s.ToDownload, _m.Issue)
 		}
 
-		println(fmt.Sprintf("To download is: %+v", s.ToDownload))
 	case RemoveFromDownloadsMessage:
 		_m := m.(RemoveFromDownloadsMessage)
 		idx := slices.IndexFunc(s.ToDownload, func(downloadable api.Downloadable) bool {

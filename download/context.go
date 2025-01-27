@@ -12,24 +12,13 @@ func (c contextKey) String() string {
 }
 
 var (
-	contextKeyUsername       = contextKey("progger-username")
-	contextKeyPassword       = contextKey("progger-password")
-	contextKeyBrowserContext = contextKey("progger-browser-context")
+	ContextKeyUsername       = contextKey("progger-username")
+	ContextKeyPassword       = contextKey("progger-password")
+	ContextKeyBrowserContext = contextKey("progger-browser-context")
 )
 
-func WithLoginDetails(parent context.Context, username, password string) context.Context {
-	child := context.WithValue(parent, contextKeyUsername, username)
-	child = context.WithValue(child, contextKeyPassword, password)
-
-	return child
-}
-
-func WithBrowserContextDir(ctx context.Context, dir string) context.Context {
-	return context.WithValue(ctx, contextKeyBrowserContext, dir)
-}
-
-func BrowserContextDir(ctx context.Context) (d string, err error) {
-	if v := ctx.Value(contextKeyBrowserContext); v != nil {
+func browserContextDir(ctx context.Context) (d string, err error) {
+	if v := ctx.Value(ContextKeyBrowserContext); v != nil {
 		d = v.(string)
 	} else {
 		err = errors.New("browser context not found")
@@ -37,13 +26,13 @@ func BrowserContextDir(ctx context.Context) (d string, err error) {
 	return d, err
 }
 
-func LoginDetails(ctx context.Context) (username, password string, err error) {
-	if u := ctx.Value(contextKeyUsername); u != nil {
+func loginDetails(ctx context.Context) (username, password string, err error) {
+	if u := ctx.Value(ContextKeyUsername); u != nil {
 		username = u.(string)
 	} else {
 		return "", "", errors.New("username not found")
 	}
-	if p := ctx.Value(contextKeyPassword); p != nil {
+	if p := ctx.Value(ContextKeyPassword); p != nil {
 		password = p.(string)
 	} else {
 		println("password not found")

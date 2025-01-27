@@ -60,10 +60,8 @@ func newStoriesCanvas(a *app.ProggerApp) fyne.CanvasObject {
 	)
 
 	if isDownloading, _ := a.State.IsDownloading.Get(); isDownloading == true {
-		println("Showing the download progress")
 		showHide(centralLayout, downloadProgress)
 	} else {
-		println("Showing the stories panel")
 		showHide(centralLayout, storiesPanel)
 	}
 
