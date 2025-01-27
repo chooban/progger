@@ -196,7 +196,7 @@ func shouldIncludeEpisode(logger logr.Logger, seriesToSkip []string, seriesTitle
 	}
 	for _, s := range pagesToSkip {
 		for _, t := range []string{episodeTitle, seriesTitle} {
-			if stringutils.ContainsI(t, s) || levenshtein.DistanceForStrings([]rune(s), []rune(t), levenshtein.DefaultOptions) < 5 {
+			if strings.Contains(strings.ToLower(t), strings.ToLower(s)) || levenshtein.DistanceForStrings([]rune(s), []rune(t), levenshtein.DefaultOptions) < 5 {
 				logger.V(1).Info(fmt.Sprintf("\"%s\" contains, or is close to, \"%s\"", t, s))
 				return false
 			}

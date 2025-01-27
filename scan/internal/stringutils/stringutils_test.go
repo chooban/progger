@@ -96,28 +96,6 @@ func TestCapitalizeWords(t *testing.T) {
 	}
 }
 
-func TestContainsI(t *testing.T) {
-	testCases := []struct {
-		name     string
-		s        string
-		substr   string
-		expected bool
-	}{
-		{"Present", "Hello", "hello", true},
-		{"NotPresent", "Hello", "world", false},
-		{"Case", "Hello", "HELLO", true},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := ContainsI(tc.s, tc.substr)
-			if got != tc.expected {
-				t.Errorf("ContainsI(%v, %v) = %v; want %v", tc.s, tc.substr, got, tc.expected)
-			}
-		})
-	}
-}
-
 func TestFindNamedMatches(t *testing.T) {
 	testCases := []struct {
 		name     string
