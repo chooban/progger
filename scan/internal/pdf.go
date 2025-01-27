@@ -1,12 +1,12 @@
-package pdf
+package internal
 
-type Bookmark struct {
+type PdfBookmark struct {
 	Title    string
 	PageFrom int
 	PageThru int
 }
 
 type EpisodeDetails struct {
-	Bookmark Bookmark
+	Bookmark PdfBookmark
 	Credits  string
 }

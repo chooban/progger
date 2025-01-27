@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"github.com/chooban/progger/scan/internal"
 	"testing"
 )
 
@@ -31,7 +32,7 @@ func TestGetProgNumber(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			gotNumber, _ := getProgNumber(tc.input)
+			gotNumber, _ := internal.getProgNumber(tc.input)
 			if gotNumber != tc.expectedNumber {
 				t.Errorf("getProgNumber(%v) = %v; want %v", tc.input, gotNumber, tc.expectedNumber)
 			}

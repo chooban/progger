@@ -1,7 +1,8 @@
-package pdfium
+package internal
 
 import (
 	"fmt"
+	"github.com/chooban/progger/scan/api"
 	"github.com/klippa-app/go-pdfium"
 	"github.com/klippa-app/go-pdfium/enums"
 	"github.com/klippa-app/go-pdfium/requests"
@@ -12,18 +13,24 @@ import (
 	"strings"
 )
 
-type pdfBuilder struct {
+type PdfBuilder struct {
 	BuildError  error
 	instance    pdfium.Pdfium
 	destination *responses.FPDF_CreateNewDocument
 	savedAs     *responses.FPDF_SaveAsCopy
 }
 
-func (p *pdfBuilder) OpenDestination() {
+func NewPdfBuilder() *PdfBuilder {
+	return &PdfBuilder{
+		instance: Instance,
+	}
+}
+
+func (p *PdfBuilder) OpenDestination() {
 	p.destination, p.BuildError = p.instance.FPDF_CreateNewDocument(&requests.FPDF_CreateNewDocument{})
 }
 
-func (p *pdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, insertIndex int) (pageCount int) {
+func (p *PdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, insertIndex int) (pageCount int) {
 	if p.BuildError != nil {
 		return 0
 	}
@@ -137,7 +144,7 @@ func (p *pdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, ins
 	return
 }
 
-func (p *pdfBuilder) shouldSkipPage(source *responses.FPDF_LoadDocument, pageIndex int) bool {
+func (p *PdfBuilder) shouldSkipPage(source *responses.FPDF_LoadDocument, pageIndex int) bool {
 	ref, err := p.instance.FPDFText_LoadPage(&requests.FPDFText_LoadPage{Page: requests.Page{
 		ByIndex: &requests.PageByIndex{
 			Document: source.Document,
@@ -164,7 +171,7 @@ func (p *pdfBuilder) shouldSkipPage(source *responses.FPDF_LoadDocument, pageInd
 	return false
 }
 
-func (p *pdfBuilder) CopyPages(sourceFile *string, pageFrom, pageTo, insertIndex int) int {
+func (p *PdfBuilder) CopyPages(sourceFile *string, pageFrom, pageTo, insertIndex int) int {
 	if p.BuildError != nil {
 		return 0
 	}
@@ -197,7 +204,7 @@ func (p *pdfBuilder) CopyPages(sourceFile *string, pageFrom, pageTo, insertIndex
 	return pageTo - pageFrom
 }
 
-func (p *pdfBuilder) Save(outputPath string) {
+func (p *PdfBuilder) Save(outputPath string) {
 	if p.BuildError != nil {
 		return
 	}
@@ -208,9 +215,36 @@ func (p *pdfBuilder) Save(outputPath string) {
 	})
 }
 
-func (p *pdfBuilder) AddBookmarks(bookmarks []pdfcpu.Bookmark) {
+func (p *PdfBuilder) AddBookmarks(bookmarks []pdfcpu.Bookmark) {
 	if p.BuildError != nil {
 		return
 	}
 	p.BuildError = pdfApi.AddBookmarksFile(*p.savedAs.FilePath, *p.savedAs.FilePath, bookmarks, true, nil)
+}
+
+func (p *PdfBuilder) Build(episodes []api.ExportPage, artistsEdition bool, outputPath string) (buildError error) {
+	p.OpenDestination()
+
+	pageCount := 0
+	bookmarks := make([]pdfcpu.Bookmark, 0, len(episodes))
+	for _, episode := range episodes {
+		pagesAdded := 0
+		if artistsEdition {
+			pagesAdded = p.CopyStrippedPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
+		} else {
+			pagesAdded = p.CopyPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
+		}
+		if len(episode.Title) > 0 {
+			bookmarks = append(bookmarks, pdfcpu.Bookmark{
+				Title:    episode.Title,
+				PageFrom: pageCount + 1,
+				PageThru: pageCount + pagesAdded + 1,
+			})
+		}
+		pageCount += pagesAdded + 1
+	}
+	p.Save(outputPath)
+	p.AddBookmarks(bookmarks)
+
+	return p.BuildError
 }

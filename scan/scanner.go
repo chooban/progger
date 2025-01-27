@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/chooban/progger/scan/api"
-	"github.com/chooban/progger/scan/internal/pdfium"
+	"github.com/chooban/progger/scan/internal"
 	"github.com/go-logr/logr"
 	"io/fs"
 	"os"
@@ -74,7 +74,7 @@ func File(ctx context.Context, fileName string) (api.Issue, error) {
 	appEnv := fromContextOrDefaults(ctx)
 
 	logger.Info(fmt.Sprintf("Scanning %s", fileName))
-	p := pdfium.NewPdfiumReader(logger)
+	p := internal.NewPdfiumReader(logger)
 	episodeDetails, err := p.Bookmarks(fileName)
 	if err != nil {
 		return api.Issue{}, err
@@ -89,7 +89,7 @@ func File(ctx context.Context, fileName string) (api.Issue, error) {
 		episodeDetails[i].Credits = credits
 	}
 
-	issue := buildIssue(logger, fileName, episodeDetails, appEnv.Known, appEnv.Skip)
+	issue := internal.BuildIssue(logger, fileName, episodeDetails, appEnv.Known, appEnv.Skip)
 
 	return issue, nil
 }
@@ -100,14 +100,14 @@ func ReadCredits(ctx context.Context, fileName string, startingPage int, endingP
 	}
 	logger := logr.FromContextOrDiscard(ctx)
 
-	p := pdfium.NewPdfiumReader(logger)
+	p := internal.NewPdfiumReader(logger)
 
 	credits, err := p.Credits(fileName, startingPage, endingPage)
 
 	if err != nil {
 		return api.Credits{}, err
 	}
-	return extractCreatorsFromCredits(credits), nil
+	return internal.ExtractCreatorsFromCredits(credits), nil
 }
 
 func getFiles(dir string) (pdfFiles []fs.DirEntry, err error) {

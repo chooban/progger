@@ -1,11 +1,9 @@
-package scan
+package internal
 
 import (
 	"errors"
 	"fmt"
 	"github.com/chooban/progger/scan/api"
-	"github.com/chooban/progger/scan/internal/pdf"
-	"github.com/chooban/progger/scan/internal/stringutils"
 	"github.com/divan/num2words"
 	"github.com/go-logr/logr"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
@@ -25,15 +23,15 @@ func getProgNumber(inFile string) (int, error) {
 	}
 
 	for _, regex := range knownFileNames {
-		namedResults := stringutils.FindNamedMatches(regex, filename)
+		namedResults := FindNamedMatches(regex, filename)
 		if len(namedResults) > 0 {
-			return strconv.Atoi(stringutils.TrimNonAlphaNumeric(namedResults["issue"]))
+			return strconv.Atoi(TrimNonAlphaNumeric(namedResults["issue"]))
 		}
 	}
 	return 0, errors.New("no number found in filename")
 }
 
-func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, knownTitles []string, skipTitles []string) api.Issue {
+func BuildIssue(log logr.Logger, filename string, details []EpisodeDetails, knownTitles []string, skipTitles []string) api.Issue {
 	issueNumber, err := getProgNumber(filename)
 	if err != nil {
 		log.Error(err, "Error getting issue number")
@@ -68,7 +66,7 @@ func buildIssue(log logr.Logger, filename string, details []pdf.EpisodeDetails, 
 
 		if shouldIncludeEpisode(log, skipTitles, series, title) {
 			log.V(1).Info(fmt.Sprintf("Extracting creators from %s", d.Credits))
-			credits := extractCreatorsFromCredits(d.Credits)
+			credits := ExtractCreatorsFromCredits(d.Credits)
 
 			allEpisodes = append(allEpisodes, &api.Episode{
 				Title:     title,
@@ -115,8 +113,8 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	})
 	if len(parts) == 3 {
 		// Three-way split? Series, storyline, episodeNumber
-		series = stringutils.CapitalizeWords(strings.TrimSpace(parts[0]))
-		storyline = stringutils.CapitalizeWords(strings.TrimSpace(parts[1]))
+		series = CapitalizeWords(strings.TrimSpace(parts[0]))
+		storyline = CapitalizeWords(strings.TrimSpace(parts[1]))
 		episodeNumber = extractPartNumberFromString(parts[2])
 
 		return
@@ -124,9 +122,9 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 
 	partFinder := regexp.MustCompile(`(?i)^.*(?P<whole>part (?P<episodeNumber>\w+)).*$`)
 	if partFinder.MatchString(bookmarkTitle) {
-		namedResults := stringutils.FindNamedMatches(partFinder, bookmarkTitle)
+		namedResults := FindNamedMatches(partFinder, bookmarkTitle)
 		partString := namedResults["episodeNumber"]
-		maybePart, err := stringutils.ParseTextNumber(partString)
+		maybePart, err := ParseTextNumber(partString)
 		if err == nil {
 			episodeNumber = maybePart
 		}
@@ -161,8 +159,8 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	if episodeNumber == -1 {
 		episodeNumber = 1
 	}
-	series = stringutils.TrimNonAlphaNumeric(stringutils.CapitalizeWords(series))
-	storyline = stringutils.TrimNonAlphaNumeric(stringutils.CapitalizeWords(storyline))
+	series = TrimNonAlphaNumeric(CapitalizeWords(series))
+	storyline = TrimNonAlphaNumeric(CapitalizeWords(storyline))
 
 	return
 }
@@ -213,7 +211,7 @@ func extractPartNumberFromString(toParse string) (part int) {
 	}
 	maybePart, err := strconv.Atoi(strings.TrimSpace(toParse))
 	if err != nil {
-		if maybePart, err = stringutils.ParseTextNumber(toParse); err == nil {
+		if maybePart, err = ParseTextNumber(toParse); err == nil {
 			part = maybePart
 		}
 	} else {
@@ -222,7 +220,7 @@ func extractPartNumberFromString(toParse string) (part int) {
 	return
 }
 
-func extractCreatorsFromCredits(toParse string) (credits api.Credits) {
+func ExtractCreatorsFromCredits(toParse string) (credits api.Credits) {
 	credits = api.Credits{}
 
 	var currentRole = api.Unknown
@@ -253,7 +251,7 @@ func extractCreatorsFromCredits(toParse string) (credits api.Credits) {
 }
 
 func normaliseCreators(input []string) []string {
-	tokens := strings.Split(stringutils.CapitalizeWords(strings.Join(input, " ")), "&")
+	tokens := strings.Split(CapitalizeWords(strings.Join(input, " ")), "&")
 
 	creators := make([]string, 0)
 	for _, v := range tokens {

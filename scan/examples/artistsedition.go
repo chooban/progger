@@ -5,7 +5,7 @@ package main
 import (
 	"fmt"
 	"github.com/akamensky/argparse"
-	"github.com/chooban/progger/scan/internal/pdfium"
+	"github.com/chooban/progger/scan/internal"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
 	"github.com/klippa-app/go-pdfium/enums"
@@ -39,7 +39,7 @@ func main() {
 	logger = logger.With().Caller().Timestamp().Logger()
 	var log = zerologr.New(&logger)
 
-	p := pdfium.NewPdfiumReader(log)
+	p := internal.NewPdfiumReader(log)
 	doc, err := p.Instance.FPDF_LoadDocument(&requests.FPDF_LoadDocument{
 		Path: filename,
 	})
@@ -73,7 +73,7 @@ func main() {
 	}
 }
 
-func getBackgroundAsPage(p *pdfium.Reader, log logr.Logger, doc references.FPDF_DOCUMENT, page *int, newFile references.FPDF_DOCUMENT) {
+func getBackgroundAsPage(p *internal.Reader, log logr.Logger, doc references.FPDF_DOCUMENT, page *int, newFile references.FPDF_DOCUMENT) {
 	ref, _ := p.Instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
 		Document: doc,
 		Index:    *page,
