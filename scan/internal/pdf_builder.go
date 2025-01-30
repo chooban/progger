@@ -98,15 +98,17 @@ func (p *PdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, ins
 		newImage, _ := p.instance.FPDFPageObj_NewImageObj(&requests.FPDFPageObj_NewImageObj{
 			p.destination.Document,
 		})
-		// Handle the error below, setting the BuildError if necessary. AI!
-		p.instance.FPDFImageObj_LoadJpegFileInline(&requests.FPDFImageObj_LoadJpegFileInline{
+		if _, err := p.instance.FPDFImageObj_LoadJpegFileInline(&requests.FPDFImageObj_LoadJpegFileInline{
 			Page: &requests.Page{
 				ByReference: &newPage.Page,
 			},
 			ImageObject: newImage.PageObject,
 			FileData:    rawImage.Data,
 			Count:       0,
-		})
+		}); err != nil {
+			p.BuildError = err
+			return
+		}
 		meta, _ := p.instance.FPDFImageObj_GetImageMetadata(&requests.FPDFImageObj_GetImageMetadata{
 			ImageObject: bgObject.PageObject,
 			Page: requests.Page{
