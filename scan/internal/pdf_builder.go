@@ -98,6 +98,7 @@ func (p *PdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, ins
 		newImage, _ := p.instance.FPDFPageObj_NewImageObj(&requests.FPDFPageObj_NewImageObj{
 			p.destination.Document,
 		})
+		// Handle the error below, setting the BuildError if necessary. AI!
 		p.instance.FPDFImageObj_LoadJpegFileInline(&requests.FPDFImageObj_LoadJpegFileInline{
 			Page: &requests.Page{
 				ByReference: &newPage.Page,
