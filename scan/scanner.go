@@ -17,6 +17,10 @@ import (
 // Dir scans the given directory for PDF files and extracts episode details from each file.
 // It returns a slice of Episode structs containing the extracted details.
 func Dir(ctx context.Context, dir string, scanCount int) (issues []api.Issue) {
+	// We want to remove the use of the AppEnv object entirely. It has two fields, Skip and Known. Instead,
+	// these should be two parameters to the function. These parameters can then be passed to the worker
+	// which will in turn pass them to the File function. AI!
+
 	logger := logr.FromContextOrDiscard(ctx)
 	logger.Info("Scanning directory", "dir", dir)
 
@@ -71,6 +75,9 @@ func File(ctx context.Context, fileName string) (api.Issue, error) {
 		return api.Issue{}, errors.New("only pdf files supported")
 	}
 	logger := logr.FromContextOrDiscard(ctx)
+
+	// We want to remove the use of the AppEnv object entirely. It has two fields, Skip and Known. Instead,
+	// these should be two parameters to the function. The appEnv variable can then be removed AI!
 	appEnv := fromContextOrDefaults(ctx)
 
 	logger.Info(fmt.Sprintf("Scanning %s", fileName))
