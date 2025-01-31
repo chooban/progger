@@ -57,7 +57,6 @@ func main() {
 		logger.Error(err, "Specified download dir is not writable")
 	}
 
-	ctx = download.WithLoginDetails(ctx, os.Getenv("REBELLION_USERNAME"), os.Getenv("REBELLION_PASSWORD"))
 	ctx = download.WithBrowserContextDir(ctx, browserDir)
 
 	var list []download.DigitalComic
