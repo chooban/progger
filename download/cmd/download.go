@@ -62,7 +62,10 @@ func main() {
 
 	var list []download.DigitalComic
 	if listPage > 0 {
-		list, err = download.ListIssuesOnPage(ctx, listPage)
+		list, err = download.ListIssuesOnPage(ctx, download.RebellionDetails{
+			Username: os.Getenv("REBELLION_USERNAME"),
+			Password: os.Getenv("REBELLION_PASSWORD"),
+		}, listPage)
 	} else {
 		list, err = download.ListAvailableIssues(ctx, listLatest)
 	}
