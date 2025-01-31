@@ -16,7 +16,12 @@ func (d *Downloader) GetIssuesList(ctx context.Context, username, password strin
 	ctxt := download.WithLoginDetails(ctx, username, password)
 	ctxt = download.WithBrowserContextDir(ctxt, d.browserDir)
 
-	if list, err := download.ListAvailableIssues(ctxt, false); err == nil {
+	details := download.RebellionDetails{
+		Username: username,
+		Password: password,
+	}
+
+	if list, err := download.ListAvailableIssues(ctxt, details, false); err == nil {
 		return list, nil
 	} else {
 		logger.Error(err, "failed to list available issues")
@@ -29,7 +34,12 @@ func (d *Downloader) DownloadIssue(ctx context.Context, issue download.DigitalCo
 	ctxt := download.WithLoginDetails(ctx, username, password)
 	ctxt = download.WithBrowserContextDir(ctxt, d.browserDir)
 
-	if fp, err := download.Download(ctxt, issue, targetDir, download.Pdf); err != nil {
+	details := download.RebellionDetails{
+		Username: username,
+		Password: password,
+	}
+
+	if fp, err := download.Download(ctxt, details, issue, targetDir, download.Pdf); err != nil {
 		logger.Error(err, "could not download file")
 		return err
 	} else {
@@ -43,13 +53,18 @@ func (d *Downloader) DownloadAllIssues(ctx context.Context, sourceDir, username,
 	ctxt := download.WithLoginDetails(ctx, username, password)
 	ctxt = download.WithBrowserContextDir(ctx, d.browserDir)
 
-	if list, err := download.ListAvailableIssues(ctxt, false); err == nil {
+	details := download.RebellionDetails{
+		Username: username,
+		Password: password,
+	}
+
+	if list, err := download.ListAvailableIssues(ctxt, details, false); err == nil {
 		if len(list) > 0 {
 			//logger.Info("Found progs to download", "count", len(list))
 			//for i := 0; i < len(list); i++ {
 			for i := 0; i < 10; i++ {
 				logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
-				if fp, err := download.Download(ctxt, list[i], sourceDir, download.Pdf); err != nil {
+				if fp, err := download.Download(ctxt, details, list[i], sourceDir, download.Pdf); err != nil {
 					logger.Error(err, "could not download file")
 				} else {
 					logger.Info("Downloaded a file", "file", fp)
