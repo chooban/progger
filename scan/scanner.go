@@ -37,7 +37,7 @@ func Dir(ctx context.Context, dir string, scanCount int, knownSeries []string, s
 
 	for w := 1; w <= workerCount; w++ {
 		wg.Add(1)
-		go scanWorker(ctx, &wg, jobs, results, knownSeries, skipTitles)
+		go scanWorker(ctx, &wg, knownSeries, skipTitles, jobs, results)
 	}
 
 	for i, file := range files {
@@ -125,7 +125,7 @@ func getFiles(dir string) (pdfFiles []fs.DirEntry, err error) {
 	return
 }
 
-func scanWorker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan string, results chan<- api.Issue, knownSeries []string, skipTitles []string) {
+func scanWorker(ctx context.Context, wg *sync.WaitGroup, knownSeries []string, skipTitles []string, jobs <-chan string, results chan<- api.Issue) {
 	logger := logr.FromContextOrDiscard(ctx)
 	logger.V(1).Info("Creating worker")
 	for {
