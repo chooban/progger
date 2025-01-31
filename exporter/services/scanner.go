@@ -68,7 +68,7 @@ func (s *Scanner) Scan(paths []string) []*exporterApi.Story {
 	ctx, _ := context.WithLogger()
 	issues := make([]api.Issue, 0)
 	for _, v := range paths {
-		issues = append(issues, scan.Dir(ctx, v, 0)...)
+		issues = append(issues, scan.Dir(ctx, v, 0, []string{}, []string{})...)
 	}
 
 	return toStories(issues)
