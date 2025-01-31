@@ -66,7 +66,10 @@ func main() {
 			Password: os.Getenv("REBELLION_PASSWORD"),
 		}, listPage)
 	} else {
-		list, err = download.ListAvailableIssues(ctx, listLatest)
+		list, err = download.ListAvailableIssues(ctx, download.RebellionDetails{
+			Username: os.Getenv("REBELLION_USERNAME"),
+			Password: os.Getenv("REBELLION_PASSWORD"),
+		}, listLatest)
 	}
 
 	if err != nil {
@@ -87,7 +90,10 @@ func main() {
 
 	for i := 0; i < downloadCount && i < len(list); i++ {
 		logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
-		if filepath, err := download.Download(ctx, list[i], downloadDir, download.Pdf); err != nil {
+		if filepath, err := download.Download(ctx, download.RebellionDetails{
+			Username: os.Getenv("REBELLION_USERNAME"),
+			Password: os.Getenv("REBELLION_PASSWORD"),
+		}, list[i], downloadDir, download.Pdf); err != nil {
 			logger.Error(err, "could not download file")
 		} else {
 			logger.Info("Downloaded a file", "file", filepath)
