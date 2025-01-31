@@ -87,16 +87,16 @@ func (p *PdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, ins
 
 		// This is the raw, compressed image. We want to then embed that in a new page somehow
 		rawImage, _ := p.instance.FPDFImageObj_GetImageDataRaw(&requests.FPDFImageObj_GetImageDataRaw{
-			bgObject.PageObject,
+			ImageObject: bgObject.PageObject,
+		})
+		newImage, _ := p.instance.FPDFPageObj_NewImageObj(&requests.FPDFPageObj_NewImageObj{
+			Document: p.destination.Document,
 		})
 		newPage, _ := p.instance.FPDFPage_New(&requests.FPDFPage_New{
 			Document:  p.destination.Document,
 			PageIndex: insertIndex + (pageCount),
 			Width:     width.Width,
 			Height:    height.Height,
-		})
-		newImage, _ := p.instance.FPDFPageObj_NewImageObj(&requests.FPDFPageObj_NewImageObj{
-			p.destination.Document,
 		})
 		if _, err := p.instance.FPDFImageObj_LoadJpegFileInline(&requests.FPDFImageObj_LoadJpegFileInline{
 			Page: &requests.Page{
@@ -116,31 +116,39 @@ func (p *PdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, ins
 			},
 		})
 
-		p.instance.FPDFPageObj_Transform(&requests.FPDFPageObj_Transform{
+		if _, err = p.instance.FPDFPageObj_Transform(&requests.FPDFPageObj_Transform{
 			PageObject: newImage.PageObject,
 			Transform: structs.FPDF_FS_MATRIX{
-				float32(meta.ImageMetadata.Width) / 2.7,
-				0,
-				0,
-				float32(meta.ImageMetadata.Height) / 2.7,
-				0,
-				0,
+				A: float32(meta.ImageMetadata.Width) / 2.7,
+				D: float32(meta.ImageMetadata.Height) / 2.7,
 			},
-		})
+		}); err != nil {
+			p.BuildError = err
+			return
+		}
 
-		p.instance.FPDFPage_InsertObject(&requests.FPDFPage_InsertObject{
+		if _, err = p.instance.FPDFPage_InsertObject(&requests.FPDFPage_InsertObject{
 			Page: requests.Page{
 				ByReference: &newPage.Page,
 			},
 			PageObject: newImage.PageObject,
-		})
-		p.instance.FPDFPage_GenerateContent(&requests.FPDFPage_GenerateContent{
+		}); err != nil {
+			p.BuildError = err
+			return
+		}
+		if _, err := p.instance.FPDFPage_GenerateContent(&requests.FPDFPage_GenerateContent{
 			Page: requests.Page{
 				ByReference: &newPage.Page,
 			},
-		})
+		}); err != nil {
+			p.BuildError = err
+			return
+		}
 
-		p.instance.FPDF_ClosePage(&requests.FPDF_ClosePage{Page: newPage.Page})
+		if _, err = p.instance.FPDF_ClosePage(&requests.FPDF_ClosePage{Page: newPage.Page}); err != nil {
+			p.BuildError = err
+			return
+		}
 
 		pageCount++
 	}
@@ -159,19 +167,15 @@ func (p *PdfBuilder) shouldSkipPage(source *responses.FPDF_LoadDocument, pageInd
 		println(err.Error())
 		return true
 	}
-	r, err := p.instance.FPDFText_GetText(&requests.FPDFText_GetText{
+	if r, err := p.instance.FPDFText_GetText(&requests.FPDFText_GetText{
 		TextPage:   ref.TextPage,
 		StartIndex: 0,
 		Count:      100,
-	})
-	if err != nil {
-		// No text?
+	}); err != nil {
 		return true
+	} else {
+		return strings.Contains(strings.ToLower(r.Text), "on sale now")
 	}
-	if strings.Contains(strings.ToLower(r.Text), "on sale now") {
-		return true
-	}
-	return false
 }
 
 func (p *PdfBuilder) CopyPages(sourceFile *string, pageFrom, pageTo, insertIndex int) int {
