@@ -59,7 +59,7 @@ func Dir(ctx context.Context, dir string, scanCount int, knownSeries []string, s
 	}
 
 	// Sanitise the results to correct titles
-	Sanitise(ctx, &issues)
+	Sanitise(ctx, &issues, knownSeries)
 
 	return issues
 }

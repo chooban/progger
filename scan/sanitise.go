@@ -32,11 +32,10 @@ type Suggestion struct {
 	Type SuggestionType
 }
 
-func Sanitise(ctx context.Context, issues *[]api.Issue) {
-	appEnv := fromContextOrDefaults(ctx)
+func Sanitise(ctx context.Context, issues *[]api.Issue, knownTitles []string) {
 	logger := logr.FromContextOrDiscard(ctx)
 
-	findTypoedSeries(issues, logger, appEnv)
+	findTypoedSeries(issues, logger, knownTitles)
 	findTypoedEpisodes(issues, logger)
 	findSwappedSeriesEpisodeTitles(issues, logger)
 }
@@ -98,10 +97,10 @@ func findSwappedSeriesEpisodeTitles(issues *[]api.Issue, logger logr.Logger) {
 	}
 }
 
-func findTypoedSeries(issues *[]api.Issue, logger logr.Logger, appEnv AppEnv) {
+func findTypoedSeries(issues *[]api.Issue, logger logr.Logger, knownTitles []string) {
 	// Look for series titles that are close to others
 	allSeries := seriesTitleCounts(issues)
-	suggestions := getSuggestions(logger, appEnv.Known, allSeries, SeriesTitle)
+	suggestions := getSuggestions(logger, knownTitles, allSeries, SeriesTitle)
 	suggestions = append(suggestions, Suggestion{
 		"Dexter", "Sinister Dexter", SeriesTitle,
 	}, Suggestion{

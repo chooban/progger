@@ -8,6 +8,26 @@ import (
 	"github.com/sdomino/scribble"
 )
 
+var defaultSkipTitles = []string{
+	"Interrogation",
+	"New Books",
+	"Obituary",
+	"Tribute",
+	"Untitled",
+	"Encyclopedia",
+}
+var defaultKnownTitles = []string{
+	"Anderson, Psi-Division",
+	"Chimpsky's Law",
+	"Counterfeit Girl",
+	"Feral & Foe",
+	"Lowborn High",
+	"Scarlet Traces",
+	"Strontium Dog",
+	"Strontium Dug",
+	"The Fall of Deadworld",
+}
+
 type Storage struct {
 	storageDir string
 	db         *scribble.Driver
@@ -69,6 +89,40 @@ func (s *Storage) ReadStories() []api.Story {
 	stories := make([]api.Story, 0, len(records))
 	for _, p := range records {
 		readStory := api.Story{}
+		if err := json.Unmarshal(p, &readStory); err != nil {
+			fmt.Println("Error", err)
+		}
+		stories = append(stories, readStory)
+	}
+	return stories
+}
+
+func (s *Storage) ReadKnownTitles() []string {
+	records, err := s.db.ReadAll("known_titles")
+	if err != nil {
+		println(err.Error())
+		return defaultKnownTitles
+	}
+	stories := make([]string, 0, len(records))
+	for _, p := range records {
+		readStory := ""
+		if err := json.Unmarshal(p, &readStory); err != nil {
+			fmt.Println("Error", err)
+		}
+		stories = append(stories, readStory)
+	}
+	return stories
+}
+
+func (s *Storage) ReadSkipTitles() []string {
+	records, err := s.db.ReadAll("skip_titles")
+	if err != nil {
+		println(err.Error())
+		return defaultSkipTitles
+	}
+	stories := make([]string, 0, len(records))
+	for _, p := range records {
+		readStory := ""
 		if err := json.Unmarshal(p, &readStory); err != nil {
 			fmt.Println("Error", err)
 		}
