@@ -28,7 +28,7 @@ func ListIssuesOnPage(ctx context.Context, details RebellionDetails, pageNumber 
 	return issues, nil
 }
 
-func ListAvailableIssues(ctx context.Context, latestOnly bool) ([]DigitalComic, error) {
+func ListAvailableIssues(ctx context.Context, details RebellionDetails, latestOnly bool) ([]DigitalComic, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	bContext, err := browser(ctx)
 
@@ -36,14 +36,8 @@ func ListAvailableIssues(ctx context.Context, latestOnly bool) ([]DigitalComic, 
 		logger.Error(err, "Could not start browser")
 		return []DigitalComic{}, err
 	}
-	u, p, err := loginDetails(ctx)
 
-	if err != nil {
-		logger.Error(err, "no credentials found")
-		return []DigitalComic{}, err
-	}
-
-	if err = Login(ctx, bContext, u, p); err != nil {
+	if err = Login(ctx, bContext, details.Username, details.Password); err != nil {
 		logger.Error(err, "Failed to login")
 		return []DigitalComic{}, err
 	}
@@ -56,7 +50,7 @@ func ListAvailableIssues(ctx context.Context, latestOnly bool) ([]DigitalComic, 
 	}
 }
 
-func Download(ctx context.Context, comic DigitalComic, dir string, filetype FileType) (string, error) {
+func Download(ctx context.Context, details RebellionDetails, comic DigitalComic, dir string, filetype FileType) (string, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	info, err := os.Stat(dir)
@@ -83,13 +77,7 @@ func Download(ctx context.Context, comic DigitalComic, dir string, filetype File
 		logger.Error(err, "Could not start browser")
 		return "", fmt.Errorf("could not start browser: %w", err)
 	}
-	u, p, err := loginDetails(ctx)
-	if err != nil {
-		logger.Error(err, "no credentials found")
-		return "", errors.New("no credentials found")
-	}
-
-	if err = Login(ctx, bContext, u, p); err != nil {
+	if err = Login(ctx, bContext, details.Username, details.Password); err != nil {
 		return "", fmt.Errorf("could not login: %w", err)
 	}
 
