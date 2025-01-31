@@ -7,6 +7,11 @@ import (
 	"time"
 )
 
+type RebellionDetails struct {
+	Username string
+	Password string
+}
+
 type FileType int
 
 const (
