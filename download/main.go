@@ -98,13 +98,6 @@ func Download(ctx context.Context, details RebellionDetails, comic DigitalComic,
 	return destinationFile, err
 }
 
-func WithLoginDetails(parent context.Context, username, password string) context.Context {
-	child := context.WithValue(parent, ContextKeyUsername, username)
-	child = context.WithValue(child, ContextKeyPassword, password)
-
-	return child
-}
-
 func WithBrowserContextDir(ctx context.Context, dir string) context.Context {
 	return context.WithValue(ctx, ContextKeyBrowserContext, dir)
 }

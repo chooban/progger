@@ -13,8 +13,7 @@ type Downloader struct {
 
 func (d *Downloader) GetIssuesList(ctx context.Context, username, password string) ([]download.DigitalComic, error) {
 	logger := logr.FromContextOrDiscard(ctx)
-	ctxt := download.WithLoginDetails(ctx, username, password)
-	ctxt = download.WithBrowserContextDir(ctxt, d.browserDir)
+	ctxt := download.WithBrowserContextDir(ctx, d.browserDir)
 
 	details := download.RebellionDetails{
 		Username: username,
@@ -31,8 +30,7 @@ func (d *Downloader) GetIssuesList(ctx context.Context, username, password strin
 
 func (d *Downloader) DownloadIssue(ctx context.Context, issue download.DigitalComic, targetDir, username, password string) error {
 	logger := logr.FromContextOrDiscard(ctx)
-	ctxt := download.WithLoginDetails(ctx, username, password)
-	ctxt = download.WithBrowserContextDir(ctxt, d.browserDir)
+	ctxt := download.WithBrowserContextDir(ctx, d.browserDir)
 
 	details := download.RebellionDetails{
 		Username: username,
@@ -50,8 +48,7 @@ func (d *Downloader) DownloadIssue(ctx context.Context, issue download.DigitalCo
 
 func (d *Downloader) DownloadAllIssues(ctx context.Context, sourceDir, username, password string) error {
 	logger := logr.FromContextOrDiscard(ctx)
-	ctxt := download.WithLoginDetails(ctx, username, password)
-	ctxt = download.WithBrowserContextDir(ctx, d.browserDir)
+	ctxt := download.WithBrowserContextDir(ctx, d.browserDir)
 
 	details := download.RebellionDetails{
 		Username: username,
