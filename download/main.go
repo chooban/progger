@@ -10,6 +10,8 @@ import (
 	"path"
 )
 
+// After ctx add a parameter of type RebellionDetails. This should then be used to get the username and password
+// for the call to Login without the need for using context. AI!
 func ListIssuesOnPage(ctx context.Context, pageNumber int) (issues []DigitalComic, err error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	bContext, err := browser(ctx)
