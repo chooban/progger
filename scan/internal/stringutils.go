@@ -1,8 +1,7 @@
-package stringutils
+package internal
 
 import (
 	"errors"
-	"fmt"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 	"regexp"
@@ -92,11 +91,6 @@ func CapitalizeWords(sentence string) string {
 	}
 
 	return capitalized
-}
-
-func ContainsI(s string, substr string) bool {
-	re := regexp.MustCompile(fmt.Sprintf("(?i)\\b%s\\b", substr))
-	return re.MatchString(s)
 }
 
 func FindNamedMatches(regex *regexp.Regexp, str string) map[string]string {

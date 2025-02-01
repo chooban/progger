@@ -1,16 +1,13 @@
-package pdfium
+package internal
 
 import (
 	"errors"
 	"fmt"
-	"github.com/chooban/progger/scan/api"
-	"github.com/chooban/progger/scan/internal/pdf"
 	"github.com/go-logr/logr"
 	"github.com/klippa-app/go-pdfium"
 	"github.com/klippa-app/go-pdfium/references"
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/klippa-app/go-pdfium/responses"
-	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"math"
 	"os"
 	"slices"
@@ -29,7 +26,7 @@ type Reader struct {
 	Instance pdfium.Pdfium
 }
 
-func (p *Reader) Bookmarks(filename string) ([]pdf.EpisodeDetails, error) {
+func (p *Reader) Bookmarks(filename string) ([]EpisodeDetails, error) {
 	contents, err := os.ReadFile(filename)
 	doc, err := p.Instance.OpenDocument(&requests.OpenDocument{
 		File: &contents,
@@ -47,10 +44,10 @@ func (p *Reader) Bookmarks(filename string) ([]pdf.EpisodeDetails, error) {
 		Document: doc.Document,
 	})
 	pageCount, err := p.Instance.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc.Document})
-	bookmarks := make([]pdf.Bookmark, len(pdfiumBookmarks.Bookmarks))
+	bookmarks := make([]PdfBookmark, len(pdfiumBookmarks.Bookmarks))
 
 	for i, v := range pdfiumBookmarks.Bookmarks {
-		b := pdf.Bookmark{
+		b := PdfBookmark{
 			Title:    v.Title,
 			PageFrom: v.DestInfo.PageIndex + 1, // It's zero indexed
 		}
@@ -62,42 +59,14 @@ func (p *Reader) Bookmarks(filename string) ([]pdf.EpisodeDetails, error) {
 		}
 		bookmarks[i] = b
 	}
-	details := make([]pdf.EpisodeDetails, len(bookmarks))
+	details := make([]EpisodeDetails, len(bookmarks))
 
 	for i, v := range bookmarks {
-		details[i] = pdf.EpisodeDetails{
+		details[i] = EpisodeDetails{
 			Bookmark: v,
 		}
 	}
 	return details, nil
-}
-
-func (p *Reader) Build(episodes []api.ExportPage, artistsEdition bool, outputPath string) (buildError error) {
-	builder := pdfBuilder{instance: p.Instance}
-	builder.OpenDestination()
-
-	pageCount := 0
-	bookmarks := make([]pdfcpu.Bookmark, 0, len(episodes))
-	for _, episode := range episodes {
-		pagesAdded := 0
-		if artistsEdition {
-			pagesAdded = builder.CopyStrippedPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
-		} else {
-			pagesAdded = builder.CopyPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
-		}
-		if len(episode.Title) > 0 {
-			bookmarks = append(bookmarks, pdfcpu.Bookmark{
-				Title:    episode.Title,
-				PageFrom: pageCount + 1,
-				PageThru: pageCount + pagesAdded + 1,
-			})
-		}
-		pageCount += pagesAdded + 1
-	}
-	builder.Save(outputPath)
-	builder.AddBookmarks(bookmarks)
-
-	return builder.BuildError
 }
 
 func (p *Reader) Credits(filename string, startPage int, endPage int) (credits string, err error) {

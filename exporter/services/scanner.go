@@ -64,11 +64,12 @@ func toStories(issues []api.Issue) []*exporterApi.Story {
 	return stories
 }
 
-func (s *Scanner) Scan(paths []string) []*exporterApi.Story {
+func (s *Scanner) Scan(paths []string, knownTitles, skipTitles []string) []*exporterApi.Story {
 	ctx, _ := context.WithLogger()
 	issues := make([]api.Issue, 0)
 	for _, v := range paths {
-		issues = append(issues, scan.Dir(ctx, v, 0)...)
+		foundInPath := scan.Dir(ctx, v, 0, knownTitles, skipTitles)
+		issues = append(issues, foundInPath...)
 	}
 
 	return toStories(issues)

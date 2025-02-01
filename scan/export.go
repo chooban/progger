@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/chooban/progger/scan/api"
-	"github.com/chooban/progger/scan/internal/pdfium"
-	"github.com/go-logr/logr"
+	"github.com/chooban/progger/scan/internal"
 	"strings"
 )
 
@@ -15,8 +14,7 @@ func Build(ctx context.Context, pages []api.ExportPage, artistsEdition bool, fil
 		return fmt.Errorf("file name must end with 'pdf'")
 	}
 
-	logger := logr.FromContextOrDiscard(ctx)
-	p := pdfium.NewPdfiumReader(logger)
+	builder := internal.NewPdfBuilder()
 
-	return p.Build(pages, artistsEdition, fileName)
+	return builder.Build(pages, artistsEdition, fileName)
 }

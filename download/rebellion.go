@@ -1,10 +1,9 @@
-package internal
+package download
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/chooban/progger/download/api"
 	"github.com/go-logr/logr"
 	"github.com/playwright-community/playwright-go"
 	"regexp"
@@ -114,13 +113,13 @@ func getPage(ctx context.Context, bContext playwright.BrowserContext) (page play
 	return
 }
 
-func pageDownloader(ctx context.Context, bContext playwright.BrowserContext, pageNumber int) []api.DigitalComic {
+func pageDownloader(ctx context.Context, bContext playwright.BrowserContext, pageNumber int) []DigitalComic {
 	logger := logr.FromContextOrDiscard(ctx)
 	url := listUrl + fmt.Sprintf("&page=%d", pageNumber)
 	logger.Info(fmt.Sprintf("Downloading page %s", url))
 	var page playwright.Page
 	var err error
-	progs := make([]api.DigitalComic, 0)
+	progs := make([]DigitalComic, 0)
 	if page, err = getPage(ctx, bContext); err != nil {
 		logger.Error(err, "Failed to get page from list")
 		return progs
@@ -149,13 +148,13 @@ func pageDownloader(ctx context.Context, bContext playwright.BrowserContext, pag
 	return progs
 }
 
-func ListIssuesOnPage(ctx context.Context, bContext playwright.BrowserContext, pageNumber int) (issues []api.DigitalComic, err error) {
+func listIssuesOnPage(ctx context.Context, bContext playwright.BrowserContext, pageNumber int) (issues []DigitalComic, err error) {
 	issues = pageDownloader(ctx, bContext, pageNumber)
 
 	return
 }
 
-func ListProgs(ctx context.Context, bContext playwright.BrowserContext, latestOnly bool) (allProgs []api.DigitalComic, err error) {
+func listProgs(ctx context.Context, bContext playwright.BrowserContext, latestOnly bool) (allProgs []DigitalComic, err error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	maxPage := 1
@@ -182,7 +181,7 @@ func ListProgs(ctx context.Context, bContext playwright.BrowserContext, latestOn
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
-	allProgs = make([]api.DigitalComic, 0, maxPage*10)
+	allProgs = make([]DigitalComic, 0, maxPage*10)
 	for p := range maxPage {
 		wg.Add(1)
 		go func() {
@@ -199,26 +198,26 @@ func ListProgs(ctx context.Context, bContext playwright.BrowserContext, latestOn
 	return
 }
 
-func Download(ctx context.Context, bContext playwright.BrowserContext, comic api.DigitalComic) (string, error) {
+func downloadComic(ctx context.Context, bContext playwright.BrowserContext, comic DigitalComic) (string, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	page, err := getPage(ctx, bContext)
 	if err != nil {
 		return "", fmt.Errorf("could not open page %g", err)
 	}
-	download, err := page.ExpectDownload(func() error {
+	expectDownload, err := page.ExpectDownload(func() error {
 		// Weirdly, we ignore the errors because Playwright now considers a navigation
-		// that turns into a download to sometimes be an error
-		page.Goto(comic.Downloads[api.Pdf])
+		// that turns into a downloadComic to sometimes be an error
+		page.Goto(comic.Downloads[Pdf])
 		return nil
 	}, playwright.PageExpectDownloadOptions{})
 	if err != nil {
-		logger.Error(err, "Failed to download")
-		return "", fmt.Errorf("failed to get a download %g", err)
+		logger.Error(err, "Failed to downloadComic")
+		return "", fmt.Errorf("failed to get a downloadComic %g", err)
 	}
 
-	path, err := download.Path()
+	path, err := expectDownload.Path()
 	if err != nil {
-		logger.Error(err, "Failed to download")
+		logger.Error(err, "Failed to downloadComic")
 		return "", fmt.Errorf("no path to file returned %g", err)
 	}
 	logger.Info(fmt.Sprintf("Path is %s", path))
@@ -226,7 +225,7 @@ func Download(ctx context.Context, bContext playwright.BrowserContext, comic api
 	return path, nil
 }
 
-func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]api.DigitalComic, error) {
+func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]DigitalComic, error) {
 	titleMatcher := regexp.MustCompile(`(?si)2000\s+AD\s+prog\s+\d{1,}|Judge\s+Dredd\s+Megazine\s+\d{1,}`)
 	ordinalDateMatch := regexp.MustCompile("(\\d+)(st|rd|th|nd)")
 	titleFilter := playwright.LocatorFilterOptions{HasText: titleMatcher}
@@ -235,10 +234,10 @@ func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]api.Digit
 
 	locators, err := page.GetByRole("listitem").Filter(titleFilter).All()
 	if err != nil {
-		return []api.DigitalComic{}, err
+		return []DigitalComic{}, err
 	}
 	logger.Info("Found listitems", "count", len(locators), "page", page.URL())
-	progs := make([]api.DigitalComic, len(locators))
+	progs := make([]DigitalComic, len(locators))
 	for i, v := range locators {
 		productUrl, _ := v.GetByRole("link").Filter(titleFilter).First().GetAttribute("href")
 
@@ -266,14 +265,14 @@ func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]api.Digit
 		if strings.Contains(titleText, "Megazine") {
 			publication = "Megazine"
 		}
-		progs[i] = api.DigitalComic{
+		progs[i] = DigitalComic{
 			Publication: publication,
 			Url:         productUrl,
 			IssueNumber: issueNumber,
 			IssueDate:   d.Format("2006-01-02"),
-			Downloads: map[api.FileType]string{
-				api.Pdf: pdfUrl,
-				api.Cbz: cbzUrl,
+			Downloads: map[FileType]string{
+				Pdf: pdfUrl,
+				Cbz: cbzUrl,
 			},
 		}
 	}

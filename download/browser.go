@@ -22,7 +22,7 @@ func browser(ctx context.Context) (playwright.BrowserContext, error) {
 		return nil, err
 	}
 	var configDir string
-	if configDir, err = BrowserContextDir(ctx); err != nil || configDir == "" {
+	if configDir, err = browserContextDir(ctx); err != nil || configDir == "" {
 		logger.Error(err, "failed to get context dir for browser")
 		return nil, err
 	}

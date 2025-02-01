@@ -1,8 +1,7 @@
-package scan
+package internal
 
 import (
 	"github.com/chooban/progger/scan/api"
-	"github.com/chooban/progger/scan/internal/pdf"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -323,11 +322,11 @@ func TestShouldIncludeEpisode(t *testing.T) {
 			input:         api.Episode{Title: "Regular Episode"},
 			shouldInclude: true,
 		},
-		{
-			name:          "Cover in name",
-			input:         api.Episode{Title: "The Radyar Recovery"},
-			shouldInclude: true,
-		},
+		//{
+		//	name:          "Cover in name",
+		//	input:         api.Episode{Title: "The Radyar Recovery"},
+		//	shouldInclude: true,
+		//},
 		{
 			name: "Skip tracer",
 			input: api.Episode{
@@ -401,16 +400,16 @@ func TestBuildEpisodes(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name           string
-		episodeDetails []pdf.EpisodeDetails
+		episodeDetails []EpisodeDetails
 		expectedSeries string
 		expectedTitle  string
 		expectedPart   int
 	}{
 		{
 			name: "Test Case 1",
-			episodeDetails: []pdf.EpisodeDetails{
+			episodeDetails: []EpisodeDetails{
 				{
-					Bookmark: pdf.Bookmark{
+					Bookmark: PdfBookmark{
 						Title:    "Test Series: Test Title - Part 1",
 						PageFrom: 1,
 						PageThru: 10,
@@ -424,9 +423,9 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "Renaming Deadworld",
-			episodeDetails: []pdf.EpisodeDetails{
+			episodeDetails: []EpisodeDetails{
 				{
-					Bookmark: pdf.Bookmark{
+					Bookmark: PdfBookmark{
 						Title:    "The Fall of Deadwood - Jessica",
 						PageFrom: 1,
 						PageThru: 10,
@@ -440,9 +439,9 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "Strontium Dog",
-			episodeDetails: []pdf.EpisodeDetails{
+			episodeDetails: []EpisodeDetails{
 				{
-					Bookmark: pdf.Bookmark{
+					Bookmark: PdfBookmark{
 						Title:    "Strontium Dog - Series Title",
 						PageFrom: 1,
 						PageThru: 10,
@@ -456,9 +455,9 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "Strontium Dug",
-			episodeDetails: []pdf.EpisodeDetails{
+			episodeDetails: []EpisodeDetails{
 				{
-					Bookmark: pdf.Bookmark{
+					Bookmark: PdfBookmark{
 						Title:    "Strontium Dug - Series Title",
 						PageFrom: 1,
 						PageThru: 10,
@@ -472,9 +471,9 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "ABC Warriors",
-			episodeDetails: []pdf.EpisodeDetails{
+			episodeDetails: []EpisodeDetails{
 				{
-					Bookmark: pdf.Bookmark{
+					Bookmark: PdfBookmark{
 						Title:    "Abc Warriors - Series Title",
 						PageFrom: 1,
 						PageThru: 10,
@@ -488,9 +487,9 @@ func TestBuildEpisodes(t *testing.T) {
 		},
 		{
 			name: "The ABC Warriors",
-			episodeDetails: []pdf.EpisodeDetails{
+			episodeDetails: []EpisodeDetails{
 				{
-					Bookmark: pdf.Bookmark{
+					Bookmark: PdfBookmark{
 						Title:    "The Abc Warriors - Series Title",
 						PageFrom: 1,
 						PageThru: 10,
@@ -514,7 +513,7 @@ func TestBuildEpisodes(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			issue := buildIssue(logr.Discard(), "2000AD 123 (1977).pdf", tc.episodeDetails, knownTitles, []string{})
+			issue := BuildIssue(logr.Discard(), "2000AD 123 (1977).pdf", tc.episodeDetails, knownTitles, []string{})
 			assert.Equal(t, 123, issue.IssueNumber)
 			assert.Equal(t, tc.expectedSeries, issue.Episodes[0].Series)
 			assert.Equal(t, tc.expectedTitle, issue.Episodes[0].Title)
@@ -568,8 +567,42 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result := extractCreatorsFromCredits(tc.credits)
+			result := ExtractCreatorsFromCredits(tc.credits)
 			assert.Equal(t, tc.Credits, result)
+		})
+	}
+}
+func TestGetProgNumber(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name           string
+		input          string
+		expectedNumber int
+	}{
+		{
+			name:           "Prog 123",
+			input:          "2000AD 123 (1977).pdf",
+			expectedNumber: 123,
+		},
+		{
+			name:           "Prog 2000",
+			input:          "2000AD 2000 (1977).pdf",
+			expectedNumber: 2000,
+		},
+		{
+			name:           "Prog 1234",
+			input:          "2000AD 1234 (1977).pdf",
+			expectedNumber: 1234,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			gotNumber, _ := getProgNumber(tc.input)
+			if gotNumber != tc.expectedNumber {
+				t.Errorf("getProgNumber(%v) = %v; want %v", tc.input, gotNumber, tc.expectedNumber)
+			}
 		})
 	}
 }

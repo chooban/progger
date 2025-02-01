@@ -18,11 +18,13 @@ func main() {
 		logger.Error(err, "Could not determine config dir")
 		return
 	}
-	ctx = download.WithLoginDetails(ctx, os.Getenv("REBELLION_USERNAME"), os.Getenv("REBELLION_PASSWORD"))
 	ctx = download.WithBrowserContextDir(ctx, configDir)
 
 	start := time.Now()
-	list, err := download.ListAvailableIssues(ctx, true)
+	list, err := download.ListAvailableIssues(ctx, download.RebellionDetails{
+		Username: os.Getenv("REBELLION_USERNAME"),
+		Password: os.Getenv("REBELLION_PASSWORD"),
+	}, true)
 
 	logger.Info(fmt.Sprintf("Found %d progs", len(list)), "duration", time.Since(start))
 	logger.Info(fmt.Sprintf("%+v", list[0]))

@@ -3,7 +3,7 @@ package app
 import (
 	"fmt"
 	"fyne.io/fyne/v2/data/binding"
-	downloadApi "github.com/chooban/progger/download/api"
+	downloadApi "github.com/chooban/progger/download"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/exporter/services"
@@ -20,6 +20,8 @@ type State struct {
 	Stories        binding.UntypedList
 	AvailableProgs binding.UntypedList
 	ToDownload     []api.Downloadable
+	SkipTitles     binding.StringList
+	KnownTitles    binding.StringList
 }
 
 func (s *State) startScanningHandler(m StartScanningMessage) {
@@ -35,7 +37,11 @@ func (s *State) startScanningHandler(m StartScanningMessage) {
 		}()
 
 		dirsToScan := []string{s.services.Prefs.ProgSourceDirectory(), s.services.Prefs.MegSourceDirectory()}
-		foundStories := s.services.Scanner.Scan(dirsToScan)
+		foundStories := s.services.Scanner.Scan(
+			dirsToScan,
+			s.services.Storage.ReadKnownTitles(),
+			s.services.Storage.ReadSkipTitles(),
+		)
 		untypedStories := make([]interface{}, len(foundStories))
 		storiesToStore := make([]api.Story, len(foundStories))
 		for i, v := range foundStories {
@@ -45,7 +51,11 @@ func (s *State) startScanningHandler(m StartScanningMessage) {
 		if err := s.Stories.Set(untypedStories); err != nil {
 			println(err.Error())
 		}
-		s.services.Storage.StoreStories(storiesToStore)
+		err := s.services.Storage.StoreStories(storiesToStore)
+		if err != nil {
+			println("Failed to save stories: " + err.Error())
+			return
+		}
 	}()
 }
 
@@ -196,7 +206,6 @@ func (s *State) Dispatch(m interface{}) {
 			s.ToDownload = append(s.ToDownload, _m.Issue)
 		}
 
-		println(fmt.Sprintf("To download is: %+v", s.ToDownload))
 	case RemoveFromDownloadsMessage:
 		_m := m.(RemoveFromDownloadsMessage)
 		idx := slices.IndexFunc(s.ToDownload, func(downloadable api.Downloadable) bool {
@@ -222,14 +231,27 @@ func NewAppState(s *services.AppServices) *State {
 		Stories:        binding.NewUntypedList(),
 		AvailableProgs: availableProgs,
 		ToDownload:     make([]api.Downloadable, 0),
+		SkipTitles:     binding.NewStringList(),
+		KnownTitles:    binding.NewStringList(),
 	}
 
-	storedStories := s.Storage.ReadStories()
-	untypedStories := make([]interface{}, len(storedStories))
-	for i, v := range storedStories {
-		untypedStories[i] = &v
-	}
-	appState.Stories.Set(untypedStories)
+	//TODO: This doesn't work properly
+	//storedStories := s.Storage.ReadStories()
+	//untypedStories := make([]interface{}, len(storedStories))
+	//for i, v := range storedStories {
+	//	untypedStories[i] = &v
+	//}
+	//if err := appState.Stories.Set(untypedStories); err != nil {
+	//	println("Failed to set stories: " + err.Error())
+	//}
+
+	// Look for stored known titles
+	storedKnownTitles := s.Storage.ReadKnownTitles()
+	appState.KnownTitles.Set(storedKnownTitles)
+
+	// Look for stored skip titles
+	storedSkipTitles := s.Storage.ReadSkipTitles()
+	appState.SkipTitles.Set(storedSkipTitles)
 
 	refreshIssues := func() {
 		savedProgs := s.Storage.ReadIssues()

@@ -1,4 +1,4 @@
-package pdfium
+package internal
 
 import (
 	_ "github.com/chooban/progger/scan/testing_init"

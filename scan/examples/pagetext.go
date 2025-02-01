@@ -6,7 +6,7 @@ package main
 import (
 	"fmt"
 	"github.com/akamensky/argparse"
-	"github.com/chooban/progger/scan/internal/pdfium"
+	"github.com/chooban/progger/scan/internal"
 	"github.com/go-logr/zerologr"
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/rs/zerolog"
@@ -39,7 +39,7 @@ func main() {
 	//ctx := context.Background()
 	//ctx = logr.NewContext(ctx, log)
 
-	p := pdfium.NewPdfiumReader(log)
+	p := internal.NewPdfiumReader(log)
 	contents, err := os.ReadFile(*filename)
 	doc, err := p.Instance.OpenDocument(&requests.OpenDocument{
 		File: &contents,

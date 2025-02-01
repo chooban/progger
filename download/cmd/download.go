@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/chooban/progger/download"
-	"github.com/chooban/progger/download/api"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
@@ -24,6 +23,11 @@ func main() {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		logger.Error(err, "Could not determine config dir")
+	}
+
+	details := download.RebellionDetails{
+		Username: os.Getenv("REBELLION_USERNAME"),
+		Password: os.Getenv("REBELLION_PASSWORD"),
 	}
 
 	var printUsage bool
@@ -58,14 +62,13 @@ func main() {
 		logger.Error(err, "Specified download dir is not writable")
 	}
 
-	ctx = download.WithLoginDetails(ctx, os.Getenv("REBELLION_USERNAME"), os.Getenv("REBELLION_PASSWORD"))
 	ctx = download.WithBrowserContextDir(ctx, browserDir)
 
-	var list []api.DigitalComic
+	var list []download.DigitalComic
 	if listPage > 0 {
-		list, err = download.ListIssuesOnPage(ctx, listPage)
+		list, err = download.ListIssuesOnPage(ctx, details, listPage)
 	} else {
-		list, err = download.ListAvailableIssues(ctx, listLatest)
+		list, err = download.ListAvailableIssues(ctx, details, listLatest)
 	}
 
 	if err != nil {
@@ -86,7 +89,7 @@ func main() {
 
 	for i := 0; i < downloadCount && i < len(list); i++ {
 		logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
-		if filepath, err := download.Download(ctx, list[i], downloadDir, api.Pdf); err != nil {
+		if filepath, err := download.Download(ctx, details, list[i], downloadDir, download.Pdf); err != nil {
 			logger.Error(err, "could not download file")
 		} else {
 			logger.Info("Downloaded a file", "file", filepath)

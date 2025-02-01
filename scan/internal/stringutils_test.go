@@ -1,4 +1,4 @@
-package stringutils
+package internal
 
 import (
 	"reflect"
@@ -91,28 +91,6 @@ func TestCapitalizeWords(t *testing.T) {
 			got := CapitalizeWords(tc.input)
 			if got != tc.expected {
 				t.Errorf("CapitalizeWords(%v) = %v; want %v", tc.input, got, tc.expected)
-			}
-		})
-	}
-}
-
-func TestContainsI(t *testing.T) {
-	testCases := []struct {
-		name     string
-		s        string
-		substr   string
-		expected bool
-	}{
-		{"Present", "Hello", "hello", true},
-		{"NotPresent", "Hello", "world", false},
-		{"Case", "Hello", "HELLO", true},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := ContainsI(tc.s, tc.substr)
-			if got != tc.expected {
-				t.Errorf("ContainsI(%v, %v) = %v; want %v", tc.s, tc.substr, got, tc.expected)
 			}
 		})
 	}

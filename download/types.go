@@ -1,4 +1,4 @@
-package api
+package download
 
 import (
 	"fmt"
@@ -6,6 +6,11 @@ import (
 	"strings"
 	"time"
 )
+
+type RebellionDetails struct {
+	Username string
+	Password string
+}
 
 type FileType int
 

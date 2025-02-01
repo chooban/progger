@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	downloadApi "github.com/chooban/progger/download/api"
+	"github.com/chooban/progger/download"
 	scanApi "github.com/chooban/progger/scan/api"
 	"slices"
 	"strconv"
@@ -11,7 +11,7 @@ import (
 
 type Episode struct {
 	*scanApi.Episode
-	Issue       *downloadApi.DigitalComic
+	Issue       *download.DigitalComic
 	Filename    string
 	IssueNumber int
 }
@@ -60,6 +60,6 @@ func (s *Story) IssueSummary() string {
 }
 
 type Downloadable struct {
-	Comic      downloadApi.DigitalComic
+	Comic      download.DigitalComic
 	Downloaded bool
 }

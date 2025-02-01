@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/chooban/progger/scan/api"
-	"github.com/chooban/progger/scan/internal/pdfium"
+	"github.com/chooban/progger/scan/internal"
 	"github.com/go-logr/logr"
 	"io/fs"
 	"os"
@@ -16,7 +16,7 @@ import (
 
 // Dir scans the given directory for PDF files and extracts episode details from each file.
 // It returns a slice of Episode structs containing the extracted details.
-func Dir(ctx context.Context, dir string, scanCount int) (issues []api.Issue) {
+func Dir(ctx context.Context, dir string, scanCount int, knownSeries []string, skipTitles []string) (issues []api.Issue) {
 	logger := logr.FromContextOrDiscard(ctx)
 	logger.Info("Scanning directory", "dir", dir)
 
@@ -37,7 +37,7 @@ func Dir(ctx context.Context, dir string, scanCount int) (issues []api.Issue) {
 
 	for w := 1; w <= workerCount; w++ {
 		wg.Add(1)
-		go scanWorker(ctx, &wg, jobs, results)
+		go scanWorker(ctx, knownSeries, skipTitles, &wg, jobs, results)
 	}
 
 	for i, file := range files {
@@ -59,22 +59,21 @@ func Dir(ctx context.Context, dir string, scanCount int) (issues []api.Issue) {
 	}
 
 	// Sanitise the results to correct titles
-	Sanitise(ctx, &issues)
+	Sanitise(ctx, &issues, knownSeries)
 
 	return issues
 }
 
 // File scans the given file in the specified directory and extracts episode details.
 // It returns a slice of Episode structs containing the extracted details and an error if any occurred during the process.
-func File(ctx context.Context, fileName string) (api.Issue, error) {
+func File(ctx context.Context, fileName string, knownSeries []string, skipTitles []string) (api.Issue, error) {
 	if !strings.HasSuffix(fileName, "pdf") {
 		return api.Issue{}, errors.New("only pdf files supported")
 	}
 	logger := logr.FromContextOrDiscard(ctx)
-	appEnv := fromContextOrDefaults(ctx)
 
 	logger.Info(fmt.Sprintf("Scanning %s", fileName))
-	p := pdfium.NewPdfiumReader(logger)
+	p := internal.NewPdfiumReader(logger)
 	episodeDetails, err := p.Bookmarks(fileName)
 	if err != nil {
 		return api.Issue{}, err
@@ -89,7 +88,7 @@ func File(ctx context.Context, fileName string) (api.Issue, error) {
 		episodeDetails[i].Credits = credits
 	}
 
-	issue := buildIssue(logger, fileName, episodeDetails, appEnv.Known, appEnv.Skip)
+	issue := internal.BuildIssue(logger, fileName, episodeDetails, knownSeries, skipTitles)
 
 	return issue, nil
 }
@@ -100,14 +99,14 @@ func ReadCredits(ctx context.Context, fileName string, startingPage int, endingP
 	}
 	logger := logr.FromContextOrDiscard(ctx)
 
-	p := pdfium.NewPdfiumReader(logger)
+	p := internal.NewPdfiumReader(logger)
 
 	credits, err := p.Credits(fileName, startingPage, endingPage)
 
 	if err != nil {
 		return api.Credits{}, err
 	}
-	return extractCreatorsFromCredits(credits), nil
+	return internal.ExtractCreatorsFromCredits(credits), nil
 }
 
 func getFiles(dir string) (pdfFiles []fs.DirEntry, err error) {
@@ -126,7 +125,7 @@ func getFiles(dir string) (pdfFiles []fs.DirEntry, err error) {
 	return
 }
 
-func scanWorker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan string, results chan<- api.Issue) {
+func scanWorker(ctx context.Context, knownSeries []string, skipTitles []string, wg *sync.WaitGroup, jobs <-chan string, results chan<- api.Issue) {
 	logger := logr.FromContextOrDiscard(ctx)
 	logger.V(1).Info("Creating worker")
 	for {
@@ -134,7 +133,7 @@ func scanWorker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan string, res
 		if !isChannelOpen {
 			break
 		}
-		issue, err := File(ctx, j)
+		issue, err := File(ctx, j, knownSeries, skipTitles)
 		if err != nil {
 			logger.Error(err, fmt.Sprintf("Failed to read file: %s", j))
 		}
