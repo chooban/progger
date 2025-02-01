@@ -53,7 +53,7 @@ func (s *State) startScanningHandler(m StartScanningMessage) {
 		}
 		err := s.services.Storage.StoreStories(storiesToStore)
 		if err != nil {
-			println(err.Error())
+			println("Failed to save stories: " + err.Error())
 			return
 		}
 	}()
@@ -235,14 +235,15 @@ func NewAppState(s *services.AppServices) *State {
 		KnownTitles:    binding.NewStringList(),
 	}
 
-	storedStories := s.Storage.ReadStories()
-	untypedStories := make([]interface{}, len(storedStories))
-	for i, v := range storedStories {
-		untypedStories[i] = &v
-	}
-	if err := appState.Stories.Set(untypedStories); err != nil {
-		println(err.Error())
-	}
+	//TODO: This doesn't work properly
+	//storedStories := s.Storage.ReadStories()
+	//untypedStories := make([]interface{}, len(storedStories))
+	//for i, v := range storedStories {
+	//	untypedStories[i] = &v
+	//}
+	//if err := appState.Stories.Set(untypedStories); err != nil {
+	//	println("Failed to set stories: " + err.Error())
+	//}
 
 	// Look for stored known titles
 	storedKnownTitles := s.Storage.ReadKnownTitles()
