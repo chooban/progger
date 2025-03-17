@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.22-alpine as builder
+FROM --platform=linux/amd64 golang:1.22-alpine AS builder
 
 WORKDIR /app
 
@@ -13,7 +13,7 @@ COPY . .
 
 RUN go build -o progdl ./download/cmd/download.go
 
-FROM --platform=linux/amd64 mcr.microsoft.com/playwright:v1.49.1-jammy
+FROM --platform=linux/amd64 mcr.microsoft.com/playwright:v1.50.1-jammy
 
 LABEL org.opencontainers.image.description="Utility for downloading 2000AD"
 
@@ -31,9 +31,9 @@ RUN USER=pwuser && \
 WORKDIR /app
 
 ENV PATH="${PATH}:/usr/local/go/bin"
-ENV BROWSER_DIR /opt/cache
-ENV DOWNLOAD_DIR /opt/downloads
-ENV DOWNLOAD_COUNT 1
+ENV BROWSER_DIR=/opt/cache
+ENV DOWNLOAD_DIR=/opt/downloads
+ENV DOWNLOAD_COUNT=1
 
 RUN mkdir -p /opt/downloads
 RUN mkdir -p /opt/cache
@@ -41,7 +41,7 @@ RUN chown pwuser /opt/downloads
 RUN chown pwuser /opt/cache
 
 USER pwuser:pwuser
-RUN go run github.com/playwright-community/playwright-go/cmd/playwright@v0.4101.1 install firefox
+RUN go run github.com/playwright-community/playwright-go/cmd/playwright@v0.5001.0 install firefox
 
 RUN mkdir -p ~/.config/progger/
 
