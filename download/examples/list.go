@@ -26,6 +26,11 @@ func main() {
 		Password: os.Getenv("REBELLION_PASSWORD"),
 	}, true)
 
+	if err != nil {
+		logger.Error(err, "Could not list available issues")
+		return
+	}
+
 	logger.Info(fmt.Sprintf("Found %d progs", len(list)), "duration", time.Since(start))
 	logger.Info(fmt.Sprintf("%+v", list[0]))
 }

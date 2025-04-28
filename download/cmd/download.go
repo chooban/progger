@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"flag"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
 	"os"
+	"slices"
 	"time"
 )
 
@@ -79,6 +81,11 @@ func main() {
 		logger.Info("No progs found")
 		return
 	}
+
+	issueCmp := func(i, j download.DigitalComic) int {
+		return cmp.Compare(j.IssueNumber, i.IssueNumber)
+	}
+	slices.SortFunc(list, issueCmp)
 
 	if listAvailable {
 		for _, prog := range list {

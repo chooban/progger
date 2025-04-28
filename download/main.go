@@ -33,17 +33,17 @@ func ListAvailableIssues(ctx context.Context, details RebellionDetails, latestOn
 	bContext, err := browser(ctx)
 
 	if err != nil {
-		logger.Error(err, "Could not start browser")
+		logger.V(1).Error(err, "Could not start browser")
 		return []DigitalComic{}, err
 	}
 
 	if err = Login(ctx, bContext, details.Username, details.Password); err != nil {
-		logger.Error(err, "Failed to login")
+		logger.V(1).Error(err, "Failed to login")
 		return []DigitalComic{}, err
 	}
 
 	if progs, err := listProgs(ctx, bContext, latestOnly); err != nil {
-		logger.Error(err, "Could not list progs")
+		logger.V(1).Error(err, "Could not list progs")
 		return []DigitalComic{}, err
 	} else {
 		return progs, nil

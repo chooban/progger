@@ -23,6 +23,13 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 	logger := logr.FromContextOrDiscard(ctx)
 	assertions := playwright.NewPlaywrightAssertions()
 
+	if len(username) == 0 {
+		return errors.New("login failed due to empty username")
+	}
+	if len(password) == 0 {
+		return errors.New("login failed due to empty password")
+	}
+
 	page, err := getPage(ctx, bContext)
 	defer func() {
 		if err := page.Close(); err != nil {

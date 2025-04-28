@@ -13,7 +13,7 @@ COPY . .
 
 RUN go build -o progdl ./download/cmd/download.go
 
-FROM --platform=linux/amd64 mcr.microsoft.com/playwright:v1.50.1-jammy
+FROM --platform=linux/amd64 mcr.microsoft.com/playwright:v1.51.1-jammy
 
 LABEL org.opencontainers.image.description="Utility for downloading 2000AD"
 
