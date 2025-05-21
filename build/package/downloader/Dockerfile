@@ -34,6 +34,7 @@ ENV PATH="${PATH}:/usr/local/go/bin"
 ENV BROWSER_DIR=/opt/cache
 ENV DOWNLOAD_DIR=/opt/downloads
 ENV DOWNLOAD_COUNT=1
+ENV DOWNLOAD_PAGE=0
 
 RUN mkdir -p /opt/downloads
 RUN mkdir -p /opt/cache
@@ -55,4 +56,6 @@ ENTRYPOINT ["fixuid"]
 CMD ./progdl \
     --browser-dir $BROWSER_DIR \
     --download-dir $DOWNLOAD_DIR \
+    --list-page $DOWNLOAD_PAGE \
+    --download \
     --download-count $DOWNLOAD_COUNT

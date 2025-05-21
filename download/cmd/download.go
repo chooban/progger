@@ -14,6 +14,19 @@ import (
 	"time"
 )
 
+type arrayFlags []string
+
+// String is an implementation of the flag.Value interface
+func (i *arrayFlags) String() string {
+	return fmt.Sprintf("%v", *i)
+}
+
+// Set is an implementation of the flag.Value interface
+func (i *arrayFlags) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
 func main() {
 	ctx, logger := withLogger(context.Background())
 
@@ -41,6 +54,9 @@ func main() {
 	var listLatest bool
 	flag.BoolVar(&listLatest, "latest", false, "List latest downloads")
 
+	var downloadFiles bool
+	flag.BoolVar(&downloadFiles, "download", false, "Download files")
+
 	var listPage = 0
 	flag.IntVar(&listPage, "list-page", listPage, "Specific page to scan")
 
@@ -52,6 +68,9 @@ func main() {
 
 	var downloadCount = 0
 	flag.IntVar(&downloadCount, "download-count", downloadCount, "Number of progs to download")
+
+	var publicationFilter arrayFlags
+	flag.Var(&publicationFilter, "publication-filter", "Publication names to download. Defaults to all")
 
 	flag.Parse()
 
@@ -91,10 +110,15 @@ func main() {
 		for _, prog := range list {
 			logger.Info(fmt.Sprintf("Found %s, %d, %s", prog.Publication, prog.IssueNumber, prog.IssueDate))
 		}
-		return
 	}
 
-	for i := 0; i < downloadCount && i < len(list); i++ {
+	for i := 0; downloadFiles && i < downloadCount && i < len(list); i++ {
+		if len(publicationFilter) > 0 {
+			if !slices.Contains(publicationFilter, list[i].Publication) {
+				logger.Info(fmt.Sprintf("Publication %s not found in filter list", list[i].Publication))
+				continue
+			}
+		}
 		logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
 		if filepath, err := download.Download(ctx, details, list[i], downloadDir, download.Pdf); err != nil {
 			logger.Error(err, "could not download file")
