@@ -2,6 +2,8 @@ package download
 
 import (
 	"context"
+	"sync"
+
 	"github.com/go-logr/logr"
 	"github.com/playwright-community/playwright-go"
 	"os"
@@ -9,12 +11,18 @@ import (
 	"strconv"
 )
 
+var playwrightInitialized sync.Once
+
 func browser(ctx context.Context) (playwright.BrowserContext, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	logger.V(1).Info("Starting to create browser")
-	err := playwright.Install()
-	if err != nil {
-		return nil, err
+
+	var installErr error
+	playwrightInitialized.Do(func() {
+		installErr = playwright.Install()
+	})
+	if installErr != nil {
+		return nil, installErr
 	}
 	pw, err := playwright.Run()
 	if err != nil {

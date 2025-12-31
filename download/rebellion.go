@@ -20,6 +20,13 @@ var listUrl = "https://shop.2000ad.com/account/downloads?sort-by=released&direct
 
 //var downloadPageUrl = "https://shop.2000ad.com/account/downloads?sort-by=granted&direction=desc&page=%d"
 
+var (
+	resourceBlockRegex = regexp.MustCompile(`png|jpg|gif|woff|css`)
+	issueNumberRegex   = regexp.MustCompile(`(?si)(PRG|MEG)(?P<Issue>\d{1,})D`)
+	titleRegex         = regexp.MustCompile(`(?si)2000\s+AD\s+prog\s+\d{1,}|Judge\s+Dredd\s+Megazine\s+\d{1,}`)
+	ordinalDateRegex   = regexp.MustCompile(`(\d+)(st|rd|th|nd)`)
+)
+
 func Login(ctx context.Context, bContext playwright.BrowserContext, username, password string) (err error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	assertions := playwright.NewPlaywrightAssertions()
@@ -109,8 +116,7 @@ func getPage(ctx context.Context, bContext playwright.BrowserContext) (page play
 		logger.Error(err, "Failed to create page")
 		return
 	}
-	r, _ := regexp.Compile("png|jpg|gif|woff|css")
-	err = page.Route(r, func(route playwright.Route) {
+	err = page.Route(resourceBlockRegex, func(route playwright.Route) {
 		if err := route.Abort(); err != nil {
 			logger.Error(err, "Failed to abort route")
 		}
@@ -194,19 +200,28 @@ func listProgs(ctx context.Context, bContext playwright.BrowserContext, latestOn
 		logger.Info("Only retrieving most recent issues")
 	}
 
+	const maxWorkers = 5
+	semaphore := make(chan struct{}, maxWorkers)
+
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
 	allProgs = make([]DigitalComic, 0, maxPage*10)
 	for p := range maxPage {
 		wg.Add(1)
-		go func() {
-			progsFromPage := pageDownloader(ctx, bContext, p+1)
+		semaphore <- struct{}{} // Acquire
+
+		go func(pageNum int) {
+			defer func() {
+				<-semaphore // Release
+				wg.Done()
+			}()
+
+			progsFromPage := pageDownloader(ctx, bContext, pageNum)
 			mu.Lock()
 			allProgs = append(allProgs, progsFromPage...)
 			mu.Unlock()
-			wg.Done()
-		}()
+		}(p + 1) // Fix loop variable capture
 	}
 
 	wg.Wait()
@@ -242,14 +257,7 @@ func downloadComic(ctx context.Context, bContext playwright.BrowserContext, comi
 }
 
 func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]DigitalComic, error) {
-	titleMatcher := regexp.MustCompile(`(?si)2000\s+AD\s+prog\s+\d{1,}|Judge\s+Dredd\s+Megazine\s+\d{1,}`)
-	ordinalDateMatch := regexp.MustCompile("(\\d+)(st|rd|th|nd)")
-	titleFilter := playwright.LocatorFilterOptions{HasText: titleMatcher}
-
-	issueNumberMatcher, err := regexp.Compile(`(?si)(PRG|MEG)(?P<Issue>\d{1,})D`)
-	if err != nil {
-		return nil, fmt.Errorf("failed to compile issue number regex: %w", err)
-	}
+	titleFilter := playwright.LocatorFilterOptions{HasText: titleRegex}
 
 	locators, err := page.GetByRole("listitem").Filter(titleFilter).All()
 	if err != nil {
@@ -264,12 +272,12 @@ func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]DigitalCo
 			continue
 		}
 
-		m := issueNumberMatcher.FindStringSubmatch(productUrl)
+		m := issueNumberRegex.FindStringSubmatch(productUrl)
 		if m == nil {
 			logger.V(1).Info("Failed to match issue number in URL, skipping item", "url", productUrl)
 			continue
 		}
-		issueNumberRaw := m[issueNumberMatcher.SubexpIndex("Issue")]
+		issueNumberRaw := m[issueNumberRegex.SubexpIndex("Issue")]
 		issueNumber, err := strconv.Atoi(issueNumberRaw)
 		if err != nil {
 			logger.V(1).Info("Failed to parse issue number, skipping item", "raw", issueNumberRaw, "error", err)
@@ -293,7 +301,7 @@ func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]DigitalCo
 		issueDate := v.Locator("[class=subheader]").First()
 		dateString, err := issueDate.InnerText()
 
-		dateString = ordinalDateMatch.ReplaceAllString(dateString, "$1")
+		dateString = ordinalDateRegex.ReplaceAllString(dateString, "$1")
 		d, err := time.Parse("2 January 2006", dateString)
 		if err != nil {
 			logger.Error(err, "could not get date")
