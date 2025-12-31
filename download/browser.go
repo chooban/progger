@@ -35,15 +35,15 @@ func browser(ctx context.Context) (playwright.BrowserContext, error) {
 		return nil, err
 	}
 	contextDir := filepath.Join(configDir, "browser")
-	headless, err := strconv.ParseBool(getEnv("DEBUG", "false"))
+	debug, err := strconv.ParseBool(getEnv("DEBUG", "false"))
 	if err != nil {
-		headless = false
+		debug = false
 	}
 	timeout := float64(10 * 1000)
 	bContext, err := pw.Chromium.LaunchPersistentContext(
 		contextDir,
 		playwright.BrowserTypeLaunchPersistentContextOptions{
-			Headless:          boolPointer(!headless),
+			Headless:          boolPointer(!debug),
 			JavaScriptEnabled: boolPointer(false),
 			Timeout:           &timeout,
 		},

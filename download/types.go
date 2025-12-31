@@ -2,8 +2,6 @@ package download
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -19,9 +17,9 @@ const (
 	Cbz
 )
 
-func (f *FileType) String() string {
+func (f FileType) String() string {
 	names := [...]string{"pdf", "cbz"}
-	return names[*f]
+	return names[f]
 }
 
 type DigitalComic struct {
@@ -41,9 +39,9 @@ func (d *DigitalComic) String() string {
 	if err != nil {
 		return ""
 	}
-	formattedDate := concat("(", formatDateWithOrdinal(issueDate), ")")
+	formattedDate := "(" + formatDateWithOrdinal(issueDate) + ")"
 
-	return concat(d.Publication, " ", strconv.Itoa(d.IssueNumber), " ", formattedDate)
+	return fmt.Sprintf("%s %d %s", d.Publication, d.IssueNumber, formattedDate)
 }
 
 func (d *DigitalComic) Equals(e DigitalComic) bool {
@@ -67,8 +65,4 @@ func addOrdinal(n int) string {
 	default:
 		return fmt.Sprintf("%dth", n)
 	}
-}
-
-func concat(strs ...string) string {
-	return strings.Join(strs, "")
 }

@@ -31,10 +31,10 @@ func Login(ctx context.Context, bContext playwright.BrowserContext, username, pa
 	logger := logr.FromContextOrDiscard(ctx)
 	assertions := playwright.NewPlaywrightAssertions()
 
-	if len(username) == 0 {
+	if username == "" {
 		return errors.New("login failed due to empty username")
 	}
-	if len(password) == 0 {
+	if password == "" {
 		return errors.New("login failed due to empty password")
 	}
 
