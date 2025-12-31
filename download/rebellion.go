@@ -168,7 +168,11 @@ func listProgs(ctx context.Context, bContext playwright.BrowserContext, latestOn
 	maxPage := 1
 	if !latestOnly {
 		logger.Info(fmt.Sprintf("Listing all progs..."))
-		page, _ := getPage(ctx, bContext)
+		page, err := getPage(ctx, bContext)
+		if err != nil {
+			logger.Error(err, "Failed to get page")
+			return nil, err
+		}
 		if _, err := page.Goto(listUrl); err != nil {
 			logger.Error(err, "Failed to load list page", "url", listUrl)
 			return allProgs, err
@@ -179,7 +183,11 @@ func listProgs(ctx context.Context, bContext playwright.BrowserContext, latestOn
 			logger.Error(err, "could not get text of last link")
 			return nil, _err
 		} else {
-			maxPage, _ = strconv.Atoi(maxPageText)
+			maxPage, err = strconv.Atoi(maxPageText)
+			if err != nil {
+				logger.Error(err, "Failed to parse max page number")
+				return nil, fmt.Errorf("failed to parse max page: %w", err)
+			}
 		}
 		page.Close()
 	} else {
@@ -238,26 +246,49 @@ func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]DigitalCo
 	ordinalDateMatch := regexp.MustCompile("(\\d+)(st|rd|th|nd)")
 	titleFilter := playwright.LocatorFilterOptions{HasText: titleMatcher}
 
-	issueNumberMatcher, _ := regexp.Compile(`(?si)(PRG|MEG)(?P<Issue>\d{1,})D`)
+	issueNumberMatcher, err := regexp.Compile(`(?si)(PRG|MEG)(?P<Issue>\d{1,})D`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to compile issue number regex: %w", err)
+	}
 
 	locators, err := page.GetByRole("listitem").Filter(titleFilter).All()
 	if err != nil {
 		return []DigitalComic{}, err
 	}
 	logger.Info("Found listitems", "count", len(locators), "page", page.URL())
-	progs := make([]DigitalComic, len(locators))
-	for i, v := range locators {
-		productUrl, _ := v.GetByRole("link").Filter(titleFilter).First().GetAttribute("href")
+	progs := make([]DigitalComic, 0, len(locators))
+	for _, v := range locators {
+		productUrl, err := v.GetByRole("link").Filter(titleFilter).First().GetAttribute("href")
+		if err != nil {
+			logger.V(1).Info("Failed to get product URL, skipping item", "error", err)
+			continue
+		}
 
 		m := issueNumberMatcher.FindStringSubmatch(productUrl)
+		if m == nil {
+			logger.V(1).Info("Failed to match issue number in URL, skipping item", "url", productUrl)
+			continue
+		}
 		issueNumberRaw := m[issueNumberMatcher.SubexpIndex("Issue")]
-		issueNumber, _ := strconv.Atoi(issueNumberRaw)
+		issueNumber, err := strconv.Atoi(issueNumberRaw)
+		if err != nil {
+			logger.V(1).Info("Failed to parse issue number, skipping item", "raw", issueNumberRaw, "error", err)
+			continue
+		}
 
 		pdfForm := v.Locator("form").Filter(playwright.LocatorFilterOptions{HasText: "PDF"})
-		pdfUrl, _ := pdfForm.GetAttribute("action")
+		pdfUrl, err := pdfForm.GetAttribute("action")
+		if err != nil {
+			logger.V(1).Info("Failed to get PDF URL", "error", err)
+			pdfUrl = ""
+		}
 
 		cbzForm := v.Locator("form").Filter(playwright.LocatorFilterOptions{HasText: "CBZ"})
-		cbzUrl, _ := cbzForm.GetAttribute("action")
+		cbzUrl, err := cbzForm.GetAttribute("action")
+		if err != nil {
+			logger.V(1).Info("Failed to get CBZ URL", "error", err)
+			cbzUrl = ""
+		}
 
 		issueDate := v.Locator("[class=subheader]").First()
 		dateString, err := issueDate.InnerText()
@@ -268,12 +299,16 @@ func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]DigitalCo
 			logger.Error(err, "could not get date")
 		}
 		title := v.Locator("h2").Filter(titleFilter).First()
-		titleText, _ := title.InnerText()
+		titleText, err := title.InnerText()
+		if err != nil {
+			logger.V(1).Info("Failed to get title text, skipping item", "error", err)
+			continue
+		}
 		publication := "2000AD"
 		if strings.Contains(titleText, "Megazine") {
 			publication = "Megazine"
 		}
-		progs[i] = DigitalComic{
+		progs = append(progs, DigitalComic{
 			Publication: publication,
 			Url:         productUrl,
 			IssueNumber: issueNumber,
@@ -282,7 +317,7 @@ func extractProgsFromPage(logger logr.Logger, page playwright.Page) ([]DigitalCo
 				Pdf: pdfUrl,
 				Cbz: cbzUrl,
 			},
-		}
+		})
 	}
 	return progs, nil
 }
