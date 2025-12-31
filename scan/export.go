@@ -3,9 +3,10 @@ package scan
 import (
 	"context"
 	"fmt"
+	"strings"
+
 	"github.com/chooban/progger/scan/api"
 	"github.com/chooban/progger/scan/internal"
-	"strings"
 )
 
 // Build exports a PDF of the pages passed to it
