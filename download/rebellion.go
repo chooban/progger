@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-logr/logr"
-	"github.com/playwright-community/playwright-go"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/go-logr/logr"
+	"github.com/playwright-community/playwright-go"
 )
 
 var signinUrl = "https://shop.2000ad.com/account/sign-in"
@@ -209,7 +210,7 @@ func downloadComic(ctx context.Context, bContext playwright.BrowserContext, comi
 	logger := logr.FromContextOrDiscard(ctx)
 	page, err := getPage(ctx, bContext)
 	if err != nil {
-		return "", fmt.Errorf("could not open page %g", err)
+		return "", fmt.Errorf("could not open page: %w", err)
 	}
 	expectDownload, err := page.ExpectDownload(func() error {
 		// Weirdly, we ignore the errors because Playwright now considers a navigation
@@ -218,14 +219,14 @@ func downloadComic(ctx context.Context, bContext playwright.BrowserContext, comi
 		return nil
 	}, playwright.PageExpectDownloadOptions{})
 	if err != nil {
-		logger.Error(err, "Failed to downloadComic")
-		return "", fmt.Errorf("failed to get a downloadComic %g", err)
+		logger.Error(err, "Failed to download an issue")
+		return "", fmt.Errorf("failed to download an issue: %w", err)
 	}
 
 	path, err := expectDownload.Path()
 	if err != nil {
-		logger.Error(err, "Failed to downloadComic")
-		return "", fmt.Errorf("no path to file returned %g", err)
+		logger.Error(err, "No path found for downloaded issue")
+		return "", fmt.Errorf("no path to file returned: %w", err)
 	}
 	logger.Info(fmt.Sprintf("Path is %s", path))
 

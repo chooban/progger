@@ -55,7 +55,7 @@ func Download(ctx context.Context, details RebellionDetails, comic DigitalComic,
 
 	info, err := os.Stat(dir)
 	if err != nil {
-		return "", fmt.Errorf("directory does not exist: %g", err)
+		return "", fmt.Errorf("directory does not exist: %w", err)
 	}
 	if !info.IsDir() {
 		return "", errors.New("path is not a directory")
@@ -83,19 +83,30 @@ func Download(ctx context.Context, details RebellionDetails, comic DigitalComic,
 
 	downloadedFile, err := downloadComic(ctx, bContext, comic)
 	if err != nil {
-		return "", fmt.Errorf("failed to downloadComic file %g", err)
+		return "", fmt.Errorf("failed to downloadComic file: %w", err)
 	}
 
 	destinationFile := path.Join(dir, comic.Filename(filetype))
 
-	r, _ := os.Open(downloadedFile)
-	w, _ := os.Create(destinationFile)
+	r, err := os.Open(downloadedFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to open source file: %w", err)
+	}
+	defer r.Close()
+
+	w, err := os.Create(destinationFile)
+	if err != nil {
+		r.Close()
+		return "", fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer w.Close()
+
 	_, err = io.Copy(w, r)
 	if err != nil {
-		return "", fmt.Errorf("failed to move downloaded file %g", err)
+		return "", fmt.Errorf("failed to copy file: %w", err)
 	}
 
-	return destinationFile, err
+	return destinationFile, nil
 }
 
 func WithBrowserContextDir(ctx context.Context, dir string) context.Context {

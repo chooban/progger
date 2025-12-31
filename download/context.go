@@ -17,7 +17,11 @@ var (
 
 func browserContextDir(ctx context.Context) (d string, err error) {
 	if v := ctx.Value(ContextKeyBrowserContext); v != nil {
-		d = v.(string)
+		var ok bool
+		d, ok = v.(string)
+		if !ok {
+			err = errors.New("browser context has wrong type")
+		}
 	} else {
 		err = errors.New("browser context not found")
 	}
