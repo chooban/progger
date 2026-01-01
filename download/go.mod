@@ -7,7 +7,7 @@ toolchain go1.23.2
 require (
 	github.com/go-logr/logr v1.4.2
 	github.com/go-logr/zerologr v1.2.3
-	github.com/playwright-community/playwright-go v0.5101.0
+	github.com/playwright-community/playwright-go v0.5200.1
 	github.com/rs/zerolog v1.32.0
 )
 
