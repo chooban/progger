@@ -1,18 +1,10 @@
-package services
+package app
 
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/data/binding"
 	"github.com/zalando/go-keyring"
 )
-
-func boundSourceDir(app fyne.App) binding.String {
-	return boundStringValue(app, "SourceDir")
-}
-
-func boundExportDir(app fyne.App) binding.String {
-	return boundStringValue(app, "ExportDir")
-}
 
 func BoundRebellionUsername(app fyne.App) binding.String {
 	return boundSecretValue(app, "RebellionUsername")

@@ -1,17 +1,19 @@
-package services
+package app
 
 import (
-	"fyne.io/fyne/v2"
 	"os"
 	"path/filepath"
+
+	"fyne.io/fyne/v2"
+	"github.com/chooban/progger/exporter/services"
 )
 
 type AppServices struct {
-	Downloader *Downloader
-	Exporter   *Exporter
-	Scanner    *Scanner
+	Downloader *services.Downloader
+	Exporter   *services.Exporter
+	Scanner    *services.Scanner
 	Prefs      *Prefs
-	Storage    *Storage
+	Storage    *services.Storage
 }
 
 func NewAppServices(a fyne.App) *AppServices {
@@ -30,12 +32,12 @@ func NewAppServices(a fyne.App) *AppServices {
 		}
 	}
 
-	storage := NewStorage(proggerConfigDir)
+	storage := services.NewStorage(proggerConfigDir)
 
 	return &AppServices{
-		Downloader: NewDownloader(configDir, storage),
-		Exporter:   NewExporter(),
-		Scanner:    NewScanner(storage),
+		Downloader: services.NewDownloader(configDir, storage),
+		Exporter:   services.NewExporter(),
+		Scanner:    services.NewScanner(storage),
 		Prefs:      NewPrefs(a),
 		Storage:    storage,
 	}

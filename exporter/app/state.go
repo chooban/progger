@@ -1,13 +1,17 @@
 package app
 
 import (
+	"os"
+	"path/filepath"
+	"sort"
+
 	"fyne.io/fyne/v2/data/binding"
+	downloadApi "github.com/chooban/progger/download"
 	"github.com/chooban/progger/exporter/api"
-	"github.com/chooban/progger/exporter/services"
 )
 
 type State struct {
-	services       *services.AppServices
+	services       *AppServices
 	IsDownloading  binding.Bool
 	IsScanning     binding.Bool
 	Stories        binding.UntypedList
@@ -17,7 +21,7 @@ type State struct {
 	KnownTitles    binding.StringList
 }
 
-func NewAppState(s *services.AppServices) *State {
+func NewAppState(s *AppServices) *State {
 	availableProgs := binding.NewUntypedList()
 	appState := State{
 		services:       s,
@@ -41,11 +45,7 @@ func NewAppState(s *services.AppServices) *State {
 	refreshIssues := func() {
 		savedProgs := s.Storage.ReadIssues()
 		if len(savedProgs) > 0 {
-			progSourceDir := s.Prefs.ProgSourceDirectory()
-			megSourceDir := s.Prefs.MegSourceDirectory()
-
-			// Use the same buildIssueList logic from operations
-			convertedProgs := services.BuildIssueList(savedProgs, progSourceDir, megSourceDir)
+			convertedProgs := appState.BuildIssueList(savedProgs)
 			if len(convertedProgs) > 0 {
 				if err := availableProgs.Set(convertedProgs); err != nil {
 					println(err.Error())
@@ -117,13 +117,42 @@ func (s *State) RefreshProgList() {
 		savedProgs[i] = v.(api.Downloadable)
 	}
 
-	progSourceDir := s.services.Prefs.ProgSourceDirectory()
-	megSourceDir := s.services.Prefs.MegSourceDirectory()
-
-	convertedProgs := services.BuildIssueList(savedProgs, progSourceDir, megSourceDir)
+	convertedProgs := s.BuildIssueList(savedProgs)
 
 	err := s.AvailableProgs.Set(convertedProgs)
 	if err != nil {
 		println(err.Error())
 	}
+}
+
+// BuildIssueList converts issues to untyped list, checks which are already downloaded, and sorts
+func (s *State) BuildIssueList(issues []api.Downloadable) []interface{} {
+	if len(issues) == 0 {
+		return make([]interface{}, 0)
+	}
+
+	progSourceDir := s.services.Prefs.ProgSourceDirectory()
+	megSourceDir := s.services.Prefs.MegSourceDirectory()
+
+	// Sort by issue number descending
+	sort.Slice(issues, func(a, b int) bool {
+		return issues[a].Comic.IssueNumber > issues[b].Comic.IssueNumber
+	})
+
+	untypedIssues := make([]interface{}, len(issues))
+	for i, v := range issues {
+		targetDir := progSourceDir
+		if v.Comic.Publication == "Megazine" {
+			targetDir = megSourceDir
+		}
+
+		// Check if already downloaded
+		filename := v.Comic.Filename(downloadApi.Pdf)
+		if _, err := os.Stat(filepath.Join(targetDir, filename)); err == nil {
+			v.Downloaded = true
+		}
+		untypedIssues[i] = v
+	}
+
+	return untypedIssues
 }

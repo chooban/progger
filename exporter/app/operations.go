@@ -1,14 +1,9 @@
-package services
+package app
 
 import (
 	"context"
-	"os"
-	"path/filepath"
-	"sort"
 
 	"fyne.io/fyne/v2/data/binding"
-	downloadApi "github.com/chooban/progger/download"
-	"github.com/chooban/progger/exporter/api"
 )
 
 // ScanOperation represents an ongoing or completed scan operation
@@ -21,9 +16,15 @@ type ScanOperation struct {
 
 // Cancel stops the scan operation if it's still running
 func (s *ScanOperation) Cancel() {
-	if s.cancel != nil {
+	isRunning, _ := s.IsRunning.Get()
+	if isRunning && s.cancel != nil {
 		s.cancel()
 	}
+}
+
+// SetCancel sets the cancel function for this operation
+func (s *ScanOperation) SetCancel(cancel context.CancelFunc) {
+	s.cancel = cancel
 }
 
 // DownloadListOperation represents fetching the list of available issues from Rebellion
@@ -36,9 +37,15 @@ type DownloadListOperation struct {
 
 // Cancel stops the download list operation if it's still running
 func (d *DownloadListOperation) Cancel() {
-	if d.cancel != nil {
+	isRunning, _ := d.IsRunning.Get()
+	if isRunning && d.cancel != nil {
 		d.cancel()
 	}
+}
+
+// SetCancel sets the cancel function for this operation
+func (d *DownloadListOperation) SetCancel(cancel context.CancelFunc) {
+	d.cancel = cancel
 }
 
 // DownloadOperation represents downloading one or more issues
@@ -50,9 +57,15 @@ type DownloadOperation struct {
 
 // Cancel stops the download operation if it's still running
 func (d *DownloadOperation) Cancel() {
-	if d.cancel != nil {
+	isRunning, _ := d.IsRunning.Get()
+	if isRunning && d.cancel != nil {
 		d.cancel()
 	}
+}
+
+// SetCancel sets the cancel function for this operation
+func (d *DownloadOperation) SetCancel(cancel context.CancelFunc) {
+	d.cancel = cancel
 }
 
 // NewScanOperation creates a new scan operation with initialized bindings
@@ -79,33 +92,4 @@ func NewDownloadOperation() *DownloadOperation {
 		IsRunning: binding.NewBool(),
 		Error:     binding.NewString(),
 	}
-}
-
-// BuildIssueList converts issues to untyped list and checks which are already downloaded
-func BuildIssueList(issues []api.Downloadable, progSourceDir, megSourceDir string) []interface{} {
-	if len(issues) == 0 {
-		return make([]interface{}, 0)
-	}
-
-	// Sort by issue number descending
-	sort.Slice(issues, func(a, b int) bool {
-		return issues[a].Comic.IssueNumber > issues[b].Comic.IssueNumber
-	})
-
-	untypedIssues := make([]interface{}, len(issues))
-	for i, v := range issues {
-		targetDir := progSourceDir
-		if v.Comic.Publication == "Megazine" {
-			targetDir = megSourceDir
-		}
-
-		// Check if already downloaded
-		filename := v.Comic.Filename(downloadApi.Pdf)
-		if _, err := os.Stat(filepath.Join(targetDir, filename)); err == nil {
-			v.Downloaded = true
-		}
-		untypedIssues[i] = v
-	}
-
-	return untypedIssues
 }

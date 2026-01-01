@@ -1,6 +1,8 @@
 package windows
 
 import (
+	"reflect"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
@@ -8,7 +10,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
-	"reflect"
 )
 
 func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
@@ -158,7 +159,7 @@ func newProgList(progs binding.UntypedList, onCheck issueToggler, isMarked isMar
 func newDownloadProgress() *fyne.Container {
 	activity := widget.NewActivity()
 	activity.Start()
-	
+
 	mainPanel := container.New(
 		layout.NewVBoxLayout(),
 		activity,
@@ -177,11 +178,37 @@ func downloadButton(a *app.ProggerApp, label string) fyne.CanvasObject {
 }
 
 func startFetchIssuesList(a *app.ProggerApp) {
-	rUser, rPass := a.AppService.Prefs.RebellionDetails()
-	progSourceDir := a.AppService.Prefs.ProgSourceDirectory()
-	megSourceDir := a.AppService.Prefs.MegSourceDirectory()
+	rUser, rPass := a.Services.Prefs.RebellionDetails()
 
-	op := a.AppService.Downloader.StartFetchIssuesList(rUser, rPass, progSourceDir, megSourceDir)
+	// Create the operation
+	op := app.NewDownloadListOperation()
+
+	ctx, cancel, _ := app.WithLogger()
+	op.SetCancel(cancel)
+
+	go func() {
+		_ = op.IsRunning.Set(true)
+		defer func() {
+			_ = op.IsRunning.Set(false)
+		}()
+
+		issues, err := a.Services.Downloader.FetchIssuesList(ctx, rUser, rPass)
+		if err != nil {
+			_ = op.Error.Set(err.Error())
+			return
+		}
+
+		// Convert to []interface{} for binding
+		untypedProgs := make([]interface{}, len(issues))
+		for i, v := range issues {
+			untypedProgs[i] = v
+		}
+
+		if err := op.AvailableProgs.Set(untypedProgs); err != nil {
+			_ = op.Error.Set(err.Error())
+			return
+		}
+	}()
 
 	// Bind the operation state to the app state
 	op.IsRunning.AddListener(binding.NewDataListener(func() {
@@ -191,21 +218,45 @@ func startFetchIssuesList(a *app.ProggerApp) {
 
 	op.AvailableProgs.AddListener(binding.NewDataListener(func() {
 		progs, _ := op.AvailableProgs.Get()
-		a.State.AvailableProgs.Set(progs)
+		// Convert from []interface{} to []api.Downloadable
+		downloadables := make([]api.Downloadable, len(progs))
+		for i, v := range progs {
+			downloadables[i] = v.(api.Downloadable)
+		}
+		// Transform with download status checking and sorting
+		transformed := a.State.BuildIssueList(downloadables)
+		a.State.AvailableProgs.Set(transformed)
 	}))
 }
 
 func startDownloadSelected(a *app.ProggerApp) {
-	rUser, rPass := a.AppService.Prefs.RebellionDetails()
-	progSourceDir := a.AppService.Prefs.ProgSourceDirectory()
-	megSourceDir := a.AppService.Prefs.MegSourceDirectory()
+	rUser, rPass := a.Services.Prefs.RebellionDetails()
+	progSourceDir := a.Services.Prefs.ProgSourceDirectory()
+	megSourceDir := a.Services.Prefs.MegSourceDirectory()
 
 	toDownload := a.State.GetToDownload()
 	if len(toDownload) == 0 {
 		return
 	}
 
-	op := a.AppService.Downloader.StartDownloadIssues(toDownload, rUser, rPass, progSourceDir, megSourceDir)
+	// Create the operation
+	op := app.NewDownloadOperation()
+
+	ctx, cancel, _ := app.WithLogger()
+	op.SetCancel(cancel)
+
+	go func() {
+		_ = op.IsRunning.Set(true)
+		defer func() {
+			_ = op.IsRunning.Set(false)
+		}()
+
+		err := a.Services.Downloader.DownloadIssues(ctx, toDownload, progSourceDir, megSourceDir, rUser, rPass)
+		if err != nil {
+			_ = op.Error.Set(err.Error())
+			return
+		}
+	}()
 
 	// Bind the operation state to the app state
 	op.IsRunning.AddListener(binding.NewDataListener(func() {
@@ -224,11 +275,46 @@ func startDownloadSelected(a *app.ProggerApp) {
 }
 
 func triggerScanAfterDownload(a *app.ProggerApp) {
-	dirsToScan := []string{a.AppService.Prefs.ProgSourceDirectory(), a.AppService.Prefs.MegSourceDirectory()}
-	knownTitles := a.AppService.Storage.ReadKnownTitles()
-	skipTitles := a.AppService.Storage.ReadSkipTitles()
+	dirsToScan := []string{a.Services.Prefs.ProgSourceDirectory(), a.Services.Prefs.MegSourceDirectory()}
+	knownTitles := a.Services.Storage.ReadKnownTitles()
+	skipTitles := a.Services.Storage.ReadSkipTitles()
 
-	op := a.AppService.Scanner.StartScan(dirsToScan, knownTitles, skipTitles)
+	// Create the operation
+	op := app.NewScanOperation()
+
+	ctx, cancel, _ := app.WithLogger()
+	op.SetCancel(cancel)
+
+	go func() {
+		_ = op.IsRunning.Set(true)
+		defer func() {
+			_ = op.IsRunning.Set(false)
+		}()
+
+		foundStories, err := a.Services.Scanner.Scan(ctx, dirsToScan, knownTitles, skipTitles)
+		if err != nil {
+			_ = op.Error.Set(err.Error())
+			return
+		}
+
+		// Convert to untyped for binding
+		untypedStories := make([]interface{}, len(foundStories))
+		storiesToStore := make([]api.Story, len(foundStories))
+		for i, v := range foundStories {
+			untypedStories[i] = v
+			storiesToStore[i] = *v
+		}
+
+		if err := op.Stories.Set(untypedStories); err != nil {
+			_ = op.Error.Set(err.Error())
+			return
+		}
+
+		// Store the stories
+		if err := a.Services.Storage.StoreStories(storiesToStore); err != nil {
+			_ = op.Error.Set("Failed to save stories: " + err.Error())
+		}
+	}()
 
 	// Bind the operation state to the app state
 	op.IsRunning.AddListener(binding.NewDataListener(func() {

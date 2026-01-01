@@ -1,7 +1,11 @@
 package windows
 
 import (
+	"context"
 	"fmt"
+	"slices"
+	"strings"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
@@ -10,9 +14,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
-	"github.com/chooban/progger/exporter/context"
-	"slices"
-	"strings"
 )
 
 func showHide(container *fyne.Container, toShow fyne.CanvasObject) {
@@ -153,7 +154,7 @@ func noStoriesContainer(a *app.ProggerApp) fyne.CanvasObject {
 	scanButton := widget.NewButton("Scan Directory", func() {
 		startScan(a)
 	})
-	content := container.NewVBox(widget.NewLabelWithData(a.AppService.Prefs.ProgSourceDir), scanButton)
+	content := container.NewVBox(widget.NewLabelWithData(a.Services.Prefs.ProgSourceDir), scanButton)
 
 	contentWrapper := container.NewCenter(
 		content,
@@ -163,11 +164,46 @@ func noStoriesContainer(a *app.ProggerApp) fyne.CanvasObject {
 }
 
 func startScan(a *app.ProggerApp) {
-	dirsToScan := []string{a.AppService.Prefs.ProgSourceDirectory(), a.AppService.Prefs.MegSourceDirectory()}
-	knownTitles := a.AppService.Storage.ReadKnownTitles()
-	skipTitles := a.AppService.Storage.ReadSkipTitles()
+	dirsToScan := []string{a.Services.Prefs.ProgSourceDirectory(), a.Services.Prefs.MegSourceDirectory()}
+	knownTitles := a.Services.Storage.ReadKnownTitles()
+	skipTitles := a.Services.Storage.ReadSkipTitles()
 
-	op := a.AppService.Scanner.StartScan(dirsToScan, knownTitles, skipTitles)
+	// Create the operation
+	op := app.NewScanOperation()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	op.SetCancel(cancel)
+
+	go func() {
+		_ = op.IsRunning.Set(true)
+		defer func() {
+			_ = op.IsRunning.Set(false)
+		}()
+
+		foundStories, err := a.Services.Scanner.Scan(ctx, dirsToScan, knownTitles, skipTitles)
+		if err != nil {
+			_ = op.Error.Set(err.Error())
+			return
+		}
+
+		// Convert to untyped for binding
+		untypedStories := make([]interface{}, len(foundStories))
+		storiesToStore := make([]api.Story, len(foundStories))
+		for i, v := range foundStories {
+			untypedStories[i] = v
+			storiesToStore[i] = *v
+		}
+
+		if err := op.Stories.Set(untypedStories); err != nil {
+			_ = op.Error.Set(err.Error())
+			return
+		}
+
+		// Store the stories
+		if err := a.Services.Storage.StoreStories(storiesToStore); err != nil {
+			_ = op.Error.Set("Failed to save stories: " + err.Error())
+		}
+	}()
 
 	// Bind the operation state to the app state
 	op.IsRunning.AddListener(binding.NewDataListener(func() {
@@ -229,8 +265,8 @@ func storiesButtonsContainer(a *app.ProggerApp) fyne.CanvasObject {
 }
 
 func exportButton(a *app.ProggerApp) *widget.Button {
-	exporter := a.AppService.Exporter
-	prefsService := a.AppService.Prefs
+	exporter := a.Services.Exporter
+	prefsService := a.Services.Prefs
 
 	exportButton := widget.NewButton("Export Story", func() {
 		stories, err := a.State.Stories.Get()
@@ -270,7 +306,7 @@ func exportButton(a *app.ProggerApp) *widget.Button {
 					fname, _ := filename.Get()
 					exportArtistEd, _ := artistBool.Get()
 
-					ctx, _ := context.WithLogger()
+					ctx, _, _ := app.WithLogger()
 					if err := exporter.Export(ctx, toExport, exportArtistEd, prefsService.ExportDirectory(), fname); err != nil {
 						dialog.ShowError(err, a.RootWindow)
 					} else {

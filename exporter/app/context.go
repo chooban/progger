@@ -1,15 +1,16 @@
-package context
+package app
 
 import (
 	"context"
+	"os"
+	"time"
+
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
-	"os"
-	"time"
 )
 
-func WithLogger() (context.Context, logr.Logger) {
+func WithLogger() (context.Context, context.CancelFunc, logr.Logger) {
 	writer := zerolog.ConsoleWriter{
 		Out:        os.Stdout,
 		TimeFormat: time.RFC3339,
@@ -19,8 +20,8 @@ func WithLogger() (context.Context, logr.Logger) {
 	logger = logger.With().Caller().Logger()
 	var log = zerologr.New(&logger)
 
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	ctx = logr.NewContext(ctx, log)
 
-	return ctx, log
+	return ctx, cancel, log
 }
