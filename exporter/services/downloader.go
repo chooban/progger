@@ -3,12 +3,14 @@ package services
 import (
 	"context"
 	"github.com/chooban/progger/download"
+	"github.com/chooban/progger/exporter/api"
 	"github.com/go-logr/logr"
 	"path"
 )
 
 type Downloader struct {
 	browserDir string
+	storage    *Storage
 }
 
 func (d *Downloader) GetIssuesList(ctx context.Context, username, password string) ([]download.DigitalComic, error) {
@@ -78,10 +80,128 @@ func (d *Downloader) DownloadAllIssues(ctx context.Context, sourceDir, username,
 	return nil
 }
 
-func NewDownloader(storageRoot string) *Downloader {
+// StartFetchIssuesList fetches the list of available issues and returns an observable operation
+func (d *Downloader) StartFetchIssuesList(username, password, progSourceDir, megSourceDir string) *DownloadListOperation {
+	op := NewDownloadListOperation()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	op.cancel = cancel
+
+	go func() {
+		_ = op.IsRunning.Set(true)
+		defer func() {
+			_ = op.IsRunning.Set(false)
+		}()
+
+		// Check if cancelled
+		select {
+		case <-ctx.Done():
+			_ = op.Error.Set("Operation cancelled")
+			return
+		default:
+		}
+
+		ctxt := download.WithBrowserContextDir(ctx, d.browserDir)
+		details := download.RebellionDetails{
+			Username: username,
+			Password: password,
+		}
+
+		list, err := download.ListAvailableIssues(ctxt, details, false)
+		if err != nil {
+			_ = op.Error.Set(err.Error())
+			return
+		}
+
+		downloadableList := make([]api.Downloadable, 0, len(list))
+		for _, v := range list {
+			p := api.Downloadable{
+				Comic:      v,
+				Downloaded: false,
+			}
+			downloadableList = append(downloadableList, p)
+		}
+
+		progs := BuildIssueList(downloadableList, progSourceDir, megSourceDir)
+		if err := op.AvailableProgs.Set(progs); err != nil {
+			_ = op.Error.Set(err.Error())
+			return
+		}
+
+		// Store the issues
+		if d.storage != nil {
+			if err := d.storage.SaveIssues(downloadableList); err != nil {
+				_ = op.Error.Set("Failed to save issues: " + err.Error())
+			}
+		}
+	}()
+
+	return op
+}
+
+// StartDownloadIssues downloads the provided issues and returns an observable operation
+func (d *Downloader) StartDownloadIssues(issues []api.Downloadable, username, password, progSourceDir, megSourceDir string) *DownloadOperation {
+	op := NewDownloadOperation()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	op.cancel = cancel
+
+	go func() {
+		_ = op.IsRunning.Set(true)
+		defer func() {
+			_ = op.IsRunning.Set(false)
+		}()
+
+		for _, v := range issues {
+			// Check if cancelled
+			select {
+			case <-ctx.Done():
+				_ = op.Error.Set("Download cancelled")
+				return
+			default:
+			}
+
+			targetDir := progSourceDir
+			if v.Comic.Publication == "Megazine" {
+				targetDir = megSourceDir
+			}
+
+			if err := d.DownloadIssue(ctx, v.Comic, targetDir, username, password); err != nil {
+				_ = op.Error.Set(err.Error())
+				return
+			}
+		}
+	}()
+
+	return op
+}
+
+// StartDownloadAllIssues downloads all available issues and returns an observable operation
+func (d *Downloader) StartDownloadAllIssues(username, password, sourceDir string) *DownloadOperation {
+	op := NewDownloadOperation()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	op.cancel = cancel
+
+	go func() {
+		_ = op.IsRunning.Set(true)
+		defer func() {
+			_ = op.IsRunning.Set(false)
+		}()
+
+		if err := d.DownloadAllIssues(ctx, sourceDir, username, password); err != nil {
+			_ = op.Error.Set(err.Error())
+		}
+	}()
+
+	return op
+}
+
+func NewDownloader(storageRoot string, storage *Storage) *Downloader {
 	browserDir := path.Join(storageRoot, "browser")
 
 	return &Downloader{
 		browserDir: browserDir,
+		storage:    storage,
 	}
 }

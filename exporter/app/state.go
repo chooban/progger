@@ -1,16 +1,9 @@
 package app
 
 import (
-	"fmt"
 	"fyne.io/fyne/v2/data/binding"
-	downloadApi "github.com/chooban/progger/download"
 	"github.com/chooban/progger/exporter/api"
-	"github.com/chooban/progger/exporter/context"
 	"github.com/chooban/progger/exporter/services"
-	"os"
-	"path/filepath"
-	"slices"
-	"sort"
 )
 
 type State struct {
@@ -19,212 +12,9 @@ type State struct {
 	IsScanning     binding.Bool
 	Stories        binding.UntypedList
 	AvailableProgs binding.UntypedList
-	ToDownload     []api.Downloadable
+	ToDownload     binding.UntypedList
 	SkipTitles     binding.StringList
 	KnownTitles    binding.StringList
-}
-
-func (s *State) startScanningHandler(m StartScanningMessage) {
-	if err := s.IsScanning.Set(true); err != nil {
-		println(err.Error())
-	}
-
-	go func() {
-		defer func() {
-			if err := s.IsScanning.Set(false); err != nil {
-				println(err.Error())
-			}
-		}()
-
-		dirsToScan := []string{s.services.Prefs.ProgSourceDirectory(), s.services.Prefs.MegSourceDirectory()}
-		foundStories, err := s.services.Scanner.Scan(
-			dirsToScan,
-			s.services.Storage.ReadKnownTitles(),
-			s.services.Storage.ReadSkipTitles(),
-		)
-		if err != nil {
-			println("Failed to scan: " + err.Error())
-			return
-		}
-
-		untypedStories := make([]interface{}, len(foundStories))
-		storiesToStore := make([]api.Story, len(foundStories))
-		for i, v := range foundStories {
-			untypedStories[i] = v
-			storiesToStore[i] = *v
-		}
-		if err := s.Stories.Set(untypedStories); err != nil {
-			println(err.Error())
-		}
-		err = s.services.Storage.StoreStories(storiesToStore)
-		if err != nil {
-			println("Failed to save stories: " + err.Error())
-			return
-		}
-	}()
-}
-
-func (s *State) startDownloadingHandler(_m StartDownloadingMessage) {
-	s.IsDownloading.Set(true)
-
-	go func() {
-		defer func() {
-			s.IsDownloading.Set(false)
-		}()
-		srcDir := s.services.Prefs.ProgSourceDirectory()
-		rUser, rPass := s.services.Prefs.RebellionDetails()
-
-		ctx, _ := context.WithLogger()
-		if err := s.services.Downloader.DownloadAllIssues(ctx, srcDir, rUser, rPass); err != nil {
-			s.Dispatch(finishedDownloadingMessage{Success: false})
-		} else {
-			s.Dispatch(finishedDownloadingMessage{Success: true})
-		}
-
-	}()
-}
-
-// refreshProgList loops through the list of available issues and marks those we have as downloaded
-func (s *State) refreshProgList() {
-	availableProgs, _ := s.AvailableProgs.Get()
-
-	var issue api.Downloadable
-	for i, v := range availableProgs {
-		issue = v.(api.Downloadable)
-		if _, err := os.Stat(filepath.Join(s.services.Prefs.ProgSourceDirectory(), issue.Comic.Filename(downloadApi.Pdf))); err == nil {
-			issue.Downloaded = true
-
-			availableProgs[i] = issue
-		}
-	}
-
-	err := s.AvailableProgs.Set(availableProgs)
-	if err != nil {
-		println(err.Error())
-	}
-}
-
-func (s *State) downloadSelectedProgs(m DownloadSelectedMessage) {
-	if err := s.IsDownloading.Set(true); err != nil {
-		println(err.Error())
-	}
-
-	go func() {
-		defer func() {
-			if err := s.IsDownloading.Set(false); err != nil {
-				println(err.Error())
-			}
-			s.ToDownload = make([]api.Downloadable, 0)
-			s.refreshProgList()
-		}()
-		rUser, rPass := s.services.Prefs.RebellionDetails()
-
-		ctx, _ := context.WithLogger()
-
-		for _, v := range s.ToDownload {
-			targetDir := s.services.Prefs.ProgSourceDirectory()
-			if v.Comic.Publication == "Megazine" {
-				targetDir = s.services.Prefs.MegSourceDirectory()
-			}
-			if err := s.services.Downloader.DownloadIssue(ctx, v.Comic, targetDir, rUser, rPass); err != nil {
-				println(err.Error())
-				return
-			} else {
-				v.Downloaded = true
-			}
-		}
-	}()
-}
-
-func (s *State) downloadProgListHandler(m StartDownloadingProgListMessage) {
-	// IsDownloading is pretty much a synonym for "is interacting with Rebellion account"
-	s.IsDownloading.Set(true)
-
-	go func() {
-		defer func() {
-			s.IsDownloading.Set(false)
-		}()
-		rUser, rPass := s.services.Prefs.RebellionDetails()
-
-		ctx, _ := context.WithLogger()
-		if list, err := s.services.Downloader.GetIssuesList(ctx, rUser, rPass); err != nil {
-			s.Dispatch(finishedDownloadingMessage{Success: false})
-		} else {
-			downloadableList := make([]api.Downloadable, 0, len(list))
-			for _, v := range list {
-				p := api.Downloadable{
-					Comic:      v,
-					Downloaded: false,
-				}
-				downloadableList = append(downloadableList, p)
-			}
-			progs := s.buildIssueList(downloadableList)
-			s.AvailableProgs.Set(progs)
-			err := s.services.Storage.SaveIssues(downloadableList)
-			if err != nil {
-				println(err.Error())
-			}
-			s.Dispatch(finishedDownloadingMessage{Success: true})
-		}
-	}()
-}
-
-func (s *State) buildIssueList(issues []api.Downloadable) []interface{} {
-	if len(issues) == 0 {
-		return make([]interface{}, 0)
-	}
-	sort.Slice(issues, func(a, b int) bool {
-		return issues[a].Comic.IssueNumber > issues[b].Comic.IssueNumber
-	})
-	println(fmt.Sprintf("Checking %s for issues", s.services.Prefs.ProgSourceDirectory()))
-	untypedIssues := make([]interface{}, len(issues))
-	for i, v := range issues {
-		targetDir := s.services.Prefs.ProgSourceDirectory()
-		if v.Comic.Publication == "Megazine" {
-			targetDir = s.services.Prefs.MegSourceDirectory()
-		}
-		if _, err := os.Stat(filepath.Join(targetDir, v.Comic.Filename(downloadApi.Pdf))); err == nil {
-			v.Downloaded = true
-		}
-		untypedIssues[i] = v
-	}
-
-	return untypedIssues
-}
-
-func (s *State) Dispatch(m interface{}) {
-	switch m.(type) {
-	case StartScanningMessage:
-		s.startScanningHandler(m.(StartScanningMessage))
-	case StartDownloadingMessage:
-		s.startDownloadingHandler(m.(StartDownloadingMessage))
-	case StartDownloadingProgListMessage:
-		s.downloadProgListHandler(m.(StartDownloadingProgListMessage))
-	case DownloadSelectedMessage:
-		s.downloadSelectedProgs(m.(DownloadSelectedMessage))
-	case AddToDownloadsMessage:
-		_m := m.(AddToDownloadsMessage)
-		idx := slices.IndexFunc(s.ToDownload, func(downloadable api.Downloadable) bool {
-			return downloadable.Comic.Equals(_m.Issue.Comic)
-		})
-		if idx < 0 {
-			s.ToDownload = append(s.ToDownload, _m.Issue)
-		}
-
-	case RemoveFromDownloadsMessage:
-		_m := m.(RemoveFromDownloadsMessage)
-		idx := slices.IndexFunc(s.ToDownload, func(downloadable api.Downloadable) bool {
-			return downloadable.Comic.Equals(_m.Issue.Comic)
-		})
-		if idx >= 0 {
-			s.ToDownload[idx] = s.ToDownload[len(s.ToDownload)-1]
-			s.ToDownload = s.ToDownload[:len(s.ToDownload)-1]
-		}
-	case finishedDownloadingMessage:
-		if m.(finishedDownloadingMessage).Success {
-			s.Dispatch(StartScanningMessage{})
-		}
-	}
 }
 
 func NewAppState(s *services.AppServices) *State {
@@ -235,20 +25,10 @@ func NewAppState(s *services.AppServices) *State {
 		IsScanning:     binding.NewBool(),
 		Stories:        binding.NewUntypedList(),
 		AvailableProgs: availableProgs,
-		ToDownload:     make([]api.Downloadable, 0),
+		ToDownload:     binding.NewUntypedList(),
 		SkipTitles:     binding.NewStringList(),
 		KnownTitles:    binding.NewStringList(),
 	}
-
-	//TODO: This doesn't work properly
-	//storedStories := s.Storage.ReadStories()
-	//untypedStories := make([]interface{}, len(storedStories))
-	//for i, v := range storedStories {
-	//	untypedStories[i] = &v
-	//}
-	//if err := appState.Stories.Set(untypedStories); err != nil {
-	//	println("Failed to set stories: " + err.Error())
-	//}
 
 	// Look for stored known titles
 	storedKnownTitles := s.Storage.ReadKnownTitles()
@@ -261,7 +41,11 @@ func NewAppState(s *services.AppServices) *State {
 	refreshIssues := func() {
 		savedProgs := s.Storage.ReadIssues()
 		if len(savedProgs) > 0 {
-			convertedProgs := appState.buildIssueList(savedProgs)
+			progSourceDir := s.Prefs.ProgSourceDirectory()
+			megSourceDir := s.Prefs.MegSourceDirectory()
+
+			// Use the same buildIssueList logic from operations
+			convertedProgs := services.BuildIssueList(savedProgs, progSourceDir, megSourceDir)
 			if len(convertedProgs) > 0 {
 				if err := availableProgs.Set(convertedProgs); err != nil {
 					println(err.Error())
@@ -278,27 +62,68 @@ func NewAppState(s *services.AppServices) *State {
 	return &appState
 }
 
-type StartScanningMessage struct{}
-
-// StartDownloadingMessage requests that all available progs be downloaded
-type StartDownloadingMessage struct{}
-
-// DownloadSelectedMessage requests that the selected issues be downloaded
-type DownloadSelectedMessage struct{}
-
-// StartDownloadingProgListMessage requests downloading a list of available progs from the Rebellion account
-type StartDownloadingProgListMessage struct {
-	Refresh bool
+// GetToDownload returns the current list of items to download
+func (s *State) GetToDownload() []api.Downloadable {
+	items, _ := s.ToDownload.Get()
+	result := make([]api.Downloadable, len(items))
+	for i, v := range items {
+		result[i] = v.(api.Downloadable)
+	}
+	return result
 }
 
-type finishedDownloadingMessage struct {
-	Success bool
+// AddToDownload adds an item to the download list if not already present
+func (s *State) AddToDownload(issue api.Downloadable) {
+	items, _ := s.ToDownload.Get()
+
+	// Check if already in list
+	for _, v := range items {
+		downloadable := v.(api.Downloadable)
+		if (&downloadable.Comic).Equals(issue.Comic) {
+			return
+		}
+	}
+
+	s.ToDownload.Append(issue)
 }
 
-type AddToDownloadsMessage struct {
-	Issue api.Downloadable
+// RemoveFromDownload removes an item from the download list
+func (s *State) RemoveFromDownload(issue api.Downloadable) {
+	items, _ := s.ToDownload.Get()
+
+	for i, v := range items {
+		downloadable := v.(api.Downloadable)
+		if (&downloadable.Comic).Equals(issue.Comic) {
+			newItems := make([]interface{}, 0, len(items)-1)
+			newItems = append(newItems, items[:i]...)
+			newItems = append(newItems, items[i+1:]...)
+			s.ToDownload.Set(newItems)
+			return
+		}
+	}
 }
 
-type RemoveFromDownloadsMessage struct {
-	Issue api.Downloadable
+// ClearToDownload clears the download list
+func (s *State) ClearToDownload() {
+	s.ToDownload.Set(make([]interface{}, 0))
+}
+
+// RefreshProgList refreshes the available progs list to mark downloaded items
+func (s *State) RefreshProgList() {
+	availableProgs, _ := s.AvailableProgs.Get()
+
+	savedProgs := make([]api.Downloadable, len(availableProgs))
+	for i, v := range availableProgs {
+		savedProgs[i] = v.(api.Downloadable)
+	}
+
+	progSourceDir := s.services.Prefs.ProgSourceDirectory()
+	megSourceDir := s.services.Prefs.MegSourceDirectory()
+
+	convertedProgs := services.BuildIssueList(savedProgs, progSourceDir, megSourceDir)
+
+	err := s.AvailableProgs.Set(convertedProgs)
+	if err != nil {
+		println(err.Error())
+	}
 }

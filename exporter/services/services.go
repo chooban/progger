@@ -30,11 +30,13 @@ func NewAppServices(a fyne.App) *AppServices {
 		}
 	}
 
+	storage := NewStorage(proggerConfigDir)
+
 	return &AppServices{
-		Downloader: NewDownloader(configDir),
+		Downloader: NewDownloader(configDir, storage),
 		Exporter:   NewExporter(),
-		Scanner:    NewScanner(),
+		Scanner:    NewScanner(storage),
 		Prefs:      NewPrefs(a),
-		Storage:    NewStorage(proggerConfigDir),
+		Storage:    storage,
 	}
 }

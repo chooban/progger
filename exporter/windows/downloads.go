@@ -9,17 +9,12 @@ import (
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
 	"reflect"
-	"slices"
 )
-
-type Dispatcher interface {
-	Dispatch(msg interface{})
-}
 
 func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 	progress := newDownloadProgress()
-	dButton := downloadButton(a.State, "Download Prog List")
-	progListContainer := newProgListContainer(a.State, a.State)
+	dButton := downloadButton(a, "Download Prog List")
+	progListContainer := newProgListContainer(a.State, a)
 
 	mainPanel := container.New(
 		layout.NewStackLayout(),
@@ -53,13 +48,13 @@ func newDownloadsCanvas(a *app.ProggerApp) fyne.CanvasObject {
 	return c
 }
 
-func newProgListContainer(s *app.State, d Dispatcher) *fyne.Container {
+func newProgListContainer(s *app.State, proggerApp *app.ProggerApp) *fyne.Container {
 	progs := s.AvailableProgs
 	refreshDownloadListButton := widget.NewButton("Refresh Downloads List", func() {
-		d.Dispatch(app.StartDownloadingProgListMessage{})
+		startFetchIssuesList(proggerApp)
 	})
 	downloadAllButton := widget.NewButton("Download Selected", func() {
-		d.Dispatch(app.DownloadSelectedMessage{})
+		startDownloadSelected(proggerApp)
 	})
 
 	nothingToDownload := widget.NewLabel("No new progs to download")
@@ -72,18 +67,22 @@ func newProgListContainer(s *app.State, d Dispatcher) *fyne.Container {
 		// for deleting or re-downloading
 		if !issue.Downloaded {
 			if shouldDownload {
-				d.Dispatch(app.AddToDownloadsMessage{Issue: issue})
+				s.AddToDownload(issue)
 			} else {
-				d.Dispatch(app.RemoveFromDownloadsMessage{Issue: issue})
+				s.RemoveFromDownload(issue)
 			}
 		}
 	}
 
 	isMarked := func(issue api.Downloadable) bool {
-		idx := slices.IndexFunc(s.ToDownload, func(c api.Downloadable) bool {
-			return c.Comic.Equals(issue.Comic)
-		})
-		return idx >= 0
+		items, _ := s.ToDownload.Get()
+		for _, v := range items {
+			downloadable := v.(api.Downloadable)
+			if (&downloadable.Comic).Equals(issue.Comic) {
+				return true
+			}
+		}
+		return false
 	}
 
 	progListWidget := newProgList(progs, onChecked, isMarked)
@@ -169,10 +168,76 @@ func newDownloadProgress() *fyne.Container {
 	return container.NewCenter(mainPanel)
 }
 
-func downloadButton(d Dispatcher, label string) fyne.CanvasObject {
+func downloadButton(a *app.ProggerApp, label string) fyne.CanvasObject {
 	downloadButton := widget.NewButton(label, func() {
-		d.Dispatch(app.StartDownloadingProgListMessage{})
+		startFetchIssuesList(a)
 	})
 
 	return container.NewCenter(downloadButton)
+}
+
+func startFetchIssuesList(a *app.ProggerApp) {
+	rUser, rPass := a.AppService.Prefs.RebellionDetails()
+	progSourceDir := a.AppService.Prefs.ProgSourceDirectory()
+	megSourceDir := a.AppService.Prefs.MegSourceDirectory()
+
+	op := a.AppService.Downloader.StartFetchIssuesList(rUser, rPass, progSourceDir, megSourceDir)
+
+	// Bind the operation state to the app state
+	op.IsRunning.AddListener(binding.NewDataListener(func() {
+		isRunning, _ := op.IsRunning.Get()
+		a.State.IsDownloading.Set(isRunning)
+	}))
+
+	op.AvailableProgs.AddListener(binding.NewDataListener(func() {
+		progs, _ := op.AvailableProgs.Get()
+		a.State.AvailableProgs.Set(progs)
+	}))
+}
+
+func startDownloadSelected(a *app.ProggerApp) {
+	rUser, rPass := a.AppService.Prefs.RebellionDetails()
+	progSourceDir := a.AppService.Prefs.ProgSourceDirectory()
+	megSourceDir := a.AppService.Prefs.MegSourceDirectory()
+
+	toDownload := a.State.GetToDownload()
+	if len(toDownload) == 0 {
+		return
+	}
+
+	op := a.AppService.Downloader.StartDownloadIssues(toDownload, rUser, rPass, progSourceDir, megSourceDir)
+
+	// Bind the operation state to the app state
+	op.IsRunning.AddListener(binding.NewDataListener(func() {
+		isRunning, _ := op.IsRunning.Get()
+		a.State.IsDownloading.Set(isRunning)
+
+		// When download completes, clear the download list and refresh
+		if !isRunning {
+			a.State.ClearToDownload()
+			a.State.RefreshProgList()
+
+			// Also trigger a scan
+			triggerScanAfterDownload(a)
+		}
+	}))
+}
+
+func triggerScanAfterDownload(a *app.ProggerApp) {
+	dirsToScan := []string{a.AppService.Prefs.ProgSourceDirectory(), a.AppService.Prefs.MegSourceDirectory()}
+	knownTitles := a.AppService.Storage.ReadKnownTitles()
+	skipTitles := a.AppService.Storage.ReadSkipTitles()
+
+	op := a.AppService.Scanner.StartScan(dirsToScan, knownTitles, skipTitles)
+
+	// Bind the operation state to the app state
+	op.IsRunning.AddListener(binding.NewDataListener(func() {
+		isRunning, _ := op.IsRunning.Get()
+		a.State.IsScanning.Set(isRunning)
+	}))
+
+	op.Stories.AddListener(binding.NewDataListener(func() {
+		stories, _ := op.Stories.Get()
+		a.State.Stories.Set(stories)
+	}))
 }

@@ -151,7 +151,7 @@ func newStoryListWidget(boundStories binding.UntypedList) *fyne.Container {
 
 func noStoriesContainer(a *app.ProggerApp) fyne.CanvasObject {
 	scanButton := widget.NewButton("Scan Directory", func() {
-		a.State.Dispatch(app.StartScanningMessage{})
+		startScan(a)
 	})
 	content := container.NewVBox(widget.NewLabelWithData(a.AppService.Prefs.ProgSourceDir), scanButton)
 
@@ -160,6 +160,25 @@ func noStoriesContainer(a *app.ProggerApp) fyne.CanvasObject {
 	)
 
 	return contentWrapper
+}
+
+func startScan(a *app.ProggerApp) {
+	dirsToScan := []string{a.AppService.Prefs.ProgSourceDirectory(), a.AppService.Prefs.MegSourceDirectory()}
+	knownTitles := a.AppService.Storage.ReadKnownTitles()
+	skipTitles := a.AppService.Storage.ReadSkipTitles()
+
+	op := a.AppService.Scanner.StartScan(dirsToScan, knownTitles, skipTitles)
+
+	// Bind the operation state to the app state
+	op.IsRunning.AddListener(binding.NewDataListener(func() {
+		isRunning, _ := op.IsRunning.Get()
+		a.State.IsScanning.Set(isRunning)
+	}))
+
+	op.Stories.AddListener(binding.NewDataListener(func() {
+		stories, _ := op.Stories.Get()
+		a.State.Stories.Set(stories)
+	}))
 }
 
 func storiesContainer(a *app.ProggerApp) fyne.CanvasObject {
@@ -200,7 +219,7 @@ func storiesButtonsContainer(a *app.ProggerApp) fyne.CanvasObject {
 	exportButton := exportButton(a)
 
 	scanButton := widget.NewButton("Force Rescan", func() {
-		a.State.Dispatch(app.StartScanningMessage{})
+		startScan(a)
 	})
 
 	return container.NewVBox(
