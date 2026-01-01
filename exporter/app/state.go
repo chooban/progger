@@ -37,11 +37,16 @@ func (s *State) startScanningHandler(m StartScanningMessage) {
 		}()
 
 		dirsToScan := []string{s.services.Prefs.ProgSourceDirectory(), s.services.Prefs.MegSourceDirectory()}
-		foundStories := s.services.Scanner.Scan(
+		foundStories, err := s.services.Scanner.Scan(
 			dirsToScan,
 			s.services.Storage.ReadKnownTitles(),
 			s.services.Storage.ReadSkipTitles(),
 		)
+		if err != nil {
+			println("Failed to scan: " + err.Error())
+			return
+		}
+
 		untypedStories := make([]interface{}, len(foundStories))
 		storiesToStore := make([]api.Story, len(foundStories))
 		for i, v := range foundStories {
@@ -51,7 +56,7 @@ func (s *State) startScanningHandler(m StartScanningMessage) {
 		if err := s.Stories.Set(untypedStories); err != nil {
 			println(err.Error())
 		}
-		err := s.services.Storage.StoreStories(storiesToStore)
+		err = s.services.Storage.StoreStories(storiesToStore)
 		if err != nil {
 			println("Failed to save stories: " + err.Error())
 			return

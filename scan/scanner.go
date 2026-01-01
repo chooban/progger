@@ -4,26 +4,43 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/chooban/progger/scan/api"
-	"github.com/chooban/progger/scan/internal"
-	"github.com/go-logr/logr"
 	"io/fs"
 	"os"
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/chooban/progger/scan/api"
+	"github.com/chooban/progger/scan/internal"
+	"github.com/go-logr/logr"
 )
 
+// Scanner encapsulates scanning configuration and operations
+type Scanner struct {
+	knownSeries []string
+	skipTitles  []string
+}
+
+// NewScanner creates a new Scanner with the given configuration
+func NewScanner(knownSeries, skipTitles []string) *Scanner {
+	return &Scanner{
+		knownSeries: knownSeries,
+		skipTitles:  skipTitles,
+	}
+}
+
 // Dir scans the given directory for PDF files and extracts episode details from each file.
-// It returns a slice of Episode structs containing the extracted details.
-func Dir(ctx context.Context, dir string, scanCount int, knownSeries []string, skipTitles []string) (issues []api.Issue) {
+func (s *Scanner) Dir(ctx context.Context, dir string, scanCount int) ([]api.Issue, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 	logger.Info("Scanning directory", "dir", dir)
 
-	files, _ := getFiles(dir)
+	files, err := getFiles(dir)
+	if err != nil {
+		return nil, fmt.Errorf("getting files: %w", err)
+	}
 
 	if len(files) == 0 {
-		return
+		return []api.Issue{}, nil
 	}
 	logger.Info("Found files to scan", "num_files", len(files))
 
@@ -37,7 +54,7 @@ func Dir(ctx context.Context, dir string, scanCount int, knownSeries []string, s
 
 	for w := 1; w <= workerCount; w++ {
 		wg.Add(1)
-		go scanWorker(ctx, knownSeries, skipTitles, &wg, jobs, results)
+		go s.scanWorker(ctx, &wg, jobs, results)
 	}
 
 	for i, file := range files {
@@ -52,21 +69,21 @@ func Dir(ctx context.Context, dir string, scanCount int, knownSeries []string, s
 	wg.Wait()
 	close(results)
 
+	issues := make([]api.Issue, 0, len(files))
 	for v := range results {
-		if shouldIncludeIssue(v) {
+		if v.IssueNumber != 0 {
 			issues = append(issues, v)
 		}
 	}
 
 	// Sanitise the results to correct titles
-	Sanitise(ctx, &issues, knownSeries)
+	Sanitise(ctx, &issues, s.knownSeries)
 
-	return issues
+	return issues, nil
 }
 
-// File scans the given file in the specified directory and extracts episode details.
-// It returns a slice of Episode structs containing the extracted details and an error if any occurred during the process.
-func File(ctx context.Context, fileName string, knownSeries []string, skipTitles []string) (api.Issue, error) {
+// File scans a single PDF file and extracts episode details.
+func (s *Scanner) File(ctx context.Context, fileName string) (api.Issue, error) {
 	if !strings.HasSuffix(fileName, "pdf") {
 		return api.Issue{}, errors.New("only pdf files supported")
 	}
@@ -79,18 +96,47 @@ func File(ctx context.Context, fileName string, knownSeries []string, skipTitles
 		return api.Issue{}, err
 	}
 
-	for i, _ := range episodeDetails {
+	for i := range episodeDetails {
 		details := episodeDetails[i]
-		credits, err := p.Credits(fileName, details.Bookmark.PageFrom, details.Bookmark.PageThru)
-		if err != nil {
-			continue
+		if credits, err := p.Credits(fileName, details.Bookmark.PageFrom, details.Bookmark.PageThru); err == nil {
+			episodeDetails[i].Credits = credits
+		} else {
+			logger.V(1).Info("Failed to extract credits", "file", fileName)
 		}
-		episodeDetails[i].Credits = credits
 	}
 
-	issue := internal.BuildIssue(logger, fileName, episodeDetails, knownSeries, skipTitles)
+	issue := internal.BuildIssue(logger, fileName, episodeDetails, s.knownSeries, s.skipTitles)
 
 	return issue, nil
+}
+
+func (s *Scanner) scanWorker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan string, results chan<- api.Issue) {
+	logger := logr.FromContextOrDiscard(ctx)
+	logger.V(1).Info("Creating worker")
+	defer wg.Done()
+
+	for j := range jobs {
+		issue, err := s.File(ctx, j)
+		if err != nil {
+			logger.Error(err, "Failed to read file", "file", j)
+		}
+		results <- issue
+	}
+	logger.V(1).Info("Shutting down worker")
+}
+
+// Dir scans the given directory for PDF files and extracts episode details from each file.
+// Deprecated: Use NewScanner and Scanner.Dir instead for better control.
+func Dir(ctx context.Context, dir string, scanCount int, knownSeries []string, skipTitles []string) ([]api.Issue, error) {
+	s := NewScanner(knownSeries, skipTitles)
+	return s.Dir(ctx, dir, scanCount)
+}
+
+// File scans the given file in the specified directory and extracts episode details.
+// Deprecated: Use NewScanner and Scanner.File instead for better control.
+func File(ctx context.Context, fileName string, knownSeries []string, skipTitles []string) (api.Issue, error) {
+	s := NewScanner(knownSeries, skipTitles)
+	return s.File(ctx, fileName)
 }
 
 func ReadCredits(ctx context.Context, fileName string, startingPage int, endingPage int) (api.Credits, error) {
@@ -109,40 +155,18 @@ func ReadCredits(ctx context.Context, fileName string, startingPage int, endingP
 	return internal.ExtractCreatorsFromCredits(credits), nil
 }
 
-func getFiles(dir string) (pdfFiles []fs.DirEntry, err error) {
+func getFiles(dir string) ([]fs.DirEntry, error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
-		return []fs.DirEntry{}, err
+		return nil, err
 	}
 
-	pdfFiles = make([]fs.DirEntry, 0, 100)
+	pdfFiles := make([]fs.DirEntry, 0, 100)
 	for _, f := range files {
 		if f.Type().IsRegular() && strings.HasSuffix(strings.ToLower(f.Name()), "pdf") {
 			pdfFiles = append(pdfFiles, f)
 		}
 	}
 
-	return
-}
-
-func scanWorker(ctx context.Context, knownSeries []string, skipTitles []string, wg *sync.WaitGroup, jobs <-chan string, results chan<- api.Issue) {
-	logger := logr.FromContextOrDiscard(ctx)
-	logger.V(1).Info("Creating worker")
-	for {
-		j, isChannelOpen := <-jobs
-		if !isChannelOpen {
-			break
-		}
-		issue, err := File(ctx, j, knownSeries, skipTitles)
-		if err != nil {
-			logger.Error(err, fmt.Sprintf("Failed to read file: %s", j))
-		}
-		results <- issue
-	}
-	logger.V(1).Info("Shutting down worker")
-	wg.Done()
-}
-
-func shouldIncludeIssue(issue api.Issue) bool {
-	return issue.IssueNumber != 0
+	return pdfFiles, nil
 }

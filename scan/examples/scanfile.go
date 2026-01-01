@@ -6,13 +6,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/akamensky/argparse"
 	"github.com/chooban/progger/scan"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
-	"os"
-	"time"
 )
 
 func main() {
@@ -35,7 +36,14 @@ func main() {
 	var log = zerologr.New(&logger)
 
 	ctx := logr.NewContext(context.Background(), log)
-	issue, _ := scan.File(ctx, *f)
+
+	// Create a scanner with no known series or skip titles
+	scanner := scan.NewScanner([]string{}, []string{})
+	issue, err := scanner.File(ctx, *f)
+	if err != nil {
+		log.Error(err, "Failed to scan file")
+		os.Exit(1)
+	}
 
 	for _, v := range issue.Episodes {
 		log.Info(fmt.Sprintf("Series: %s", v.Series))

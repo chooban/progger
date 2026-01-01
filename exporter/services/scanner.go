@@ -64,15 +64,22 @@ func toStories(issues []api.Issue) []*exporterApi.Story {
 	return stories
 }
 
-func (s *Scanner) Scan(paths []string, knownTitles, skipTitles []string) []*exporterApi.Story {
+func (s *Scanner) Scan(paths []string, knownTitles, skipTitles []string) ([]*exporterApi.Story, error) {
 	ctx, _ := context.WithLogger()
+
+	// Create a scanner with the provided configuration
+	scanner := scan.NewScanner(knownTitles, skipTitles)
+
 	issues := make([]api.Issue, 0)
 	for _, v := range paths {
-		foundInPath := scan.Dir(ctx, v, 0, knownTitles, skipTitles)
+		foundInPath, err := scanner.Dir(ctx, v, 0)
+		if err != nil {
+			return nil, fmt.Errorf("scanning directory %s: %w", v, err)
+		}
 		issues = append(issues, foundInPath...)
 	}
 
-	return toStories(issues)
+	return toStories(issues), nil
 }
 
 func NewScanner() *Scanner {
