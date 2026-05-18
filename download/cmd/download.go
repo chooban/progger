@@ -85,11 +85,18 @@ func main() {
 
 	ctx = download.WithBrowserContextDir(ctx, browserDir)
 
+	session, err := download.NewSession(ctx, details)
+	if err != nil {
+		logger.Error(err, "Failed to create session")
+		return
+	}
+	defer session.Close()
+
 	var list []download.DigitalComic
 	if listPage > 0 {
-		list, err = download.ListIssuesOnPage(ctx, details, listPage)
+		list, err = session.ListIssuesOnPage(listPage)
 	} else {
-		list, err = download.ListAvailableIssues(ctx, details, listLatest)
+		list, err = session.ListAvailableIssues(listLatest)
 	}
 
 	if err != nil {
@@ -120,7 +127,7 @@ func main() {
 			}
 		}
 		logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
-		if filepath, err := download.Download(ctx, details, list[i], downloadDir, download.Pdf); err != nil {
+		if filepath, err := session.Download(list[i], downloadDir, download.Pdf); err != nil {
 			logger.Error(err, "could not download file")
 		} else {
 			logger.Info("Downloaded a file", "file", filepath)

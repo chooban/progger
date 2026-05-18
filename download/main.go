@@ -12,18 +12,18 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
-// rebellionBrowserSession holds a browser context and login state for efficient bulk operations.
-// Create a session with newRebellionSession, use it for multiple operations, then call Close.
-type rebellionBrowserSession struct {
+// Session holds a browser context and login state for efficient bulk operations.
+// Create a session with NewSession, use it for multiple operations, then call Close.
+type Session struct {
 	ctx      context.Context
 	bContext playwright.BrowserContext
 	details  RebellionDetails
 	logger   logr.Logger
 }
 
-// newRebellionSession creates a new download session with an authenticated browser context.
+// NewSession creates a new download session with an authenticated browser context.
 // The caller is responsible for calling Close() when done to clean up resources.
-func newRebellionSession(ctx context.Context, details RebellionDetails) (*rebellionBrowserSession, error) {
+func NewSession(ctx context.Context, details RebellionDetails) (*Session, error) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	bContext, err := browser(ctx)
@@ -38,7 +38,7 @@ func newRebellionSession(ctx context.Context, details RebellionDetails) (*rebell
 		return nil, fmt.Errorf("could not login: %w", err)
 	}
 
-	return &rebellionBrowserSession{
+	return &Session{
 		ctx:      ctx,
 		bContext: bContext,
 		details:  details,
@@ -47,7 +47,7 @@ func newRebellionSession(ctx context.Context, details RebellionDetails) (*rebell
 }
 
 // Close closes the browser context and cleans up resources.
-func (s *rebellionBrowserSession) Close() error {
+func (s *Session) Close() error {
 	if s.bContext != nil {
 		return s.bContext.Close()
 	}
@@ -55,7 +55,7 @@ func (s *rebellionBrowserSession) Close() error {
 }
 
 // ListAvailableIssues lists available digital comics using the session's browser context.
-func (s *rebellionBrowserSession) ListAvailableIssues(latestOnly bool) ([]DigitalComic, error) {
+func (s *Session) ListAvailableIssues(latestOnly bool) ([]DigitalComic, error) {
 	progs, err := listProgs(s.ctx, s.bContext, latestOnly)
 	if err != nil {
 		s.logger.V(1).Error(err, "Could not list progs")
@@ -65,12 +65,12 @@ func (s *rebellionBrowserSession) ListAvailableIssues(latestOnly bool) ([]Digita
 }
 
 // ListIssuesOnPage lists issues on a specific page using the session's browser context.
-func (s *rebellionBrowserSession) ListIssuesOnPage(pageNumber int) ([]DigitalComic, error) {
+func (s *Session) ListIssuesOnPage(pageNumber int) ([]DigitalComic, error) {
 	return listIssuesOnPage(s.ctx, s.bContext, pageNumber)
 }
 
 // Download downloads a digital comic to the specified directory using the session's browser context.
-func (s *rebellionBrowserSession) Download(comic DigitalComic, dir string, filetype FileType) (string, error) {
+func (s *Session) Download(comic DigitalComic, dir string, filetype FileType) (string, error) {
 	info, err := os.Stat(dir)
 	if err != nil {
 		return "", fmt.Errorf("directory does not exist: %w", err)
@@ -112,7 +112,7 @@ func (s *rebellionBrowserSession) Download(comic DigitalComic, dir string, filet
 }
 
 func ListIssuesOnPage(ctx context.Context, details RebellionDetails, pageNumber int) (issues []DigitalComic, err error) {
-	session, err := newRebellionSession(ctx, details)
+	session, err := NewSession(ctx, details)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func ListIssuesOnPage(ctx context.Context, details RebellionDetails, pageNumber 
 }
 
 func ListAvailableIssues(ctx context.Context, details RebellionDetails, latestOnly bool) ([]DigitalComic, error) {
-	session, err := newRebellionSession(ctx, details)
+	session, err := NewSession(ctx, details)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,12 @@ func ListAvailableIssues(ctx context.Context, details RebellionDetails, latestOn
 }
 
 func Download(ctx context.Context, details RebellionDetails, comic DigitalComic, dir string, filetype FileType) (string, error) {
-	session, err := newRebellionSession(ctx, details)
+	destPath := path.Join(dir, comic.Filename(filetype))
+	if _, err := os.Stat(destPath); err == nil {
+		return destPath, nil
+	}
+
+	session, err := NewSession(ctx, details)
 	if err != nil {
 		return "", err
 	}

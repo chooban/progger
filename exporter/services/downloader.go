@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"os"
+
 	"github.com/chooban/progger/download"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/go-logr/logr"
@@ -60,6 +62,13 @@ func (d *Downloader) FetchIssuesList(ctx context.Context, username, password str
 
 func (d *Downloader) DownloadIssue(ctx context.Context, issue download.DigitalComic, targetDir, username, password string) error {
 	logger := logr.FromContextOrDiscard(ctx)
+
+	destPath := path.Join(targetDir, issue.Filename(download.Pdf))
+	if _, err := os.Stat(destPath); err == nil {
+		logger.V(1).Info("file already exists, skipping", "path", destPath)
+		return nil
+	}
+
 	ctxt := download.WithBrowserContextDir(ctx, d.browserDir)
 
 	details := download.RebellionDetails{
@@ -78,8 +87,21 @@ func (d *Downloader) DownloadIssue(ctx context.Context, issue download.DigitalCo
 
 // DownloadIssues downloads multiple issues, respecting context cancellation
 func (d *Downloader) DownloadIssues(ctx context.Context, issues []api.Downloadable, progSourceDir, megSourceDir, username, password string) error {
+	logger := logr.FromContextOrDiscard(ctx)
+	ctxt := download.WithBrowserContextDir(ctx, d.browserDir)
+
+	details := download.RebellionDetails{
+		Username: username,
+		Password: password,
+	}
+
+	session, err := download.NewSession(ctxt, details)
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+
 	for _, v := range issues {
-		// Check if context is cancelled
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -91,8 +113,11 @@ func (d *Downloader) DownloadIssues(ctx context.Context, issues []api.Downloadab
 			targetDir = megSourceDir
 		}
 
-		if err := d.DownloadIssue(ctx, v.Comic, targetDir, username, password); err != nil {
+		if fp, err := session.Download(v.Comic, targetDir, download.Pdf); err != nil {
+			logger.Error(err, "could not download file")
 			return err
+		} else {
+			logger.Info("Downloaded a file", "file", fp)
 		}
 	}
 	return nil
@@ -107,24 +132,30 @@ func (d *Downloader) DownloadAllIssues(ctx context.Context, sourceDir, username,
 		Password: password,
 	}
 
-	if list, err := download.ListAvailableIssues(ctxt, details, false); err == nil {
-		if len(list) > 0 {
-			//logger.Info("Found progs to download", "count", len(list))
-			//for i := 0; i < len(list); i++ {
-			for i := 0; i < 10; i++ {
-				logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
-				if fp, err := download.Download(ctxt, details, list[i], sourceDir, download.Pdf); err != nil {
-					logger.Error(err, "could not download file")
-				} else {
-					logger.Info("Downloaded a file", "file", fp)
-				}
-			}
-		} else {
-			logger.Info("No issues to download")
-		}
-	} else {
+	session, err := download.NewSession(ctxt, details)
+	if err != nil {
+		return err
+	}
+	defer session.Close()
+
+	list, err := session.ListAvailableIssues(false)
+	if err != nil {
 		logger.Error(err, "failed to list available issues")
 		return err
+	}
+
+	if len(list) == 0 {
+		logger.Info("No issues to download")
+		return nil
+	}
+
+	for i := 0; i < 10; i++ {
+		logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
+		if fp, err := session.Download(list[i], sourceDir, download.Pdf); err != nil {
+			logger.Error(err, "could not download file")
+		} else {
+			logger.Info("Downloaded a file", "file", fp)
+		}
 	}
 
 	return nil
