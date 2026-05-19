@@ -1,3 +1,12 @@
+set dotenv-required := true
+set dotenv-load := true
+
+list:
+	go run download/cmd/download.go --latest
+
+download:
+	go run download/cmd/download.go --download --download-count 5
+
 test:
   go test ./scan/./...
 

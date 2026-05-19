@@ -151,7 +151,7 @@ func pageDownloader(ctx context.Context, bContext playwright.BrowserContext, pag
 	if _, err := page.Goto(url); err != nil {
 		logger.Error(err, "Failed to load page", "url", url)
 	} else {
-		logger.Info("Downloaded page", "duration", time.Since(start))
+		logger.V(1).Info("Downloaded page", "duration", time.Since(start))
 		if newProgs, err := extractProgsFromPage(logger, page); err == nil {
 			logger.Info("Found new progs", "count", len(newProgs))
 			progs = newProgs

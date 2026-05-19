@@ -5,13 +5,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"slices"
+	"time"
+
 	"github.com/chooban/progger/download"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
 	"github.com/rs/zerolog"
-	"os"
-	"slices"
-	"time"
 )
 
 type arrayFlags []string
@@ -113,7 +114,7 @@ func main() {
 	}
 	slices.SortFunc(list, issueCmp)
 
-	if listAvailable {
+	if listAvailable || listLatest {
 		for _, prog := range list {
 			logger.Info(fmt.Sprintf("Found %s, %d, %s", prog.Publication, prog.IssueNumber, prog.IssueDate))
 		}
@@ -126,11 +127,8 @@ func main() {
 				continue
 			}
 		}
-		logger.Info("Downloading issue", "issue_number", list[i].IssueNumber)
-		if filepath, err := session.Download(list[i], downloadDir, download.Pdf); err != nil {
+		if _, err := session.Download(list[i], downloadDir, download.Pdf); err != nil {
 			logger.Error(err, "could not download file")
-		} else {
-			logger.Info("Downloaded a file", "file", filepath)
 		}
 	}
 }
