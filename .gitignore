@@ -13,3 +13,9 @@ build/package/exporter/progger
 build/package/exporter/*.app
 build/package/exporter/*.dmg
 **/libpdfium.dylib
+reader/main
+main
+progdl-go
+reader/reader.db
+exporter/exporter
+exporter/progger

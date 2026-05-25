@@ -51,7 +51,7 @@ jobs:
           sudo mkdir -p /usr/local/lib/pkgconfig
           sudo tar -C /usr/local/lib/pdfium -xvf pdfium-${{ env.PDFIUM_OS }}.tgz
           rm pdfium-${{ env.PDFIUM_OS }}.tgz
-          sudo cp ./.github/workflows/pdfium.pc /usr/local/lib/pkgconfig/pdfium.pc
+          sudo cp ./build/pdfium.pc /usr/local/lib/pkgconfig/pdfium.pc
           echo "Done"
       - name: generate build number
         uses: digitalbazaar/gh-action-buildnum@v2

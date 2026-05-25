@@ -1,0 +1,18 @@
+{{define "library_list"}}{{template "layout" .}}{{end}}
+
+{{define "library_content"}}
+<div class="page-content">
+  <h1>Libraries</h1>
+  {{if .Libraries}}
+  <div class="grid">
+    {{range .Libraries}}
+    <div class="card">
+      <a href="/read/libraries/{{.ID}}/series">{{.Name}}</a>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <p style="color: #888;">No libraries found. Set up a scan directory to get started.</p>
+  {{end}}
+</div>
+{{end}}

@@ -1,0 +1,19 @@
+{{define "book_list"}}{{template "layout" .}}{{end}}
+
+{{define "book_content"}}
+<div class="page-content">
+  <h1>{{.Title}}</h1>
+  {{if .Books}}
+  <ul class="book-list">
+    {{range .Books}}
+    <li>
+      <a href="/read/libraries/{{$.LibraryID}}/books/{{.ID}}/pages/1">{{.Name}}</a>
+      <span class="num">{{.PageCount}} pg</span>
+    </li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p style="color: #888;">No books in this series.</p>
+  {{end}}
+</div>
+{{end}}

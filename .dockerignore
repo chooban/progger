@@ -3,6 +3,8 @@
 !db/
 !scan/
 !exporter/
+!reader/
+!build/
 scan/test/testdata/
 !go.work
 !go.work.sum

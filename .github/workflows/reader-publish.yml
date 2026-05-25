@@ -1,0 +1,17 @@
+name: Docker - Reader
+
+on:
+  push:
+    tags: ['*.*.*']
+  workflow_dispatch:
+
+jobs:
+  publish:
+    uses: ./.github/workflows/docker-build.yml
+    with:
+      component: reader
+      dockerfile: build/package/reader/Dockerfile
+      platforms: linux/amd64,linux/arm64
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
