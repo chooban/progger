@@ -3,16 +3,157 @@ package internal
 import (
 	"errors"
 	"fmt"
-	"github.com/chooban/progger/scan/api"
-	"github.com/divan/num2words"
-	"github.com/go-logr/logr"
-	"github.com/texttheater/golang-levenshtein/levenshtein"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
+	"unicode"
+
+	"github.com/chooban/progger/scan/api"
+	"github.com/divan/num2words"
+	"github.com/go-logr/logr"
+	"github.com/texttheater/golang-levenshtein/levenshtein"
 )
+
+func extractWords(text string) []string {
+	smallWords := map[string]bool{
+		"a": true, "an": true, "the": true, "and": true,
+		"of": true, "in": true, "to": true, "for": true,
+		"with": true, "on": true, "at": true, "by": true,
+		"or": true, "as": true, "one": true,
+	}
+
+	re := regexp.MustCompile(`'[a-zA-Z]+$|'[a-zA-Z]+\b`)
+
+	words := strings.Fields(text)
+	result := make([]string, 0)
+	for _, word := range words {
+		cleanedWord := strings.ToLower(word)
+		cleanedWord = re.ReplaceAllString(cleanedWord, "")
+		cleanedWord = strings.TrimFunc(cleanedWord, func(r rune) bool {
+			return !(unicode.IsLetter(r) || unicode.IsDigit(r))
+		})
+		cleanedWord, _ = strings.CutSuffix(cleanedWord, "'s")
+		cleanedWord, _ = strings.CutSuffix(cleanedWord, "’s")
+		if cleanedWord != "" && !smallWords[cleanedWord] && len(cleanedWord) > 2 {
+			result = append(result, cleanedWord)
+		}
+	}
+	return result
+}
+
+// findCoverDate attempts to find a date string in the cover text and then parse and convert it into
+// the YYYY-MM-DD format
+func findCoverDate(log logr.Logger, coverText string) string {
+	var r = regexp.MustCompile(`(\d{2} \w{3,4} \d{2,4})`)
+	var m = r.FindStringSubmatch(coverText)
+
+	if len(m) > 0 && m[0] != "" {
+		parts := strings.Split(m[0], " ")
+		day, month, year := "02", "Jan", "06"
+		if len(parts[1]) > 3 {
+			month = "January"
+		}
+		if len(parts[2]) > 2 {
+			year = "2006"
+		}
+		if t, err := time.Parse(fmt.Sprintf("%s %s %s", day, month, year), m[0]); err == nil {
+			coverDate := t.Format("2006-01-02")
+			return coverDate
+		}
+	}
+	println(fmt.Sprintf("Cover text: %s", coverText))
+	return ""
+}
+
+func findBestMatchingSeries(log logr.Logger, coverText string, episodes []*api.Episode) string {
+	if len(episodes) == 0 {
+		log.V(1).Info("No episodes to compare cover text against")
+		return ""
+	}
+
+	log.V(0).Info("Breaking cover text into words", "coverText", coverText)
+	coverWords := extractWords(coverText)
+	if len(coverWords) == 0 {
+		log.V(1).Info("No cover words to compare against")
+		return ""
+	}
+
+	log.V(0).Info("Found cover words to compare against", "words", coverWords)
+
+	processedSeries := make(map[string]bool)
+	seriesScores := make(map[string]int)
+
+	for _, ep := range episodes {
+		seriesName := ep.Series
+		if seriesName == "" {
+			continue
+		}
+		if processedSeries[seriesName] {
+			continue
+		}
+		processedSeries[seriesName] = true
+
+		seriesWords := extractWords(seriesName)
+		overlap := 0
+		seriesWordSet := make(map[string]bool)
+		for _, word := range seriesWords {
+			seriesWordSet[word] = true
+		}
+
+		for _, coverWord := range coverWords {
+			if seriesWordSet[coverWord] {
+				overlap++
+			}
+		}
+
+		seriesScores[seriesName] = overlap
+	}
+
+	if len(seriesScores) == 0 {
+		log.V(1).Info("No series scored")
+		return ""
+	}
+
+	var maxScore int
+	var winningSeries []string
+
+	for series, score := range seriesScores {
+		if score > maxScore {
+			maxScore = score
+			winningSeries = []string{series}
+		} else if score == maxScore && score > 0 {
+			winningSeries = append(winningSeries, series)
+		}
+	}
+
+	if len(winningSeries) == 1 {
+		return winningSeries[0]
+	}
+
+	log.V(1).Info("No winning series found")
+
+	// In this case, check for the edge case of "new thrill" and find a series that's part 1
+	if slices.Contains(coverWords, "new") && slices.Contains(coverWords, "thrill") {
+		for _, ep := range episodes {
+			if ep.Part == 1 {
+				return ep.Series
+			}
+		}
+	}
+
+	if slices.Contains(coverWords, "dexter") || slices.Contains(coverWords, "downlode") || slices.Contains(coverWords, "suzi") {
+		for _, ep := range episodes {
+			if ep.Series == "Azimuth" {
+				return ep.Series
+			}
+		}
+
+	}
+	return ""
+}
 
 func getProgNumber(inFile string) (int, error) {
 	filename := filepath.Base(inFile)
@@ -31,7 +172,7 @@ func getProgNumber(inFile string) (int, error) {
 	return 0, errors.New("no number found in filename")
 }
 
-func BuildIssue(log logr.Logger, filename string, details []EpisodeDetails, knownTitles []string, skipTitles []string) api.Issue {
+func BuildIssue(log logr.Logger, filename string, details []EpisodeDetails, coverText, indexText string, knownTitles []string, skipTitles []string) api.Issue {
 	issueNumber, err := getProgNumber(filename)
 	if err != nil {
 		log.Error(err, "Error getting issue number")
@@ -39,13 +180,20 @@ func BuildIssue(log logr.Logger, filename string, details []EpisodeDetails, know
 	}
 	allEpisodes := make([]*api.Episode, 0)
 
+	// Get PDF page count for fixing invalid page ranges
+	reader := NewPdfiumReader(log)
+	pdfPageCount := 0
+	if pageCount, err := reader.PageCount(filename); err == nil {
+		pdfPageCount = pageCount
+	}
+
 	for _, d := range details {
-		b := d.Bookmark
-		log.V(2).Info(fmt.Sprintf("Extracting details from %s", b.Title))
-		part, series, title := extractDetailsFromPdfBookmark(b.Title)
+		bookmark := d.Bookmark
+		log.V(2).Info(fmt.Sprintf("Extracting details from %s", bookmark.Title))
+		part, series, title := extractDetailsFromPdfBookmark(bookmark.Title)
 
 		if series == "" {
-			log.V(1).Info(fmt.Sprintf("Odd title: %s", b.Title))
+			log.V(1).Info(fmt.Sprintf("Odd title: %s", bookmark.Title))
 			continue
 		}
 		// Check to see if the series is close to any of the blessed titles
@@ -68,23 +216,51 @@ func BuildIssue(log logr.Logger, filename string, details []EpisodeDetails, know
 			log.V(1).Info(fmt.Sprintf("Extracting creators from %s", d.Credits))
 			credits := ExtractCreatorsFromCredits(d.Credits)
 
+			// Fix page ranges: if LastPage is 0, it means "to end of PDF"
+			pageFrom := bookmark.PageFrom
+			pageTo := bookmark.PageThru
+			if pageTo == 0 && pdfPageCount > 0 {
+				pageTo = pdfPageCount
+				log.Info("Fixed page range from PDF bookmark", "series", series, "title", title, "part", part, "pageFrom", pageFrom, "pageTo", pageTo)
+			}
+
 			allEpisodes = append(allEpisodes, &api.Episode{
 				Title:     title,
 				Series:    series,
 				Part:      part,
-				FirstPage: b.PageFrom,
-				LastPage:  b.PageThru,
+				FirstPage: pageFrom,
+				LastPage:  pageTo,
 				Credits:   credits,
 			})
 		} else {
 			log.V(1).Info(fmt.Sprintf("Skipping. Series: %s. Episode: %s", series, title))
 		}
 	}
+
+	coverArtist := ""
+	var splits = strings.Split(indexText, "\n")
+	for i := 0; i < len(splits); i++ {
+		if strings.Contains(strings.ToLower(splits[i]), "cover art") {
+			coverArtist = strings.TrimSpace(splits[i+1])
+		}
+	}
+
+	bestSeries := findBestMatchingSeries(log, coverText, allEpisodes)
+	coverDate := findCoverDate(log, coverText)
+
+	cover := api.Cover{
+		Series:   bestSeries,
+		Text:     coverText,
+		Artist:   coverArtist,
+		Filename: filename,
+	}
 	issue := api.Issue{
 		Publication: "2000 AD",
 		IssueNumber: issueNumber,
 		Filename:    filename,
 		Episodes:    allEpisodes,
+		Cover:       cover,
+		CoverDate:   coverDate,
 	}
 
 	return issue
@@ -95,17 +271,27 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	episodeNumber = -1
 
 	// Very rarely, someone decides to use a number for a book when most are words
-	bookRegex := regexp.MustCompile(`(?i)book \d+`)
+	bookRegex := regexp.MustCompile(`(?i)(book|chapter) (\d+)\W`)
 	bookmarkTitle = bookRegex.ReplaceAllStringFunc(bookmarkTitle, func(s string) string {
 		parts := strings.Split(s, " ")
-		num, _ := strconv.Atoi(parts[1])
 
+		nonNumeric := regexp.MustCompile("[^0-9]+")
+		numStr := nonNumeric.ReplaceAllString(parts[1], "")
+		num, err := strconv.Atoi(numStr)
+		if err != nil {
+			println(err.Error())
+			return bookmarkTitle
+		}
 		// Put it back, but with an extra colon in there. Some of the `Book X` bookmarks don't have one, and this
 		// messes things up. If we put one in we might split twice, but then we remove the empty strings from the
 		// array.
-		return fmt.Sprintf(":%s %s", parts[0], num2words.Convert(num))
+		return fmt.Sprintf(":%s %s:", parts[0], num2words.Convert(num))
 	})
 
+	// If the string contains Bulletopia, then deal with it as an exception. The bookmarking consistency is atrocious
+	if strings.Contains(bookmarkTitle, "Bulletopia") {
+		bookmarkTitle = strings.Replace(bookmarkTitle, "Bulletopia", ": Bulletopia :", 1)
+	}
 	splitRegex := regexp.MustCompile(`([:_"()]|(- )|\.{3})`)
 	parts := splitRegex.Split(bookmarkTitle, -1)
 	parts = slices.DeleteFunc(parts, func(s string) bool {
@@ -162,6 +348,11 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	series = TrimNonAlphaNumeric(CapitalizeWords(series))
 	storyline = TrimNonAlphaNumeric(CapitalizeWords(storyline))
 
+	// Occasionally, we have multiple colons. This looks odd.
+	if strings.Count(storyline, ":") > 1 {
+		storyline = strings.Replace(storyline, ":", " -", 1)
+	}
+
 	return
 }
 
@@ -184,6 +375,8 @@ func shouldIncludeEpisode(logger logr.Logger, seriesToSkip []string, seriesTitle
 		"Feature",
 		"Brimful of thrills",
 		"In Memoriam",
+		"Indicia",
+		"A Year In Thrills",
 	}
 
 	for _, s := range seriesToSkip {

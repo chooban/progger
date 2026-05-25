@@ -15,11 +15,20 @@ type Episode struct {
 	Credits   Credits
 }
 
+type Cover struct {
+	Text     string
+	Series   string
+	Artist   string
+	Filename string
+}
+
 type Issue struct {
 	Publication string
 	IssueNumber int
 	Episodes    []*Episode
 	Filename    string
+	Cover       Cover
+	CoverDate   string
 }
 
 type Creator struct {

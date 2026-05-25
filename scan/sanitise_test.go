@@ -2,9 +2,10 @@ package scan
 
 import (
 	"context"
-	"github.com/go-logr/logr"
 	"slices"
 	"testing"
+
+	"github.com/go-logr/logr"
 )
 
 func TestGetSuggestions(t *testing.T) {
@@ -13,6 +14,7 @@ func TestGetSuggestions(t *testing.T) {
 		name           string
 		knownTitles    []string
 		input          []*titleCounts
+		suggestionType SuggestionType
 		expectedOutput []Suggestion
 	}{
 		{
@@ -35,6 +37,7 @@ func TestGetSuggestions(t *testing.T) {
 					Count: 3,
 				},
 			},
+			suggestionType: SeriesTitle,
 			expectedOutput: []Suggestion{
 				{From: "Judge Fredd", To: "Judge Dredd"},
 			},
@@ -51,6 +54,7 @@ func TestGetSuggestions(t *testing.T) {
 					Count: 3,
 				},
 			},
+			suggestionType: SeriesTitle,
 			expectedOutput: []Suggestion{},
 		},
 		{
@@ -65,6 +69,7 @@ func TestGetSuggestions(t *testing.T) {
 					Count: 15,
 				},
 			},
+			suggestionType: SeriesTitle,
 			expectedOutput: []Suggestion{
 				{
 					From: "Strontium Dug",
@@ -85,6 +90,7 @@ func TestGetSuggestions(t *testing.T) {
 					Count: 15,
 				},
 			},
+			suggestionType: SeriesTitle,
 			expectedOutput: []Suggestion{},
 		},
 		{
@@ -100,9 +106,35 @@ func TestGetSuggestions(t *testing.T) {
 					Count: 2,
 				},
 			},
+			suggestionType: EpisodeTitle,
 			expectedOutput: []Suggestion{{
 				From: "Hatebox",
 				To:   "Hate Box",
+				Type: EpisodeTitle,
+			}},
+		},
+		{
+			name:        "Sindex - Bulletopia",
+			knownTitles: []string{},
+			input: []*titleCounts{
+				{
+					Title:     "Bulletopia - Chapter One: Boys In The Hud",
+					Count:     1,
+					FirstSeen: 1,
+					LastSeen:  1,
+				},
+				{
+					Title:     "Boys In The Hud",
+					Count:     1,
+					FirstSeen: 2,
+					LastSeen:  2,
+				},
+			},
+			suggestionType: EpisodeTitle,
+			expectedOutput: []Suggestion{{
+				From: "Boys In The Hud",
+				To:   "Bulletopia - Chapter One: Boys In The Hud",
+				Type: EpisodeTitle,
 			}},
 		},
 	}
@@ -111,7 +143,7 @@ func TestGetSuggestions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			logger := logr.FromContextOrDiscard(context.TODO())
-			suggestions := getSuggestions(logger, tc.knownTitles, tc.input, 0)
+			suggestions := getSuggestions(logger, tc.knownTitles, tc.input, tc.suggestionType)
 
 			if len(suggestions) != len(tc.expectedOutput) {
 				t.Errorf("%s: expected %d suggestions, got %d", tc.name, len(tc.expectedOutput), len(suggestions))

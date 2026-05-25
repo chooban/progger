@@ -5,13 +5,14 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/akamensky/argparse"
 	"github.com/chooban/progger/scan/internal"
 	"github.com/go-logr/zerologr"
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/rs/zerolog"
-	"os"
-	"time"
 )
 
 func main() {
@@ -65,4 +66,6 @@ func main() {
 	}
 
 	println(r.Text)
+
+	println("is advert text:", internal.IsAdvertPageText(r.Text))
 }

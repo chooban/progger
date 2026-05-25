@@ -4,12 +4,13 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"slices"
+	"strings"
+
 	"github.com/chooban/progger/scan/api"
 	"github.com/go-logr/logr"
 	"github.com/texttheater/golang-levenshtein/levenshtein"
 	"golang.org/x/exp/maps"
-	"slices"
-	"strings"
 )
 
 type titleCounts struct {
@@ -186,6 +187,19 @@ func getSuggestions(logger logr.Logger, knownTitles []string, results []*titleCo
 			}
 			kTitle := k.Title
 			lTitle := l.Title
+
+			// The Bulletopia check...
+			if suggestionType == EpisodeTitle {
+				if strings.Contains(kTitle, lTitle) {
+					if strings.Contains(kTitle, "Chapter") || strings.Contains(kTitle, "Book") {
+						suggestions = append(suggestions, Suggestion{
+							From: l.Title,
+							To:   k.Title,
+							Type: suggestionType,
+						})
+					}
+				}
+			}
 
 			if targetDistance < 3 {
 				kTitle = strings.ToLower(k.Title)

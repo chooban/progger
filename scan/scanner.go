@@ -88,24 +88,37 @@ func (s *Scanner) File(ctx context.Context, fileName string) (api.Issue, error) 
 		return api.Issue{}, errors.New("only pdf files supported")
 	}
 	logger := logr.FromContextOrDiscard(ctx)
-
 	logger.Info(fmt.Sprintf("Scanning %s", fileName))
-	p := internal.NewPdfiumReader(logger)
-	episodeDetails, err := p.Bookmarks(fileName)
+
+	reader := internal.NewPdfiumReader(logger)
+	fr, err := reader.Open(fileName)
+	if err != nil {
+		return api.Issue{}, err
+	}
+	defer fr.Close()
+
+	episodeDetails, err := fr.Bookmarks()
 	if err != nil {
 		return api.Issue{}, err
 	}
 
 	for i := range episodeDetails {
 		details := episodeDetails[i]
-		if credits, err := p.Credits(fileName, details.Bookmark.PageFrom, details.Bookmark.PageThru); err == nil {
+		if credits, err := fr.Credits(details.Bookmark.PageFrom, details.Bookmark.PageThru); err == nil {
 			episodeDetails[i].Credits = credits
 		} else {
-			logger.V(1).Info("Failed to extract credits", "file", fileName)
+			logger.V(1).Info("Failed to extract credits", "file", fileName, "episode", details.Bookmark.Title)
 		}
 	}
 
-	issue := internal.BuildIssue(logger, fileName, episodeDetails, s.knownSeries, s.skipTitles)
+	coverText, _ := fr.Text(0)
+	indexText, _ := fr.Text(1)
+
+	issue := internal.BuildIssue(logger, fileName, episodeDetails, coverText, indexText, s.knownSeries, s.skipTitles)
+
+	for _, ep := range issue.Episodes {
+		ep.LastPage = fr.TrimTrailingAdverts(ep.FirstPage, ep.LastPage)
+	}
 
 	return issue, nil
 }
@@ -125,20 +138,6 @@ func (s *Scanner) scanWorker(ctx context.Context, wg *sync.WaitGroup, jobs <-cha
 	logger.V(1).Info("Shutting down worker")
 }
 
-// Dir scans the given directory for PDF files and extracts episode details from each file.
-// Deprecated: Use NewScanner and Scanner.Dir instead for better control.
-func Dir(ctx context.Context, dir string, scanCount int, knownSeries []string, skipTitles []string) ([]api.Issue, error) {
-	s := NewScanner(knownSeries, skipTitles)
-	return s.Dir(ctx, dir, scanCount)
-}
-
-// File scans the given file in the specified directory and extracts episode details.
-// Deprecated: Use NewScanner and Scanner.File instead for better control.
-func File(ctx context.Context, fileName string, knownSeries []string, skipTitles []string) (api.Issue, error) {
-	s := NewScanner(knownSeries, skipTitles)
-	return s.File(ctx, fileName)
-}
-
 func ReadCredits(ctx context.Context, fileName string, startingPage int, endingPage int) (api.Credits, error) {
 	if !strings.HasSuffix(fileName, "pdf") {
 		return api.Credits{}, errors.New("only pdf files supported")
@@ -153,6 +152,21 @@ func ReadCredits(ctx context.Context, fileName string, startingPage int, endingP
 		return api.Credits{}, err
 	}
 	return internal.ExtractCreatorsFromCredits(credits), nil
+}
+
+func GetPageCount(ctx context.Context, fileName string) (int, error) {
+	if !strings.HasSuffix(fileName, "pdf") {
+		return 0, errors.New("only pdf files supported")
+	}
+	logger := logr.FromContextOrDiscard(ctx)
+
+	p := internal.NewPdfiumReader(logger)
+
+	pageCount, err := p.PageCount(fileName)
+	if err != nil {
+		return 0, err
+	}
+	return pageCount, nil
 }
 
 func getFiles(dir string) ([]fs.DirEntry, error) {

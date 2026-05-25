@@ -2,6 +2,9 @@ package internal
 
 import (
 	"fmt"
+	"image"
+	"io"
+
 	"github.com/chooban/progger/scan/api"
 	"github.com/klippa-app/go-pdfium"
 	"github.com/klippa-app/go-pdfium/enums"
@@ -10,8 +13,6 @@ import (
 	"github.com/klippa-app/go-pdfium/structs"
 	pdfApi "github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
-	"regexp"
-	"strings"
 )
 
 type PdfBuilder struct {
@@ -44,17 +45,9 @@ func (p *PdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, ins
 	}
 
 	// Sometimes the tail end of an episode has adverts. We can try and filter them out
-	for pageIndex := pageTo; pageIndex > pageFrom; pageIndex-- {
-		if p.shouldSkipPage(source, pageIndex) {
-			println(fmt.Sprintf("Skipping page %d", pageIndex))
-			pageTo--
-			continue
-		}
-
-		// If we didn't continue then assume we're into episode pages. Conceivably, the phrase "on sale now" might
-		// be in the dialogue, so going through all the pages doesn't make sense.
-		break
-	}
+	pageTo = TrimAdvertPages(pageFrom, pageTo, func(pageIndex int) bool {
+		return p.shouldSkipPage(source, pageIndex)
+	})
 	for pageNum := pageFrom; pageNum <= pageTo; pageNum++ {
 		ref, err := p.instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
 			Document: source.Document,
@@ -64,12 +57,12 @@ func (p *PdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, ins
 			p.BuildError = err
 			return
 		}
-		width, _ := p.instance.FPDF_GetPageWidth(&requests.FPDF_GetPageWidth{requests.Page{ByReference: &ref.Page}})
-		height, _ := p.instance.FPDF_GetPageHeight(&requests.FPDF_GetPageHeight{requests.Page{ByReference: &ref.Page}})
+		width, _ := p.instance.FPDF_GetPageWidth(&requests.FPDF_GetPageWidth{Page: requests.Page{ByReference: &ref.Page}})
+		height, _ := p.instance.FPDF_GetPageHeight(&requests.FPDF_GetPageHeight{Page: requests.Page{ByReference: &ref.Page}})
 
 		var res *responses.FPDFPage_CountObjects
 		if res, err = p.instance.FPDFPage_CountObjects(&requests.FPDFPage_CountObjects{
-			requests.Page{
+			Page: requests.Page{
 				ByReference: &ref.Page,
 				ByIndex:     nil,
 			},
@@ -168,7 +161,6 @@ func (p *PdfBuilder) CopyStrippedPages(sourceFile *string, pageFrom, pageTo, ins
 }
 
 func (p *PdfBuilder) shouldSkipPage(source *responses.FPDF_LoadDocument, pageIndex int) bool {
-	println(fmt.Sprintf("Checking pageIndex: %d", pageIndex))
 	ref, err := p.instance.FPDFText_LoadPage(&requests.FPDFText_LoadPage{Page: requests.Page{
 		ByIndex: &requests.PageByIndex{
 			Document: source.Document,
@@ -176,26 +168,21 @@ func (p *PdfBuilder) shouldSkipPage(source *responses.FPDF_LoadDocument, pageInd
 		},
 	}})
 	if err != nil {
-		// Bad page ref?
-		println("Could not determine if we should skip page", err.Error())
 		return false
 	}
-	if r, err := p.instance.FPDFText_GetText(&requests.FPDFText_GetText{
+	r, err := p.instance.FPDFText_GetText(&requests.FPDFText_GetText{
 		TextPage:   ref.TextPage,
 		StartIndex: 0,
 		Count:      1000,
-	}); err != nil {
-		println("No text found on page to check for skipping")
+	})
+	if err != nil {
 		return false
-	} else {
-		re := regexp.MustCompile("on sale \\d{1,2} \\w+ \\d{4}")
-		return strings.Contains(strings.ToLower(r.Text), "on sale now") || re.MatchString(strings.ToLower(r.Text))
 	}
+	return IsAdvertPageText(r.Text)
 }
 
 func (p *PdfBuilder) CopyPages(sourceFile *string, pageFrom, pageTo, insertIndex int) int {
 	if p.BuildError != nil {
-		println("Cannot copy pages", p.BuildError)
 		return 0
 	}
 	var source *responses.FPDF_LoadDocument
@@ -206,19 +193,10 @@ func (p *PdfBuilder) CopyPages(sourceFile *string, pageFrom, pageTo, insertIndex
 	}
 
 	// Sometimes the tail end of an episode has adverts. We can try and filter them out
-	for pageIndex := pageTo; pageIndex > pageFrom; pageIndex-- {
-		if p.shouldSkipPage(source, pageIndex) {
-			println(fmt.Sprintf("Skipping page %d", pageIndex))
-			pageTo--
-			continue
-		}
-
-		// If we didn't continue then assume we're into episode pages. Conceivably, the phrase "on sale now" might
-		// be in the dialogue, so going through all the pages doesn't make sense.
-		break
-	}
+	pageTo = TrimAdvertPages(pageFrom, pageTo, func(pageIndex int) bool {
+		return p.shouldSkipPage(source, pageIndex)
+	})
 	pageRange := fmt.Sprintf("%d-%d", pageFrom, pageTo)
-	println("Copying pages", pageRange)
 	_, p.BuildError = p.instance.FPDF_ImportPages(&requests.FPDF_ImportPages{
 		Source:      source.Document,
 		Destination: p.destination.Document,
@@ -237,6 +215,16 @@ func (p *PdfBuilder) Save(outputPath string) {
 		Flags:    requests.SaveFlagIncremental,
 		Document: p.destination.Document,
 		FilePath: &outputPath,
+	})
+}
+
+func (p *PdfBuilder) Generate() {
+	if p.BuildError != nil {
+		return
+	}
+	p.savedAs, p.BuildError = p.instance.FPDF_SaveAsCopy(&requests.FPDF_SaveAsCopy{
+		Flags:    requests.SaveFlagIncremental,
+		Document: p.destination.Document,
 	})
 }
 
@@ -259,9 +247,7 @@ func (p *PdfBuilder) Build(episodes []api.ExportPage, artistsEdition bool, outpu
 		} else {
 			pagesAdded = p.CopyPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
 		}
-		println(fmt.Sprintf("Adding %d pages", pagesAdded))
 		if len(episode.Title) > 0 {
-			println(fmt.Sprintf("Adding bookmark from %d to %d: %s", pageCount+1, pageCount+pagesAdded, episode.Title))
 			bookmarks = append(bookmarks, pdfcpu.Bookmark{
 				Title:    episode.Title,
 				PageFrom: pageCount + 1,
@@ -274,4 +260,60 @@ func (p *PdfBuilder) Build(episodes []api.ExportPage, artistsEdition bool, outpu
 	p.AddBookmarks(bookmarks)
 
 	return p.BuildError
+}
+
+func (p *PdfBuilder) BuildPage(page api.ExportPage, artistsEdition bool) (*image.RGBA, error) {
+	p.OpenDestination()
+	if artistsEdition {
+		p.CopyStrippedPages(&page.Filename, page.PageFrom, page.PageTo, 0)
+	} else {
+		p.CopyPages(&page.Filename, page.PageFrom, page.PageTo, 0)
+	}
+	outputPage, err := p.instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
+		Document: p.destination.Document,
+		Index:    0,
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer p.instance.FPDF_ClosePage(&requests.FPDF_ClosePage{Page: outputPage.Page})
+	pageRender, err := p.instance.RenderPageInDPI(&requests.RenderPageInDPI{
+		DPI: 150,
+		Page: requests.Page{
+			ByReference: &outputPage.Page,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return pageRender.Result.Image, nil
+}
+
+func (p *PdfBuilder) BuildPageAsPDF(page api.ExportPage, artistsEdition bool) (*[]byte, error) {
+	if artistsEdition {
+		p.OpenDestination()
+		p.CopyStrippedPages(&page.Filename, page.PageFrom, page.PageTo, 0)
+		outputPage, err := p.instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
+			Document: p.destination.Document,
+			Index:    0,
+		})
+		if err != nil {
+			return nil, err
+		}
+		defer p.instance.FPDF_ClosePage(&requests.FPDF_ClosePage{Page: outputPage.Page})
+		p.Generate()
+		return p.savedAs.FileBytes, nil
+	}
+
+	ctx, err := pdfApi.ReadContextFile(page.Filename)
+	if err != nil {
+		return nil, err
+	}
+	r, err := pdfApi.ExtractPage(ctx, page.PageFrom)
+	if err != nil {
+		return nil, err
+	}
+	pageBytes, err := io.ReadAll(r)
+
+	return &pageBytes, err
 }

@@ -26,7 +26,7 @@ func main() {
 		fmt.Print(parser.Usage(err))
 	}
 
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 
 	writer := zerolog.ConsoleWriter{
 		Out:        os.Stdout,
@@ -45,9 +45,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	for _, v := range issue.Episodes {
-		log.Info(fmt.Sprintf("Series: %s", v.Series))
-		log.Info(fmt.Sprintf("Title: %s", v.Title))
-		log.Info(fmt.Sprintf("Writers: %+v", v.Credits))
+	for _, e := range issue.Episodes {
+		log.Info(fmt.Sprintf("Episode series: %s", e.Series))
+		log.Info(fmt.Sprintf("Episode title: %s", e.Title))
+		log.Info(fmt.Sprintf("Episode pages: %d - %d", e.FirstPage, e.LastPage))
 	}
+
+	log.Info(fmt.Sprintf("Cover series: %s", issue.Cover.Series))
+	log.Info(fmt.Sprintf("Cover date: %s", issue.CoverDate))
+
 }

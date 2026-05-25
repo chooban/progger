@@ -1,10 +1,11 @@
 package internal
 
 import (
+	"testing"
+
 	"github.com/chooban/progger/scan/api"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestExtractDetailsFromTitle(t *testing.T) {
@@ -174,23 +175,36 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			name:           "Bulletopia",
 			input:          "Sinister Dexter Bulletopia: Chapter 2 Stay Brave - Part 1",
 			expectedPart:   1,
-			expectedSeries: "Sinister Dexter Bulletopia",
-			expectedTitle:  "Chapter 2 Stay Brave",
+			expectedSeries: "Sinister Dexter",
+			expectedTitle:  "Bulletopia - Chapter Two: Stay Brave",
 		},
 		{
 			name:           "Bulletopia 2",
 			input:          "Sinister Dexter: Bulletopia - Chapter One: Boys In The Hud",
 			expectedPart:   1,
 			expectedSeries: "Sinister Dexter",
-			expectedTitle:  "Bulletopia: Chapter One: Boys In The Hud",
+			expectedTitle:  "Bulletopia - Chapter One: Boys In The Hud",
 		},
 		{
 			name:           "Bulletopia 3",
 			input:          "Sinister Dexter- Bulletopia Chapter Three: Ghostlands Part One",
 			expectedPart:   1,
 			expectedSeries: "Sinister Dexter",
-			expectedTitle:  "Bulletopia Chapter Three",
-			//expectedTitle:  "Bulletopia Chapter Three: Ghostlands",
+			expectedTitle:  "Bulletopia - Chapter Three: Ghostlands",
+		},
+		{
+			name:           "Bulletopia 4",
+			input:          "Sinister Dexter Bulletopia: Chapter 2 Stay Brave - Part 1",
+			expectedPart:   1,
+			expectedSeries: "Sinister Dexter",
+			expectedTitle:  "Bulletopia - Chapter Two: Stay Brave",
+		},
+		{
+			name:           "Bulletopia 5",
+			input:          "Sinister Dexter: Bulletopia - Chapter One: Boys In The Hud",
+			expectedPart:   1,
+			expectedSeries: "Sinister Dexter",
+			expectedTitle:  "Bulletopia - Chapter One: Boys In The Hud",
 		},
 		{
 			name:           "Hope 1",
@@ -513,7 +527,7 @@ func TestBuildEpisodes(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			issue := BuildIssue(logr.Discard(), "2000AD 123 (1977).pdf", tc.episodeDetails, knownTitles, []string{})
+			issue := BuildIssue(logr.Discard(), "2000AD 123 (1977).pdf", tc.episodeDetails, "", "", knownTitles, []string{})
 			assert.Equal(t, 123, issue.IssueNumber)
 			assert.Equal(t, tc.expectedSeries, issue.Episodes[0].Series)
 			assert.Equal(t, tc.expectedTitle, issue.Episodes[0].Title)
@@ -572,6 +586,186 @@ func TestExtractCreatorsFromCredits(t *testing.T) {
 		})
 	}
 }
+func TestExtractWords(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{
+			name:     "simple series name",
+			input:    "Judge Dredd",
+			expected: []string{"judge", "dredd"},
+		},
+		{
+			name:     "with small words",
+			input:    "The Fall of Deadworld",
+			expected: []string{"fall", "deadworld"},
+		},
+		{
+			name:     "cover text with multiple lines",
+			input:    "Dredd in Mega City One",
+			expected: []string{"dredd", "mega", "city"},
+		},
+		{
+			name:     "punctuation",
+			input:    "Strontium's Dog!",
+			expected: []string{"strontium", "dog"},
+		},
+		{
+			name:     "only small words",
+			input:    "A and the of",
+			expected: []string{},
+		},
+		{
+			name:     "single words",
+			input:    "Dredd",
+			expected: []string{"dredd"},
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := extractWords(tc.input)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestFindBestMatchingSeries(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name           string
+		coverText      string
+		episodes       []*api.Episode
+		expectedSeries string
+	}{
+		{
+			name:      "single matching series",
+			coverText: "Judge Dredd",
+			episodes: []*api.Episode{
+				{Series: "Judge Dredd"},
+			},
+			expectedSeries: "Judge Dredd",
+		},
+		{
+			name:      "best match among multiple series",
+			coverText: "Dredd in Mega City",
+			episodes: []*api.Episode{
+				{Series: "Judge Dredd"},
+				{Series: "Hershey"},
+				{Series: "Brink"},
+			},
+			expectedSeries: "Judge Dredd",
+		},
+		{
+			name:      "no overlap",
+			coverText: "Some Unrelated Text",
+			episodes: []*api.Episode{
+				{Series: "Judge Dredd"},
+				{Series: "Hershey"},
+			},
+			expectedSeries: "",
+		},
+		{
+			name:      "clear winner when one series has more overlap",
+			coverText: "Strontium Dredd Judge",
+			episodes: []*api.Episode{
+				{Series: "Strontium Dog"},
+				{Series: "Judge Dredd"},
+			},
+			expectedSeries: "Judge Dredd",
+		},
+		{
+			name:      "ties are ambiguous",
+			coverText: "Fall Deadworld",
+			episodes: []*api.Episode{
+				{Series: "The Fall"},
+				{Series: "Deadworld"},
+			},
+			expectedSeries: "",
+		},
+		{
+			name:           "empty episodes",
+			coverText:      "Some Text",
+			episodes:       []*api.Episode{},
+			expectedSeries: "",
+		},
+		{
+			name:      "empty cover text",
+			coverText: "",
+			episodes: []*api.Episode{
+				{Series: "Judge Dredd"},
+			},
+			expectedSeries: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result := findBestMatchingSeries(logr.Discard(), tc.coverText, tc.episodes)
+			assert.Equal(t, tc.expectedSeries, result)
+		})
+	}
+}
+
+func TestBuildIssueWithCoverSeries(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name           string
+		coverText      string
+		episodeDetails []EpisodeDetails
+		expectedCover  string
+	}{
+		{
+			name:      "detects matching series",
+			coverText: "Judge Dredd",
+			episodeDetails: []EpisodeDetails{
+				{
+					Bookmark: PdfBookmark{
+						Title:    "Judge Dredd: Get Sin - Part 1",
+						PageFrom: 1,
+						PageThru: 10,
+					},
+					Credits: "",
+				},
+			},
+			expectedCover: "Judge Dredd",
+		},
+		{
+			name:      "no matching series",
+			coverText: "Unrelated Name",
+			episodeDetails: []EpisodeDetails{
+				{
+					Bookmark: PdfBookmark{
+						Title:    "Judge Dredd: Get Sin - Part 1",
+						PageFrom: 1,
+						PageThru: 10,
+					},
+					Credits: "",
+				},
+			},
+			expectedCover: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			issue := BuildIssue(logr.Discard(), "2000AD 123 (1977).pdf", tc.episodeDetails, tc.coverText, "", []string{"Judge Dredd"}, []string{})
+			assert.Equal(t, tc.expectedCover, issue.Cover.Series)
+		})
+	}
+}
+
 func TestGetProgNumber(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
