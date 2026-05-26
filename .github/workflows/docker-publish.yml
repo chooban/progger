@@ -8,6 +8,10 @@ on:
 jobs:
   publish:
     uses: ./.github/workflows/docker-build.yml
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     with:
       component: downloader
       dockerfile: build/package/downloader/Dockerfile
