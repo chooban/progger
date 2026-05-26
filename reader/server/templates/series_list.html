@@ -1,0 +1,19 @@
+{{define "series_list"}}{{template "layout" .}}{{end}}
+
+{{define "series_content"}}
+<div class="page-content">
+  <h1>{{.Title}}</h1>
+  {{if .Series}}
+  <div class="grid">
+    {{range .Series}}
+    <div class="card">
+      <a href="/read/libraries/{{$.LibraryID}}/series/{{.ID}}/books">{{.Name}}</a>
+      <div class="meta">{{.BookCount}} book{{if ne .BookCount 1}}s{{end}}</div>
+    </div>
+    {{end}}
+  </div>
+  {{else}}
+  <p style="color: #888;">No series in this library.</p>
+  {{end}}
+</div>
+{{end}}

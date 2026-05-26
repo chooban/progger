@@ -1,0 +1,11 @@
+prefix=/usr/local/lib/pdfium
+libdir=/usr/local/lib/pdfium/lib
+includedir=/usr/local/lib/pdfium/include
+
+Name: PDFium
+Description: PDFium
+Version: 6406
+Requires:
+
+Libs: -L${libdir} -lpdfium
+Cflags: -I${includedir}
