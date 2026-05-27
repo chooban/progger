@@ -6,6 +6,7 @@ COPY go.work go.work.sum ./
 COPY download/go.mod download/go.sum ./download/
 COPY scan/go.mod scan/go.sum ./scan/
 COPY exporter/go.mod exporter/go.sum ./exporter/
+COPY reader/go.mod reader/go.sum ./reader/
 
 RUN go mod download
 COPY . .
