@@ -36,9 +36,7 @@ jobs:
       - name: Setup Golang caches
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
+          path: ~/.cache/go-build
           key: "${{ runner.os }}-golang-${{ hashFiles('go.work.sum') }}"
           restore-keys: |
             ${{ runner.os }}-golang-
@@ -53,16 +51,11 @@ jobs:
           rm pdfium-${{ env.PDFIUM_OS }}.tgz
           sudo cp ./build/pdfium.pc /usr/local/lib/pkgconfig/pdfium.pc
           echo "Done"
-      - name: generate build number
-        uses: digitalbazaar/gh-action-buildnum@v2
-        with:
-          gist_token: ${{ secrets.GIST_TOKEN }}
-          set_env: true
       - name: Build progger binary
         run: |
           cd build/package/exporter
           go build -o progger ../../../exporter/cmd/exporter.go
-          fyne package -os darwin --exe progger --name progger --icon Icon.png --appVersion ${{ env.FYNE_VERSION }} --appBuild ${{ env.BUILDNUM_FOR_WORKFLOW }} 
+          fyne package -os darwin --exe progger --name progger --icon Icon.png --appVersion ${{ env.FYNE_VERSION }} --appBuild ${{ github.run_number }} 
           mkdir progger.app/Contents/Frameworks
           cp /usr/local/lib/pdfium/lib/libpdfium.dylib progger.app/Contents/Frameworks
           install_name_tool -id "@rpath/libpdfium.dylib" progger.app/Contents/Frameworks/libpdfium.dylib
