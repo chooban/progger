@@ -3,6 +3,7 @@ name: Docker - Reader
 on:
   push:
     tags: ['*.*.*']
+    branches: ['*']
   workflow_dispatch:
 
 jobs:

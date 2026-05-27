@@ -40,7 +40,6 @@ jobs:
             platform: linux/arm64
             runner: ubuntu-24.04-arm
     runs-on: ${{ matrix.runner }}
-    if: ${{ contains(inputs.platforms, matrix.arch) || matrix.arch == 'amd64' }}
     permissions:
       contents: read
     steps:
@@ -65,7 +64,7 @@ jobs:
 
   merge:
     needs: build
-    if: github.event_name != 'pull_request'
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read

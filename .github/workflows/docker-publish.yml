@@ -3,6 +3,7 @@ name: Docker - Downloader
 on:
   push:
     tags: ['*.*.*']
+    branches: ['*']
   workflow_dispatch:
 
 jobs:
@@ -15,7 +16,7 @@ jobs:
     with:
       component: downloader
       dockerfile: build/package/downloader/Dockerfile
-      platforms: linux/amd64
+      platforms: linux/amd64,linux/arm64
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
