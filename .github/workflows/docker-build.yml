@@ -26,43 +26,74 @@ env:
 jobs:
   run_tests:
     uses: ./.github/workflows/tests.yml
+
   build:
     needs: run_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    if: ${{ contains(inputs.platforms, matrix.arch) || matrix.arch == 'amd64' }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ inputs.dockerfile }}
+          platforms: ${{ matrix.platform }}
+          tags: local/${{ env.IMAGE_NAME }}:${{ matrix.arch }}
+          outputs: type=docker,dest=/tmp/image-${{ matrix.arch }}.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: image-${{ matrix.arch }}
+          path: /tmp/image-${{ matrix.arch }}.tar
+
+  merge:
+    needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
       id-token: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
 
       - name: Install cosign
-        if: github.event_name != 'pull_request'
         uses: sigstore/cosign-installer@v3
         with:
           cosign-release: 'v2.1.1'
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Log into registry ${{ env.REGISTRY }}
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
+      - uses: docker/metadata-action@v5
         id: meta
-        uses: docker/metadata-action@v5
         with:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -76,15 +107,33 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha
 
-      - name: Build and push Docker image
-        id: build-and-push
-        uses: docker/build-push-action@v6
+      - uses: actions/download-artifact@v4
         with:
-          context: .
-          file: ${{ inputs.dockerfile }}
-          platforms: ${{ inputs.platforms }}
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          pattern: image-*
+          path: /tmp/images
+
+      - name: Push multi-arch manifest
+        run: |
+          set -euo pipefail
+
+          for d in /tmp/images/*/; do
+            arch=$(basename "$d" | sed 's/^image-//')
+            docker load < "${d}image-${arch}.tar"
+          done
+
+          TAGS='${{ steps.meta.outputs.tags }}'
+          for tag in $TAGS; do
+            arch_tags=""
+            for arch in amd64 arm64; do
+              local_ref="local/${{ env.IMAGE_NAME }}:${arch}"
+              if docker image inspect "$local_ref" >/dev/null 2>&1; then
+                tagged="${tag}-${arch}"
+                docker tag "$local_ref" "$tagged"
+                docker push "$tagged"
+                arch_tags="${arch_tags} ${tagged}"
+              fi
+            done
+            if [ -n "$arch_tags" ]; then
+              docker buildx imagetools create $arch_tags -t "$tag"
+            fi
+          done
