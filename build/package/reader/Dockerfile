@@ -1,8 +1,8 @@
-FROM golang:1.24-alpine AS builder
+FROM golang:1.24 AS builder
 
 ARG TARGETARCH
 
-RUN apk add --no-cache gcc musl-dev wget pkgconfig
+RUN apt-get update && apt-get install -y --no-install-recommends gcc wget pkg-config && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -25,11 +25,11 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=1 go build -o reader ./reader/cmd/main.go
 
-FROM alpine:3.21
+FROM debian:bookworm-slim
 
 LABEL org.opencontainers.image.description="Komga-compatible web reader for 2000 AD"
 
-RUN apk add --no-cache ca-certificates
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /usr/local/lib/pdfium/lib/libpdfium.so /usr/local/lib/
 ENV LD_LIBRARY_PATH=/usr/local/lib
