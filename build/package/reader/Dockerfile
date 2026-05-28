@@ -23,7 +23,7 @@ COPY exporter/go.mod exporter/go.sum ./exporter/
 
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=1 go build -o reader ./reader/cmd/main.go
+RUN CGO_ENABLED=1 go build -o progreader ./reader/cmd/main.go
 
 FROM debian:bookworm-slim
 
@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 COPY --from=builder /usr/local/lib/pdfium/lib/libpdfium.so /usr/local/lib/
 ENV LD_LIBRARY_PATH=/usr/local/lib
 
-COPY --from=builder /app/reader /usr/local/bin/reader
+COPY --from=builder /app/progreader /usr/local/bin/progreader
 
 ENV HOST=:8080
 ENV DATABASE_PATH=/data/reader.db
@@ -44,4 +44,5 @@ ENV SCAN_DIRS=
 
 EXPOSE 8080
 VOLUME ["/data"]
-ENTRYPOINT ["reader"]
+
+CMD /usr/local/bin/progreader
