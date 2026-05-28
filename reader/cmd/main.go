@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	pdfApi "github.com/pdfcpu/pdfcpu/pkg/api"
+
 	"github.com/chooban/progger/reader/config"
 	"github.com/chooban/progger/reader/server"
 	"github.com/chooban/progger/reader/services"
@@ -17,6 +19,7 @@ import (
 
 func main() {
 	cfg := config.Load()
+	pdfApi.DisableConfigDir()
 
 	logger := config.SetupLogger(cfg.LogLevel)
 	ctx := logr.NewContext(context.Background(), logger)
