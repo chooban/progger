@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.24-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
@@ -13,16 +13,21 @@ COPY . .
 
 RUN go build -o progdl ./download/cmd/download.go
 
-FROM --platform=linux/amd64 mcr.microsoft.com/playwright:v1.51.1-jammy
+FROM mcr.microsoft.com/playwright:v1.51.1-jammy
 
 LABEL org.opencontainers.image.description="Utility for downloading 2000AD"
 
-RUN wget https://go.dev/dl/go1.24.0.linux-amd64.tar.gz
-RUN tar -xvf go1.24.0.linux-amd64.tar.gz -C /usr/local
+ARG TARGETARCH
+
+RUN GO_ARCH=$(case "${TARGETARCH}" in amd64) echo "amd64" ;; arm64) echo "arm64" ;; *) echo "${TARGETARCH}" ;; esac) && \
+    wget "https://go.dev/dl/go1.24.0.linux-${GO_ARCH}.tar.gz"
+RUN GO_ARCH=$(case "${TARGETARCH}" in amd64) echo "amd64" ;; arm64) echo "arm64" ;; *) echo "${TARGETARCH}" ;; esac) && \
+    tar -xvf "go1.24.0.linux-${GO_ARCH}.tar.gz" -C /usr/local
 
 RUN USER=pwuser && \
     GROUP=pwuser && \
-    curl -SsL https://github.com/boxboat/fixuid/releases/download/v0.6.0/fixuid-0.6.0-linux-amd64.tar.gz | tar -C /usr/local/bin -xzf - && \
+    FIXUID_ARCH=$(case "${TARGETARCH}" in amd64) echo "amd64" ;; arm64) echo "arm64" ;; *) echo "${TARGETARCH}" ;; esac) && \
+    curl -SsL "https://github.com/boxboat/fixuid/releases/download/v0.6.0/fixuid-0.6.0-linux-${FIXUID_ARCH}.tar.gz" | tar -C /usr/local/bin -xzf - && \
     chown root:root /usr/local/bin/fixuid && \
     chmod 4755 /usr/local/bin/fixuid && \
     mkdir -p /etc/fixuid && \
