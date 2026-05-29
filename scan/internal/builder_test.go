@@ -126,22 +126,22 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			name:           "Hershey",
 			input:          "Hershey: The Cold In The Bones - Book One - Part 2",
 			expectedPart:   2,
+			expectedTitle:  "Book One: The Cold In The Bones",
 			expectedSeries: "Hershey",
-			expectedTitle:  "The Cold In The Bones: Book One",
 		},
 		{
 			name:           "Hershey - Bones",
 			input:          "Hershey: Part One - The Cold in the Bones - Book One",
 			expectedPart:   1,
-			expectedTitle:  "The Cold In The Bones: Book One",
+			expectedTitle:  "Book One: The Cold In The Bones",
 			expectedSeries: "Hershey",
 		},
 		{
 			name:           "Hershey - Bones 2",
 			input:          "Hershey - The Cold In The Bones: Book One - Part 7",
 			expectedPart:   7,
+			expectedTitle:  "Book One: The Cold In The Bones",
 			expectedSeries: "Hershey",
-			expectedTitle:  "The Cold In The Bones: Book One",
 		},
 		{
 			name:           "Cover",
@@ -260,7 +260,21 @@ func TestExtractDetailsFromTitle(t *testing.T) {
 			input:          "Scarlet Traces: Cold War: Book 2 - Part 12",
 			expectedPart:   12,
 			expectedSeries: "Scarlet Traces",
-			expectedTitle:  "Cold War: Book Two",
+			expectedTitle:  "Book Two: Cold War", // We normalise here, then fix elsewhere
+		},
+		{
+			name:           "Silver: Book One: Unearthed - Part 2",
+			input:          "Silver: Book One: Unearthed - Part 2",
+			expectedPart:   2,
+			expectedSeries: "Silver",
+			expectedTitle:  "Book One: Unearthed",
+		},
+		{
+			name:           "Silver: Unearthed - Book One - Part 3",
+			input:          "Silver: Unearthed - Book One - Part 3",
+			expectedPart:   3,
+			expectedSeries: "Silver",
+			expectedTitle:  "Book One: Unearthed",
 		},
 	}
 

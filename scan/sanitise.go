@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -37,6 +38,7 @@ func Sanitise(ctx context.Context, issues *[]api.Issue, knownTitles []string) {
 	logger := logr.FromContextOrDiscard(ctx)
 
 	findTypoedSeries(issues, logger, knownTitles)
+	detectStorylineBookTitles(issues, logger)
 	findTypoedEpisodes(issues, logger)
 	findSwappedSeriesEpisodeTitles(issues, logger)
 }
@@ -175,6 +177,40 @@ func episodesBySeries(issues *[]api.Issue) (map[string][]*api.Episode, map[strin
 		}
 	}
 	return seriesEpisodes, seriesEpisodeTitles
+}
+
+var bookTitlePattern = regexp.MustCompile(`^Book (\w+): (.+)$`)
+
+func detectStorylineBookTitles(issues *[]api.Issue, logger logr.Logger) {
+	seriesEpisodes, _ := episodesBySeries(issues)
+
+	for _, episodes := range seriesEpisodes {
+		subtitleGroups := make(map[string]map[string]*api.Episode)
+
+		for _, ep := range episodes {
+			matches := bookTitlePattern.FindStringSubmatch(ep.Title)
+			if matches == nil {
+				continue
+			}
+			bookWord := matches[1]
+			subtitle := matches[2]
+
+			if subtitleGroups[subtitle] == nil {
+				subtitleGroups[subtitle] = make(map[string]*api.Episode)
+			}
+			subtitleGroups[subtitle][bookWord] = ep
+		}
+
+		for subtitle, bookMap := range subtitleGroups {
+			if len(bookMap) < 2 {
+				continue
+			}
+			logger.Info("Detected multi-book storyline", "subtitle", subtitle)
+			for bookWord, ep := range bookMap {
+				ep.Title = subtitle + ": Book " + bookWord
+			}
+		}
+	}
 }
 
 func getSuggestions(logger logr.Logger, knownTitles []string, results []*titleCounts, suggestionType SuggestionType) (suggestions []Suggestion) {

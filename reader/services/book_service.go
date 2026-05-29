@@ -264,7 +264,7 @@ func (s *BookService) UpsertEpisodes(ctx context.Context, episodes []*models.Epi
 			}
 		}
 
-		logger.Info("attempting to insert episode", "book_id", episode.BookID, "part", episode.Part, "issue_number", episode.IssueNumber)
+		logger.V(1).Info("attempting to insert episode", "book_id", episode.BookID, "part", episode.Part, "issue_number", episode.IssueNumber)
 
 		_, err := s.db.ExecContext(ctx, `
 			INSERT OR IGNORE INTO episodes (id, book_id, filename, issue_number, title, part, page_from, page_to, release_date)

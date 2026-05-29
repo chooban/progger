@@ -64,7 +64,6 @@ func findCoverDate(log logr.Logger, coverText string) string {
 			return coverDate
 		}
 	}
-	println(fmt.Sprintf("Cover text: %s", coverText))
 	return ""
 }
 
@@ -74,14 +73,14 @@ func findBestMatchingSeries(log logr.Logger, coverText string, episodes []*api.E
 		return ""
 	}
 
-	log.V(0).Info("Breaking cover text into words", "coverText", coverText)
+	log.V(1).Info("Breaking cover text into words", "coverText", coverText)
 	coverWords := extractWords(coverText)
 	if len(coverWords) == 0 {
 		log.V(1).Info("No cover words to compare against")
 		return ""
 	}
 
-	log.V(0).Info("Found cover words to compare against", "words", coverWords)
+	log.V(1).Info("Found cover words to compare against", "words", coverWords)
 
 	processedSeries := make(map[string]bool)
 	seriesScores := make(map[string]int)
@@ -221,7 +220,7 @@ func BuildIssue(log logr.Logger, filename string, details []EpisodeDetails, cove
 			pageTo := bookmark.PageThru
 			if pageTo == 0 && pdfPageCount > 0 {
 				pageTo = pdfPageCount
-				log.Info("Fixed page range from PDF bookmark", "series", series, "title", title, "part", part, "pageFrom", pageFrom, "pageTo", pageTo)
+				log.V(1).Info("Fixed page range from PDF bookmark", "series", series, "title", title, "part", part, "pageFrom", pageFrom, "pageTo", pageTo)
 			}
 
 			allEpisodes = append(allEpisodes, &api.Episode{
@@ -266,12 +265,16 @@ func BuildIssue(log logr.Logger, filename string, details []EpisodeDetails, cove
 	return issue
 }
 
-func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, series string, storyline string) {
+func extractDetailsFromPdfBookmark(inputBookmarkTitle string) (episodeNumber int, series string, storyline string) {
 	// We don't want any zero parts. It's 1 if not specified
 	episodeNumber = -1
 
+	// Sometimes a book is mentioned in the title
+	bookNumber := -1
+
 	// Very rarely, someone decides to use a number for a book when most are words
 	bookRegex := regexp.MustCompile(`(?i)(book|chapter) (\d+)\W`)
+	bookmarkTitle := inputBookmarkTitle
 	bookmarkTitle = bookRegex.ReplaceAllStringFunc(bookmarkTitle, func(s string) string {
 		parts := strings.Split(s, " ")
 
@@ -288,10 +291,9 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 		return fmt.Sprintf(":%s %s:", parts[0], num2words.Convert(num))
 	})
 
-	// If the string contains Bulletopia, then deal with it as an exception. The bookmarking consistency is atrocious
-	if strings.Contains(bookmarkTitle, "Bulletopia") {
-		bookmarkTitle = strings.Replace(bookmarkTitle, "Bulletopia", ": Bulletopia :", 1)
-	}
+	// If the string contains Bulletopia, then deal with it as an exception.
+	// The bookmarking consistency is atrocious
+	bookmarkTitle = strings.Replace(bookmarkTitle, "Bulletopia", ": Bulletopia :", 1)
 	splitRegex := regexp.MustCompile(`([:_"()]|(- )|\.{3})`)
 	parts := splitRegex.Split(bookmarkTitle, -1)
 	parts = slices.DeleteFunc(parts, func(s string) bool {
@@ -304,6 +306,18 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 		episodeNumber = extractPartNumberFromString(parts[2])
 
 		return
+	}
+
+	bookFinder := regexp.MustCompile(`(?i)^.*(?P<whole>book (?P<bookNumber>\w+)).*$`)
+	if bookFinder.MatchString(bookmarkTitle) {
+		namedResults := FindNamedMatches(bookFinder, bookmarkTitle)
+		bookString := namedResults["bookNumber"]
+		maybebook, err := ParseTextNumber(bookString)
+		if err == nil {
+			bookNumber = maybebook
+		}
+		toReplace := regexp.MustCompile("(?i)\\s+[^a-zA-Z0-9]*book " + bookString + "[^a-zA-Z0-9]*")
+		bookmarkTitle = toReplace.ReplaceAllString(bookmarkTitle, " ")
 	}
 
 	partFinder := regexp.MustCompile(`(?i)^.*(?P<whole>part (?P<episodeNumber>\w+)).*$`)
@@ -347,6 +361,11 @@ func extractDetailsFromPdfBookmark(bookmarkTitle string) (episodeNumber int, ser
 	}
 	series = TrimNonAlphaNumeric(CapitalizeWords(series))
 	storyline = TrimNonAlphaNumeric(CapitalizeWords(storyline))
+
+	if bookNumber > -1 {
+		bookEntry := "Book " + CapitalizeWords(num2words.Convert(bookNumber))
+		storyline = bookEntry + ": " + storyline
+	}
 
 	// Occasionally, we have multiple colons. This looks odd.
 	if strings.Count(storyline, ":") > 1 {

@@ -5,6 +5,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/chooban/progger/scan/api"
 	"github.com/go-logr/logr"
 )
 
@@ -152,6 +153,221 @@ func TestGetSuggestions(t *testing.T) {
 			for _, expectedSuggestion := range tc.expectedOutput {
 				if !slices.Contains(suggestions, expectedSuggestion) {
 					t.Errorf("%s: expected suggestion %v not found", tc.name, expectedSuggestion)
+				}
+			}
+		})
+	}
+}
+
+func TestDetectStorylineBookTitles(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name   string
+		issues []api.Issue
+		checks []struct {
+			issueIdx      int
+			episodeIdx    int
+			expectedTitle string
+		}
+	}{
+		{
+			name: "identical subtitles with different book numbers swap format",
+			issues: []api.Issue{
+				{
+					IssueNumber: 100,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One: The Cold In The Bones", Part: 1},
+					},
+				},
+				{
+					IssueNumber: 200,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book Two: The Cold In The Bones", Part: 1},
+					},
+				},
+			},
+			checks: []struct {
+				issueIdx      int
+				episodeIdx    int
+				expectedTitle string
+			}{
+				{0, 0, "The Cold In The Bones: Book One"},
+				{1, 0, "The Cold In The Bones: Book Two"},
+			},
+		},
+		{
+			name: "single book subtitle unchanged",
+			issues: []api.Issue{
+				{
+					IssueNumber: 100,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One: The Cold In The Bones", Part: 1},
+					},
+				},
+			},
+			checks: []struct {
+				issueIdx      int
+				episodeIdx    int
+				expectedTitle string
+			}{
+				{0, 0, "Book One: The Cold In The Bones"},
+			},
+		},
+		{
+			name: "different subtitles unchanged",
+			issues: []api.Issue{
+				{
+					IssueNumber: 100,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One: Alpha", Part: 1},
+						{Series: "Hershey", Title: "Book Two: Beta", Part: 1},
+					},
+				},
+			},
+			checks: []struct {
+				issueIdx      int
+				episodeIdx    int
+				expectedTitle string
+			}{
+				{0, 0, "Book One: Alpha"},
+				{0, 1, "Book Two: Beta"},
+			},
+		},
+		{
+			name: "non-book titles pass through",
+			issues: []api.Issue{
+				{
+					IssueNumber: 100,
+					Episodes: []*api.Episode{
+						{Series: "Judge Dredd", Title: "Judge Dredd", Part: 1},
+						{Series: "Strontium Dog", Title: "Strontium Dog", Part: 1},
+					},
+				},
+			},
+			checks: []struct {
+				issueIdx      int
+				episodeIdx    int
+				expectedTitle string
+			}{
+				{0, 0, "Judge Dredd"},
+				{0, 1, "Strontium Dog"},
+			},
+		},
+		{
+			name: "duplicate book number in different issues unchanged",
+			issues: []api.Issue{
+				{
+					IssueNumber: 100,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One: The Story", Part: 1},
+					},
+				},
+				{
+					IssueNumber: 200,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One: The Story", Part: 1},
+					},
+				},
+			},
+			checks: []struct {
+				issueIdx      int
+				episodeIdx    int
+				expectedTitle string
+			}{
+				{0, 0, "Book One: The Story"},
+				{1, 0, "Book One: The Story"},
+			},
+		},
+		{
+			name: "three books all swap",
+			issues: []api.Issue{
+				{
+					IssueNumber: 100,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One: The Trilogy", Part: 1},
+					},
+				},
+				{
+					IssueNumber: 200,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book Two: The Trilogy", Part: 1},
+					},
+				},
+				{
+					IssueNumber: 300,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book Three: The Trilogy", Part: 1},
+					},
+				},
+			},
+			checks: []struct {
+				issueIdx      int
+				episodeIdx    int
+				expectedTitle string
+			}{
+				{0, 0, "The Trilogy: Book One"},
+				{1, 0, "The Trilogy: Book Two"},
+				{2, 0, "The Trilogy: Book Three"},
+			},
+		},
+		{
+			name: "two series, one triggers",
+			issues: []api.Issue{
+				{
+					IssueNumber: 100,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One: Shared Story", Part: 1},
+						{Series: "Other Series", Title: "Book One: Solo", Part: 1},
+					},
+				},
+				{
+					IssueNumber: 200,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book Two: Shared Story", Part: 1},
+					},
+				},
+			},
+			checks: []struct {
+				issueIdx      int
+				episodeIdx    int
+				expectedTitle string
+			}{
+				{0, 0, "Shared Story: Book One"},
+				{0, 1, "Book One: Solo"},
+				{1, 0, "Shared Story: Book Two"},
+			},
+		},
+		{
+			name: "bare book title without subtitle unchanged",
+			issues: []api.Issue{
+				{
+					IssueNumber: 100,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One", Part: 1},
+					},
+				},
+			},
+			checks: []struct {
+				issueIdx      int
+				episodeIdx    int
+				expectedTitle string
+			}{
+				{0, 0, "Book One"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			logger := logr.FromContextOrDiscard(context.TODO())
+			detectStorylineBookTitles(&tc.issues, logger)
+			for _, check := range tc.checks {
+				got := tc.issues[check.issueIdx].Episodes[check.episodeIdx].Title
+				if got != check.expectedTitle {
+					t.Errorf("%s: issue[%d].episode[%d] expected %q, got %q",
+						tc.name, check.issueIdx, check.episodeIdx, check.expectedTitle, got)
 				}
 			}
 		})

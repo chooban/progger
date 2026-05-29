@@ -347,7 +347,7 @@ func (s *ScanService) createBook(ctx context.Context, series *models.Series, iss
 		}
 	}
 
-	logger.Info("going to upsert book", "book", book.Name)
+	logger.V(1).Info("going to upsert book", "book", book.Name)
 	if err := s.bookSer.Upsert(ctx, book); err != nil {
 		return fmt.Errorf("failed to upsert book: %w", err)
 	}
