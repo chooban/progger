@@ -225,7 +225,7 @@ func TestPdfiumReader_Bookmarks(t *testing.T) {
 				{"Judge Dredd: Well Gel", 3, 8},
 				{"Jaegir: Warchild - Part 4", 9, 13},
 				{"Scarlet Traces: Cold War - Part 12", 14, 18},
-				{"Outlier: Survivor Guilt - Part 10 ", 19, 24},
+				{"Outlier: Survivor Guilt - Part 10", 19, 24},
 				{"Anderson Psi Division: The Candidate - Part 7", 25, 32},
 			},
 		},
@@ -236,7 +236,7 @@ func TestPdfiumReader_Bookmarks(t *testing.T) {
 			bookmarks: []wantBm{
 				{"Cover", 1, 1},
 				{"Tharg's Nerve Centre", 2, 2},
-				{"Judge Dredd: Judgement Days - Prologue ", 3, 10},
+				{"Judge Dredd: Judgement Days - Prologue", 3, 10},
 				{"Rogue Trooper - Mortal Remains", 11, 16},
 				{"Survival Geeks- House of The Dead", 17, 20},
 				{"The Meat Arena", 21, 25},

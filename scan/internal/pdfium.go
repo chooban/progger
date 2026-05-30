@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
 	"slices"
 	"strings"
 
@@ -13,8 +12,6 @@ import (
 	"github.com/klippa-app/go-pdfium/references"
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/klippa-app/go-pdfium/responses"
-	pdfApi "github.com/pdfcpu/pdfcpu/pkg/api"
-	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 )
 
 func NewPdfiumReader(log logr.Logger) *Reader {
@@ -62,34 +59,50 @@ func (fr *FileReader) PageCount() (int, error) {
 }
 
 func (fr *FileReader) Bookmarks() ([]EpisodeDetails, error) {
-	f, err := os.Open(fr.filename)
+	resp, err := fr.Instance.GetBookmarks(&requests.GetBookmarks{Document: fr.Doc})
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	bookmarks := flattenBookmarks(resp.Bookmarks)
+	if len(bookmarks) == 0 {
+		return nil, nil
+	}
 
-	bookmarks, err := pdfApi.Bookmarks(f, model.NewDefaultConfiguration())
-	if err != nil {
-		return nil, err
+	pageCount := 0
+	if pc, err := fr.PageCount(); err == nil {
+		pageCount = pc
 	}
 
 	details := make([]EpisodeDetails, len(bookmarks))
-	for i, v := range bookmarks {
+	for i, bm := range bookmarks {
+		pageFrom := bm.DestInfo.PageIndex + 1
+		pageThru := 0
+		if i < len(bookmarks)-1 {
+			pageThru = bookmarks[i+1].DestInfo.PageIndex
+		} else {
+			pageThru = pageCount
+		}
 		details[i] = EpisodeDetails{
 			Bookmark: PdfBookmark{
-				Title:    v.Title,
-				PageFrom: v.PageFrom,
-				PageThru: v.PageThru,
+				Title:    bm.Title,
+				PageFrom: pageFrom,
+				PageThru: pageThru,
 			},
 		}
 	}
-	lastIdx := len(details) - 1
-	if lastIdx >= 0 && details[lastIdx].Bookmark.PageThru == 0 {
-		if pageCount, err := fr.PageCount(); err == nil {
-			details[lastIdx].Bookmark.PageThru = pageCount
-		}
-	}
 	return details, nil
+}
+
+func flattenBookmarks(bookmarks []responses.GetBookmarksBookmark) []responses.GetBookmarksBookmark {
+	var result []responses.GetBookmarksBookmark
+	for _, bm := range bookmarks {
+		if bm.DestInfo != nil {
+			bm.Title = strings.TrimSpace(bm.Title)
+			result = append(result, bm)
+		}
+		result = append(result, flattenBookmarks(bm.Children)...)
+	}
+	return result
 }
 
 func (fr *FileReader) Text(pageNumber int) (string, error) {
