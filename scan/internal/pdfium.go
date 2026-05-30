@@ -83,6 +83,12 @@ func (fr *FileReader) Bookmarks() ([]EpisodeDetails, error) {
 			},
 		}
 	}
+	lastIdx := len(details) - 1
+	if lastIdx >= 0 && details[lastIdx].Bookmark.PageThru == 0 {
+		if pageCount, err := fr.PageCount(); err == nil {
+			details[lastIdx].Bookmark.PageThru = pageCount
+		}
+	}
 	return details, nil
 }
 

@@ -1,14 +1,22 @@
 package internal
 
 import (
-	_ "github.com/chooban/progger/scan/testing_init"
-	"github.com/go-logr/zerologr"
-	"github.com/rs/zerolog"
-	"github.com/stretchr/testify/assert"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	_ "github.com/chooban/progger/scan/testing_init"
+	"github.com/chooban/progger/scan/api"
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
+	"github.com/klippa-app/go-pdfium/requests"
+	pdfApi "github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
+	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
 )
 
 func IntegrationTest(t *testing.T) {
@@ -139,4 +147,190 @@ func TestPdfiumReader_Credits(t *testing.T) {
 			assert.Equal(t, tc.wantCredits, credits)
 		})
 	}
+}
+
+func testLogger() logr.Logger {
+	writer := zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.RFC3339,
+	}
+	logger := zerolog.New(writer)
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	return zerologr.New(&logger)
+}
+
+func creatorsDataDir() string {
+	return strings.Join([]string{"test", "testdata", "creators"}, string(os.PathSeparator))
+}
+
+func createSyntheticPDF(t *testing.T, path string, numPages int) {
+	t.Helper()
+
+	doc, err := Instance.FPDF_CreateNewDocument(&requests.FPDF_CreateNewDocument{})
+	assert.Nil(t, err)
+
+	for i := 0; i < numPages; i++ {
+		page, err := Instance.FPDFPage_New(&requests.FPDFPage_New{
+			Document:  doc.Document,
+			PageIndex: i,
+			Width:     595.0,
+			Height:    842.0,
+		})
+		assert.Nil(t, err)
+
+		_, err = Instance.FPDFPage_GenerateContent(&requests.FPDFPage_GenerateContent{
+			Page: requests.Page{ByReference: &page.Page},
+		})
+		assert.Nil(t, err)
+
+		_, err = Instance.FPDF_ClosePage(&requests.FPDF_ClosePage{Page: page.Page})
+		assert.Nil(t, err)
+	}
+
+	_, err = Instance.FPDF_SaveAsCopy(&requests.FPDF_SaveAsCopy{
+		Flags:    requests.SaveFlagNoIncremental,
+		Document: doc.Document,
+		FilePath: &path,
+	})
+	assert.Nil(t, err)
+
+	Instance.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: doc.Document})
+}
+
+func TestPdfiumReader_Bookmarks(t *testing.T) {
+	IntegrationTest(t)
+	log := testLogger()
+	reader := NewPdfiumReader(log)
+	dataDir := creatorsDataDir()
+
+	type wantBm struct {
+		Title    string
+		PageFrom int
+		PageThru int
+	}
+
+	tests := []struct {
+		name      string
+		filename  string
+		wantCount int
+		bookmarks []wantBm
+	}{
+		{
+			name:      "1999",
+			filename:  "2000AD 1999 (1977).pdf",
+			wantCount: 7,
+			bookmarks: []wantBm{
+				{"Cover", 1, 1},
+				{"Nerve Centre", 2, 2},
+				{"Judge Dredd: Well Gel", 3, 8},
+				{"Jaegir: Warchild - Part 4", 9, 13},
+				{"Scarlet Traces: Cold War - Part 12", 14, 18},
+				{"Outlier: Survivor Guilt - Part 10 ", 19, 24},
+				{"Anderson Psi Division: The Candidate - Part 7", 25, 32},
+			},
+		},
+		{
+			name:      "2300",
+			filename:  "2000AD 2300 (1977).pdf",
+			wantCount: 11,
+			bookmarks: []wantBm{
+				{"Cover", 1, 1},
+				{"Tharg's Nerve Centre", 2, 2},
+				{"Judge Dredd: Judgement Days - Prologue ", 3, 10},
+				{"Rogue Trooper - Mortal Remains", 11, 16},
+				{"Survival Geeks- House of The Dead", 17, 20},
+				{"The Meat Arena", 21, 25},
+				{"Sinister Dexter - Zed Zone", 26, 31},
+				{"Ampney Crucis Investigates... - Setting Sons", 32, 36},
+				{"Robo-Hunter: Z-INF", 37, 40},
+				{"Strontium Dog: In The (Dead) Doghouse", 41, 45},
+				{"Judge Dredd: Judgement Days - Epilogue", 46, 52},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fullPath := filepath.Join(dataDir, tt.filename)
+			details, err := reader.Bookmarks(fullPath)
+			assert.Nil(t, err)
+			assert.Len(t, details, tt.wantCount)
+
+			for i, want := range tt.bookmarks {
+				if i >= len(details) {
+					break
+				}
+				assert.Equal(t, want.Title, details[i].Bookmark.Title, "bookmark %d title", i)
+				assert.Equal(t, want.PageFrom, details[i].Bookmark.PageFrom, "bookmark %d PageFrom", i)
+				assert.Equal(t, want.PageThru, details[i].Bookmark.PageThru, "bookmark %d PageThru", i)
+			}
+		})
+	}
+}
+
+func TestPdfBuilder_BuildPageAsPDF(t *testing.T) {
+	IntegrationTest(t)
+
+	t.Run("standard", func(t *testing.T) {
+		assertBuildPageAsPDF(t, false)
+	})
+	t.Run("artistsEdition", func(t *testing.T) {
+		assertBuildPageAsPDF(t, true)
+	})
+}
+
+func assertBuildPageAsPDF(t *testing.T, artistsEdition bool) {
+	t.Helper()
+	dataDir := creatorsDataDir()
+	pdfPath := filepath.Join(dataDir, "2000AD 1999 (1977).pdf")
+
+	builder := NewPdfBuilder()
+	page := api.ExportPage{
+		Filename: pdfPath,
+		PageFrom: 1,
+		PageTo:   2,
+	}
+
+	result, err := builder.BuildPageAsPDF(page, artistsEdition)
+	assert.Nil(t, err)
+	assert.NotNil(t, result)
+	assert.Greater(t, len(*result), 0, "output PDF bytes must not be empty")
+}
+
+func TestPdfBuilder_AddBookmarks(t *testing.T) {
+	IntegrationTest(t)
+
+	srcPath := filepath.Join(t.TempDir(), "source.pdf")
+	outPath := filepath.Join(t.TempDir(), "output.pdf")
+	createSyntheticPDF(t, srcPath, 3)
+
+	builder := NewPdfBuilder()
+	builder.OpenDestination()
+
+	builder.CopyPages(&srcPath, 1, 3, 0)
+	assert.Nil(t, builder.BuildError)
+
+	builder.Save(outPath)
+	assert.Nil(t, builder.BuildError)
+
+	bookmarks := []pdfcpu.Bookmark{
+		{Title: "Chapter One", PageFrom: 1, PageThru: 2},
+		{Title: "Chapter Two", PageFrom: 3, PageThru: 0},
+	}
+	builder.AddBookmarks(bookmarks)
+	assert.Nil(t, builder.BuildError)
+
+	f, err := os.Open(outPath)
+	assert.Nil(t, err)
+	defer f.Close()
+
+	readBack, err := pdfApi.Bookmarks(f, model.NewDefaultConfiguration())
+	assert.Nil(t, err)
+	assert.Len(t, readBack, 2)
+	assert.Equal(t, "Chapter One", readBack[0].Title)
+	assert.Equal(t, 1, readBack[0].PageFrom)
+	assert.Equal(t, 2, readBack[0].PageThru)
+	assert.Equal(t, "Chapter Two", readBack[1].Title)
+	assert.Equal(t, 3, readBack[1].PageFrom)
+	assert.Equal(t, 0, readBack[1].PageThru)
 }

@@ -179,13 +179,6 @@ func BuildIssue(log logr.Logger, filename string, details []EpisodeDetails, cove
 	}
 	allEpisodes := make([]*api.Episode, 0)
 
-	// Get PDF page count for fixing invalid page ranges
-	reader := NewPdfiumReader(log)
-	pdfPageCount := 0
-	if pageCount, err := reader.PageCount(filename); err == nil {
-		pdfPageCount = pageCount
-	}
-
 	for _, d := range details {
 		bookmark := d.Bookmark
 		log.V(2).Info(fmt.Sprintf("Extracting details from %s", bookmark.Title))
@@ -215,13 +208,8 @@ func BuildIssue(log logr.Logger, filename string, details []EpisodeDetails, cove
 			log.V(1).Info(fmt.Sprintf("Extracting creators from %s", d.Credits))
 			credits := ExtractCreatorsFromCredits(d.Credits)
 
-			// Fix page ranges: if LastPage is 0, it means "to end of PDF"
 			pageFrom := bookmark.PageFrom
 			pageTo := bookmark.PageThru
-			if pageTo == 0 && pdfPageCount > 0 {
-				pageTo = pdfPageCount
-				log.V(1).Info("Fixed page range from PDF bookmark", "series", series, "title", title, "part", part, "pageFrom", pageFrom, "pageTo", pageTo)
-			}
 
 			allEpisodes = append(allEpisodes, &api.Episode{
 				Title:     title,

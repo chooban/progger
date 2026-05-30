@@ -28,7 +28,7 @@ check: vet dupcheck test
   echo "Checked"
 
 integration:
-    INTEGRATION=1 go test ./scan/./...
+    INTEGRATION=1 DYLD_LIBRARY_PATH=`pwd`/ go test ./scan/./...
 
 testdata:
   mkdir -p scan/test/testdata/firstscan
