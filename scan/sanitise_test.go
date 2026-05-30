@@ -356,6 +356,84 @@ func TestDetectStorylineBookTitles(t *testing.T) {
 				{0, 0, "Book One"},
 			},
 		},
+		{
+			name: "multiple episodes with same book word all swap",
+			issues: []api.Issue{
+				{
+					IssueNumber: 100,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One: The Story", Part: 1},
+					},
+				},
+				{
+					IssueNumber: 150,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One: The Story", Part: 1},
+					},
+				},
+				{
+					IssueNumber: 200,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One: The Story", Part: 1},
+					},
+				},
+				{
+					IssueNumber: 300,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book Two: The Story", Part: 1},
+					},
+				},
+			},
+			checks: []struct {
+				issueIdx      int
+				episodeIdx    int
+				expectedTitle string
+			}{
+				{0, 0, "The Story: Book One"},
+				{1, 0, "The Story: Book One"},
+				{2, 0, "The Story: Book One"},
+				{3, 0, "The Story: Book Two"},
+			},
+		},
+		{
+			name: "multiple episodes of both book words all swap",
+			issues: []api.Issue{
+				{
+					IssueNumber: 100,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One: Alpha", Part: 1},
+					},
+				},
+				{
+					IssueNumber: 200,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book One: Alpha", Part: 1},
+					},
+				},
+				{
+					IssueNumber: 300,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book Two: Alpha", Part: 1},
+					},
+				},
+				{
+					IssueNumber: 400,
+					Episodes: []*api.Episode{
+						{Series: "Hershey", Title: "Book Two: Alpha", Part: 1},
+					},
+				},
+			},
+			checks: []struct {
+				issueIdx      int
+				episodeIdx    int
+				expectedTitle string
+			}{
+				{0, 0, "Alpha: Book One"},
+				{1, 0, "Alpha: Book One"},
+				{2, 0, "Alpha: Book Two"},
+				{3, 0, "Alpha: Book Two"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {

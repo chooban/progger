@@ -305,6 +305,30 @@ func extractDetailsFromPdfBookmark(inputBookmarkTitle string) (episodeNumber int
 		storyline = CapitalizeWords(strings.TrimSpace(parts[1]))
 		episodeNumber = extractPartNumberFromString(parts[2])
 
+		// In some cases, this means we have an extra "Book ..." at the end.
+		bookEndPattern := regexp.MustCompile(`(?i)^(.+)\s+book\s+(\w+)$`)
+		if m := bookEndPattern.FindStringSubmatch(strings.TrimSpace(parts[1])); m != nil {
+			if n, err := ParseTextNumber(m[2]); err == nil {
+				bookNumber = n
+				storyline = CapitalizeWords(strings.TrimSpace(m[1]))
+			}
+		}
+
+		if episodeNumber == -1 {
+			episodeNumber = 1
+		}
+		series = TrimNonAlphaNumeric(CapitalizeWords(series))
+		storyline = TrimNonAlphaNumeric(CapitalizeWords(storyline))
+
+		if bookNumber > -1 {
+			bookEntry := "Book " + CapitalizeWords(num2words.Convert(bookNumber))
+			storyline = bookEntry + ": " + storyline
+		}
+
+		if strings.Count(storyline, ":") > 1 {
+			storyline = strings.Replace(storyline, ":", " -", 1)
+		}
+
 		return
 	}
 

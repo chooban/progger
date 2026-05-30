@@ -181,11 +181,15 @@ func episodesBySeries(issues *[]api.Issue) (map[string][]*api.Episode, map[strin
 
 var bookTitlePattern = regexp.MustCompile(`^Book (\w+): (.+)$`)
 
+// detectStorylineBookTitles scans each series' episodes independently for
+// titles matching "Book X: StorylineName" (e.g. "Book One: Apocalypse War").
+// When the same storyline name appears across multiple book numbers within
+// the same series, the episodes are renamed to "StorylineName: Book X".
 func detectStorylineBookTitles(issues *[]api.Issue, logger logr.Logger) {
 	seriesEpisodes, _ := episodesBySeries(issues)
 
 	for _, episodes := range seriesEpisodes {
-		subtitleGroups := make(map[string]map[string]*api.Episode)
+		subtitleGroups := make(map[string]map[string][]*api.Episode)
 
 		for _, ep := range episodes {
 			matches := bookTitlePattern.FindStringSubmatch(ep.Title)
@@ -196,9 +200,9 @@ func detectStorylineBookTitles(issues *[]api.Issue, logger logr.Logger) {
 			subtitle := matches[2]
 
 			if subtitleGroups[subtitle] == nil {
-				subtitleGroups[subtitle] = make(map[string]*api.Episode)
+				subtitleGroups[subtitle] = make(map[string][]*api.Episode)
 			}
-			subtitleGroups[subtitle][bookWord] = ep
+			subtitleGroups[subtitle][bookWord] = append(subtitleGroups[subtitle][bookWord], ep)
 		}
 
 		for subtitle, bookMap := range subtitleGroups {
@@ -206,8 +210,10 @@ func detectStorylineBookTitles(issues *[]api.Issue, logger logr.Logger) {
 				continue
 			}
 			logger.Info("Detected multi-book storyline", "subtitle", subtitle)
-			for bookWord, ep := range bookMap {
-				ep.Title = subtitle + ": Book " + bookWord
+			for bookWord, episodes := range bookMap {
+				for _, ep := range episodes {
+					ep.Title = subtitle + ": Book " + bookWord
+				}
 			}
 		}
 	}
