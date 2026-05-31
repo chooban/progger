@@ -14,7 +14,7 @@ type ExportFormat int
 
 const (
 	PDF   ExportFormat = 1
-	Image              = 2
+	Image ExportFormat = 2
 )
 
 // Build exports a PDF of the pages passed to it

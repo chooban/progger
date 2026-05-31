@@ -3,7 +3,6 @@ package internal
 import (
 	"fmt"
 	"image"
-	"io"
 
 	"github.com/chooban/progger/scan/api"
 	"github.com/klippa-app/go-pdfium"
@@ -293,27 +292,24 @@ func (p *PdfBuilder) BuildPageAsPDF(page api.ExportPage, artistsEdition bool) (*
 	if artistsEdition {
 		p.OpenDestination()
 		p.CopyStrippedPages(&page.Filename, page.PageFrom, page.PageTo, 0)
-		outputPage, err := p.instance.FPDF_LoadPage(&requests.FPDF_LoadPage{
-			Document: p.destination.Document,
-			Index:    0,
-		})
-		if err != nil {
-			return nil, err
+		if p.BuildError != nil {
+			return nil, p.BuildError
 		}
-		defer p.instance.FPDF_ClosePage(&requests.FPDF_ClosePage{Page: outputPage.Page})
 		p.Generate()
+		if p.BuildError != nil {
+			return nil, p.BuildError
+		}
 		return p.savedAs.FileBytes, nil
 	}
 
-	ctx, err := pdfApi.ReadContextFile(page.Filename)
-	if err != nil {
-		return nil, err
+	p.OpenDestination()
+	p.CopyPages(&page.Filename, page.PageFrom, page.PageFrom, 0)
+	if p.BuildError != nil {
+		return nil, p.BuildError
 	}
-	r, err := pdfApi.ExtractPage(ctx, page.PageFrom)
-	if err != nil {
-		return nil, err
+	p.Generate()
+	if p.BuildError != nil {
+		return nil, p.BuildError
 	}
-	pageBytes, err := io.ReadAll(r)
-
-	return &pageBytes, err
+	return p.savedAs.FileBytes, nil
 }

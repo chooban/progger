@@ -11,6 +11,7 @@ import (
 	"github.com/chooban/progger/scan/api"
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
+	"github.com/klippa-app/go-pdfium/enums"
 	"github.com/klippa-app/go-pdfium/requests"
 	pdfApi "github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
@@ -295,6 +296,46 @@ func assertBuildPageAsPDF(t *testing.T, artistsEdition bool) {
 	assert.Nil(t, err)
 	assert.NotNil(t, result)
 	assert.Greater(t, len(*result), 0, "output PDF bytes must not be empty")
+
+	doc, err := Instance.FPDF_LoadMemDocument(&requests.FPDF_LoadMemDocument{Data: result})
+	assert.Nil(t, err)
+	defer Instance.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: doc.Document})
+
+	pageCountResp, err := Instance.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc.Document})
+	assert.Nil(t, err)
+	if !artistsEdition {
+		assert.Equal(t, 1, pageCountResp.PageCount)
+	}
+	// artists edition copies full page range, may produce multiple pages
+
+	loadedPage, err := Instance.FPDF_LoadPage(&requests.FPDF_LoadPage{Document: doc.Document, Index: 0})
+	assert.Nil(t, err)
+	defer Instance.FPDF_ClosePage(&requests.FPDF_ClosePage{Page: loadedPage.Page})
+
+	objects, err := Instance.FPDFPage_CountObjects(&requests.FPDFPage_CountObjects{
+		Page: requests.Page{ByReference: &loadedPage.Page},
+	})
+	assert.Nil(t, err)
+	assert.Greater(t, objects.Count, 0, "page should have objects")
+
+	imageCount := 0
+	for i := 0; i < objects.Count; i++ {
+		obj, err := Instance.FPDFPage_GetObject(&requests.FPDFPage_GetObject{
+			Page:  requests.Page{ByReference: &loadedPage.Page},
+			Index: i,
+		})
+		assert.Nil(t, err)
+		objType, err := Instance.FPDFPageObj_GetType(&requests.FPDFPageObj_GetType{PageObject: obj.PageObject})
+		assert.Nil(t, err)
+		if objType.Type == enums.FPDF_PAGEOBJ_IMAGE {
+			imageCount++
+		}
+	}
+	if artistsEdition {
+		assert.Equal(t, 1, imageCount, "artists edition should have exactly 1 image")
+	} else {
+		assert.Equal(t, 3, imageCount, "standard extraction should preserve 3 images")
+	}
 }
 
 func TestPdfBuilder_AddBookmarks(t *testing.T) {
