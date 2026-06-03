@@ -309,7 +309,7 @@ func (h *Handlers) ListBookThumbnails(c *gin.Context) {
 	}
 
 	var thumbs []api.ThumbnailDto
-	covers, err := h.coverSer.FindForBook(c.Request.Context(), book)
+	covers, _ := h.coverSer.FindForBook(c.Request.Context(), book)
 
 	for _, cover := range covers {
 		thumbs = append(thumbs, api.ThumbnailDto{
