@@ -13,16 +13,25 @@ type TSIDGenerator struct {
 	mu      sync.Mutex
 }
 
-// NewTSIDGenerator creates a new TSID generator with default settings
-// Single-instance deployment, node bits = 0
-func NewTSIDGenerator() (*TSIDGenerator, error) {
-	// Create factory with default settings:
-	// - Node bits: 0 (single instance)
-	// - Default epoch: 2020-01-01
+var (
+	globalGenOnce sync.Once
+	globalGen     *TSIDGenerator
+	globalGenErr  error
+)
+
+// GetTSIDGenerator returns the process-wide singleton TSID generator.
+func GetTSIDGenerator() (*TSIDGenerator, error) {
+	globalGenOnce.Do(func() {
+		globalGen, globalGenErr = newTSIDGenerator()
+	})
+	return globalGen, globalGenErr
+}
+
+// newTSIDGenerator creates a new TSID generator with default settings
+func newTSIDGenerator() (*TSIDGenerator, error) {
 	factory, err := tsid.TsidFactoryBuilder().
 		WithNodeBits(0).
 		Build()
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to build TSID factory: %w", err)
 	}

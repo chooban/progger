@@ -9,10 +9,9 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// Helper to create a TSID generator for tests
 func createTestTSIDGenerator(t *testing.T) *TSIDGenerator {
 	t.Helper()
-	tsidGen, err := NewTSIDGenerator()
+	tsidGen, err := GetTSIDGenerator()
 	if err != nil {
 		t.Fatalf("failed to create TSID generator for tests: %v", err)
 	}

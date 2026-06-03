@@ -50,8 +50,7 @@ func createTestHandlers(t *testing.T) *Handlers {
 		testDBMutex.Unlock()
 	})
 
-	// Initialize TSID generator for testing
-	tsidGen, err := services.NewTSIDGenerator()
+	tsidGen, err := services.GetTSIDGenerator()
 	if err != nil {
 		t.Fatalf("failed to create TSID generator: %v", err)
 	}
@@ -84,7 +83,7 @@ func idToString(id int64) string {
 func invalidID(t *testing.T) string {
 	t.Helper()
 
-	newGen, err := services.NewTSIDGenerator()
+	newGen, err := services.GetTSIDGenerator()
 	if err != nil {
 		t.Fatalf("failed to create TSID generator: %v", err)
 	}

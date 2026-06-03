@@ -42,7 +42,7 @@ jobs:
           rm pdfium-${{ env.PDFIUM_OS }}.tgz
           sudo cp ./build/pdfium.pc /usr/local/lib/pkgconfig/pdfium.pc
       - name: Tests
-        run: go test -v -coverprofile=coverage.txt -covermode=atomic ./scan/./... ./reader/./...
+        run: go test -race -v -coverprofile=coverage.txt -covermode=atomic ./scan/./... ./reader/./...
       - uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

@@ -3,17 +3,37 @@ package models
 import (
 	"fmt"
 	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/rushysloth/go-tsid"
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	modelsTsidOnce sync.Once
+	modelsFactory  *tsid.TsidFactory
+	modelsMu       sync.Mutex
+)
+
+func getTestFactory(t *testing.T) *tsid.TsidFactory {
+	t.Helper()
+	modelsTsidOnce.Do(func() {
+		var err error
+		modelsFactory, err = tsid.TsidFactoryBuilder().WithNodeBits(0).Build()
+		if err != nil {
+			panic("failed to create TSID factory: " + err.Error())
+		}
+	})
+	return modelsFactory
+}
+
 func newTSID(t *testing.T) int64 {
 	t.Helper()
-	factory, err := tsid.TsidFactoryBuilder().WithNodeBits(0).Build()
-	require.NoError(t, err)
+	modelsMu.Lock()
+	factory := getTestFactory(t)
 	tsidVal, err := factory.Generate()
+	modelsMu.Unlock()
 	require.NoError(t, err)
 	return tsidVal.ToNumber()
 }

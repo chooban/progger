@@ -37,7 +37,7 @@ func main() {
 	}
 
 	// Initialize TSID generator for ID generation
-	tsidGen, err := services.NewTSIDGenerator()
+	tsidGen, err := services.GetTSIDGenerator()
 	if err != nil {
 		logger.Error(err, "Failed to initialize TSID generator")
 		os.Exit(1)
