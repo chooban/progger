@@ -287,9 +287,13 @@ func (h *Handlers) GetBookThumbnail(c *gin.Context) {
 	covers, err := h.coverSer.FindForBook(c.Request.Context(), book)
 
 	if len(covers) == 0 || err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "cover not found"})
+		jpegData, err := h.thumbnailSer.GetPageThumbnail(c.Request.Context(), book.ID, 1)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "cover not found"})
+			return
+		}
+		c.Data(http.StatusOK, "image/jpeg", jpegData)
 		return
-
 	}
 	jpegData, err := h.thumbnailSer.GetCoverThumbnail(c.Request.Context(), covers[0])
 	if err != nil {

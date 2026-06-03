@@ -659,3 +659,46 @@ func TestListBooks_MalformedJSON_Returns400(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
+
+func TestGetBookThumbnail_NoCovers_FallsBackToFirstPage(t *testing.T) {
+	t.Parallel()
+
+	handlers := createTestHandlers(t)
+	server := createTestServer(t, handlers)
+	defer server.Close()
+
+	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	series := services.CreateTestSeries(t, handlers.seriesSer, lib.ID)
+	book := services.CreateTestBook(t, handlers.bookSer, "Test Book", series.ID)
+	_ = services.CreateTestEpisode(t, handlers.bookSer, book.ID, 1, 1)
+
+	resp, err := http.Get(server.URL + "/api/v1/books/" + idToString(book.ID) + "/thumbnail")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, "image/jpeg", resp.Header.Get("Content-Type"))
+
+	body, _ := io.ReadAll(resp.Body)
+	require.Greater(t, len(body), 0)
+}
+
+func TestGetBookThumbnail_WithCovers_ReturnsCover(t *testing.T) {
+	t.Parallel()
+
+	handlers := createTestHandlers(t)
+	server := createTestServer(t, handlers)
+	defer server.Close()
+
+	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	series := services.CreateTestSeries(t, handlers.seriesSer, lib.ID)
+	book := services.CreateTestBook(t, handlers.bookSer, "Test Book", series.ID)
+	_ = services.CreateTestEpisode(t, handlers.bookSer, book.ID, 1, 1)
+	_ = services.CreateTestCover(t, handlers.coverSer, series.ID, 1)
+
+	resp, err := http.Get(server.URL + "/api/v1/books/" + idToString(book.ID) + "/thumbnail")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	require.Equal(t, "image/jpeg", resp.Header.Get("Content-Type"))
+
+	body, _ := io.ReadAll(resp.Body)
+	require.Greater(t, len(body), 0)
+}
