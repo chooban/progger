@@ -78,9 +78,10 @@ func (r Role) String() string {
 }
 
 type ExportPage struct {
-	Filename    string
-	IssueNumber int
-	Title       string
-	PageFrom    int
-	PageTo      int
+	Filename       string
+	IssueNumber    int
+	Title          string
+	PageFrom       int
+	PageTo         int
+	ArtistsEdition bool
 }

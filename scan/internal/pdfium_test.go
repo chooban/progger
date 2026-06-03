@@ -287,12 +287,13 @@ func assertBuildPageAsPDF(t *testing.T, artistsEdition bool) {
 
 	builder := NewPdfBuilder()
 	page := api.ExportPage{
-		Filename: pdfPath,
-		PageFrom: 1,
-		PageTo:   2,
+		Filename:       pdfPath,
+		PageFrom:       1,
+		PageTo:         2,
+		ArtistsEdition: artistsEdition,
 	}
 
-	result, err := builder.BuildPageAsPDF(page, artistsEdition)
+	result, err := builder.BuildPageAsPDF(page)
 	assert.Nil(t, err)
 	assert.NotNil(t, result)
 	assert.Greater(t, len(*result), 0, "output PDF bytes must not be empty")

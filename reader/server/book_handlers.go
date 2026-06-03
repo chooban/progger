@@ -372,6 +372,18 @@ func (h *Handlers) DownloadBook(c *gin.Context) {
 	}
 
 	var exportPages []scanApi.ExportPage
+
+	covers, _ := h.coverSer.FindForBook(c.Request.Context(), book)
+	if len(covers) > 0 {
+		exportPages = append(exportPages, scanApi.ExportPage{
+			Filename:       covers[0].Filename,
+			Title:          "Cover",
+			PageFrom:       1,
+			PageTo:         1,
+			ArtistsEdition: true,
+		})
+	}
+
 	for _, ep := range book.Episodes {
 		exportPages = append(exportPages, scanApi.ExportPage{
 			Filename:    ep.Filename,
@@ -390,7 +402,7 @@ func (h *Handlers) DownloadBook(c *gin.Context) {
 	defer os.Remove(tmp.Name())
 	defer tmp.Close()
 
-	if err := scan.Build(c.Request.Context(), exportPages, false, tmp.Name()); err != nil {
+	if err := scan.Build(c.Request.Context(), exportPages, tmp.Name()); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

@@ -10,8 +10,8 @@ import (
 	scanApi "github.com/chooban/progger/scan/api"
 )
 
-type pageBuilderFunc func(context.Context, scanApi.ExportPage, bool) (*[]byte, error)
-type coverBuilderFunc func(context.Context, scanApi.ExportPage, bool) (*image.RGBA, error)
+type pageBuilderFunc func(context.Context, scanApi.ExportPage) (*[]byte, error)
+type coverBuilderFunc func(context.Context, scanApi.ExportPage) (*image.RGBA, error)
 
 type PageService struct {
 	bookSer      *BookService
@@ -97,7 +97,7 @@ func (s *PageService) GetPage(ctx context.Context, bookID int64, pageNum int) ([
 		PageTo:      pageTo,
 	}
 
-	pdfData, err := s.pageBuilder(ctx, exportPage, false)
+	pdfData, err := s.pageBuilder(ctx, exportPage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build page: %w", err)
 	}
@@ -131,7 +131,7 @@ func (s *PageService) GetPageImage(ctx context.Context, bookID int64, pageNum in
 		PageTo:      pageTo,
 	}
 
-	rgba, err := s.coverBuilder(ctx, exportPage, false)
+	rgba, err := s.coverBuilder(ctx, exportPage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build page image: %w", err)
 	}

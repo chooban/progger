@@ -234,14 +234,14 @@ func (p *PdfBuilder) AddBookmarks(bookmarks []pdfcpu.Bookmark) {
 	p.BuildError = pdfApi.AddBookmarksFile(*p.savedAs.FilePath, *p.savedAs.FilePath, bookmarks, true, nil)
 }
 
-func (p *PdfBuilder) Build(episodes []api.ExportPage, artistsEdition bool, outputPath string) (buildError error) {
+func (p *PdfBuilder) Build(episodes []api.ExportPage, outputPath string) (buildError error) {
 	p.OpenDestination()
 
 	pageCount := 0
 	bookmarks := make([]pdfcpu.Bookmark, 0, len(episodes))
 	for _, episode := range episodes {
 		pagesAdded := 0
-		if artistsEdition {
+		if episode.ArtistsEdition {
 			pagesAdded = p.CopyStrippedPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
 		} else {
 			pagesAdded = p.CopyPages(&episode.Filename, episode.PageFrom, episode.PageTo, pageCount)
@@ -261,9 +261,9 @@ func (p *PdfBuilder) Build(episodes []api.ExportPage, artistsEdition bool, outpu
 	return p.BuildError
 }
 
-func (p *PdfBuilder) BuildPage(page api.ExportPage, artistsEdition bool) (*image.RGBA, error) {
+func (p *PdfBuilder) BuildPage(page api.ExportPage) (*image.RGBA, error) {
 	p.OpenDestination()
-	if artistsEdition {
+	if page.ArtistsEdition {
 		p.CopyStrippedPages(&page.Filename, page.PageFrom, page.PageTo, 0)
 	} else {
 		p.CopyPages(&page.Filename, page.PageFrom, page.PageTo, 0)
@@ -288,8 +288,8 @@ func (p *PdfBuilder) BuildPage(page api.ExportPage, artistsEdition bool) (*image
 	return pageRender.Result.Image, nil
 }
 
-func (p *PdfBuilder) BuildPageAsPDF(page api.ExportPage, artistsEdition bool) (*[]byte, error) {
-	if artistsEdition {
+func (p *PdfBuilder) BuildPageAsPDF(page api.ExportPage) (*[]byte, error) {
+	if page.ArtistsEdition {
 		p.OpenDestination()
 		p.CopyStrippedPages(&page.Filename, page.PageFrom, page.PageTo, 0)
 		if p.BuildError != nil {

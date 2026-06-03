@@ -21,11 +21,12 @@ func (e *Exporter) Export(ctx context.Context, stories []*exporterApi.Story, art
 		if story.ToExport {
 			for _, e := range story.Episodes {
 				toExport = append(toExport, api.ExportPage{
-					Filename:    e.Filename,
-					PageFrom:    e.FirstPage,
-					PageTo:      e.LastPage,
-					IssueNumber: e.IssueNumber,
-					Title:       fmt.Sprintf("%s - Part %d", e.Title, e.Part),
+					Filename:       e.Filename,
+					PageFrom:       e.FirstPage,
+					PageTo:         e.LastPage,
+					IssueNumber:    e.IssueNumber,
+					Title:          fmt.Sprintf("%s - Part %d", e.Title, e.Part),
+					ArtistsEdition: artistsEdition,
 				})
 			}
 		}
@@ -41,7 +42,7 @@ func (e *Exporter) Export(ctx context.Context, stories []*exporterApi.Story, art
 	})
 
 	// Do the export
-	err := scan.Build(ctx, toExport, artistsEdition, filepath.Join(exportDir, filename))
+	err := scan.Build(ctx, toExport, filepath.Join(exportDir, filename))
 	if err != nil {
 		return err
 	}

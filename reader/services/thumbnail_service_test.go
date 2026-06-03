@@ -11,11 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func thumbnailCoverBuilder(ctx context.Context, page scanApi.ExportPage, artistsEdition bool) (*image.RGBA, error) {
+func thumbnailCoverBuilder(ctx context.Context, page scanApi.ExportPage) (*image.RGBA, error) {
 	return image.NewRGBA(image.Rect(0, 0, 100, 100)), nil
 }
 
-func thumbnailSeriesBuilder(ctx context.Context, page scanApi.ExportPage, artistsEdition bool) (*image.RGBA, error) {
+func thumbnailSeriesBuilder(ctx context.Context, page scanApi.ExportPage) (*image.RGBA, error) {
 	return image.NewRGBA(image.Rect(0, 0, 200, 150)), nil
 }
 
@@ -147,7 +147,7 @@ func TestThumbnailService_GetCoverThumbnail_BuilderError(t *testing.T) {
 	t.Parallel()
 
 	f := setupTestFixture(t)
-	pageSvc := NewPageService(f.BookService, nil, nil, func(ctx context.Context, page scanApi.ExportPage, artistsEdition bool) (*image.RGBA, error) {
+	pageSvc := NewPageService(f.BookService, nil, nil, func(ctx context.Context, page scanApi.ExportPage) (*image.RGBA, error) {
 		return nil, errors.New("mock error")
 	})
 	svc := NewThumbnailService(pageSvc)
@@ -271,7 +271,7 @@ func TestThumbnailService_GetSeriesThumbnail_BuilderError(t *testing.T) {
 	t.Parallel()
 
 	svc := &ThumbnailService{
-		seriesCoverBuilder: func(ctx context.Context, page scanApi.ExportPage, artistsEdition bool) (*image.RGBA, error) {
+		seriesCoverBuilder: func(ctx context.Context, page scanApi.ExportPage) (*image.RGBA, error) {
 			return nil, errors.New("mock error")
 		},
 	}

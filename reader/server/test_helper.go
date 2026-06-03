@@ -12,11 +12,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func mockCoverBuilder(ctx context.Context, page scanApi.ExportPage, artistsEdition bool) (*image.RGBA, error) {
+func mockCoverBuilder(ctx context.Context, page scanApi.ExportPage) (*image.RGBA, error) {
 	return image.NewRGBA(image.Rect(0, 0, 100, 100)), nil
 }
 
-func mockPageBuilder(ctx context.Context, page scanApi.ExportPage, artistsEdition bool) (*[]byte, error) {
+func mockPageBuilder(ctx context.Context, page scanApi.ExportPage) (*[]byte, error) {
 	a := make([]byte, 100)
 	return &a, nil
 }

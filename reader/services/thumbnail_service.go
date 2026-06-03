@@ -17,7 +17,7 @@ import (
 	"github.com/go-logr/logr"
 )
 
-type thumbnailBuilderFunc func(context.Context, scanApi.ExportPage, bool) (*image.RGBA, error)
+type thumbnailBuilderFunc func(context.Context, scanApi.ExportPage) (*image.RGBA, error)
 
 type ThumbnailService struct {
 	pageService         *PageService
@@ -70,12 +70,13 @@ func (s *ThumbnailService) GetSeriesThumbnail(ctx context.Context, cover *models
 	}
 
 	exportPage := scanApi.ExportPage{
-		Filename: cover.Filename,
-		PageFrom: 1,
-		PageTo:   2,
+		Filename:       cover.Filename,
+		PageFrom:       1,
+		PageTo:         2,
+		ArtistsEdition: true,
 	}
 
-	rgba, err := s.seriesCoverBuilder(ctx, exportPage, true)
+	rgba, err := s.seriesCoverBuilder(ctx, exportPage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build page: %w", err)
 	}
@@ -114,12 +115,13 @@ func (s *ThumbnailService) GetCoverThumbnail(ctx context.Context, cover *models.
 	}
 
 	exportPage := scanApi.ExportPage{
-		Filename: thumbnailFile,
-		PageFrom: 1,
-		PageTo:   2,
+		Filename:       thumbnailFile,
+		PageFrom:       1,
+		PageTo:         2,
+		ArtistsEdition: true,
 	}
 
-	rgba, err := s.pageService.coverBuilder(ctx, exportPage, true)
+	rgba, err := s.pageService.coverBuilder(ctx, exportPage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build page: %w", err)
 	}
@@ -178,7 +180,7 @@ func (s *ThumbnailService) GetPageThumbnail(ctx context.Context, bookID int64, p
 
 	// Build page as image
 	logger.V(0).Info("making thumbnail request", "page", exportPage)
-	rgba, err := s.pageService.coverBuilder(ctx, exportPage, false)
+	rgba, err := s.pageService.coverBuilder(ctx, exportPage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build page image: %w", err)
 	}

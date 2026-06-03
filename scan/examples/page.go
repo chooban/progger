@@ -37,13 +37,14 @@ func main() {
 
 	ctx := logr.NewContext(context.Background(), log)
 	pageToExport := api.ExportPage{
-		Filename: *file,
-		PageFrom: *pageNumber,
-		PageTo:   *pageNumber,
-		Title:    "An Example Title",
+		Filename:       *file,
+		PageFrom:       *pageNumber,
+		PageTo:         *pageNumber,
+		Title:          "An Example Title",
+		ArtistsEdition: true,
 	}
 
-	if pageBytes, err := scan.BuildPageAsPDF(ctx, pageToExport, true); err != nil {
+	if pageBytes, err := scan.BuildPageAsPDF(ctx, pageToExport); err != nil {
 		log.Error(err, "Failed to export")
 	} else {
 		createFile("page.pdf")

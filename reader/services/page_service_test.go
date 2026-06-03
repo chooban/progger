@@ -9,11 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func mockCoverBuilder(ctx context.Context, page scanApi.ExportPage, artistsEdition bool) (*image.RGBA, error) {
+func mockCoverBuilder(ctx context.Context, page scanApi.ExportPage) (*image.RGBA, error) {
+
 	return image.NewRGBA(image.Rect(0, 0, 100, 100)), nil
 }
 
-func mockPageBuilder(ctx context.Context, page scanApi.ExportPage, artistsEdition bool) (*[]byte, error) {
+func mockPageBuilder(ctx context.Context, page scanApi.ExportPage) (*[]byte, error) {
 	// Return valid JPEG magic bytes for testing
 	jpegData := []byte{0xff, 0xd8, 0xff, 0xe0}
 	return &jpegData, nil
