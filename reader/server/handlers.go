@@ -44,23 +44,6 @@ type HealthResponse struct {
 	Version string `json:"version"`
 }
 
-// extractValueAsString extracts a value from search.Condition[key] as a string.
-// It handles both string and float64 types, converting float64 to string via int64.
-// Returns empty string if not found or unsupported type.
-func extractValueAsString(search struct {
-	Condition map[string]interface{} `json:"condition"`
-}, key string) string {
-	result := ""
-	if condition, ok := search.Condition[key].(map[string]interface{}); ok {
-		if value, ok := condition["value"].(string); ok {
-			result = value
-		} else if valFloat, ok := condition["value"].(float64); ok {
-			result = strconv.FormatInt(int64(valFloat), 10)
-		}
-	}
-	return result
-}
-
 func tsidParamAsInt(c *gin.Context, param string) (int64, error) {
 	paramString := c.Param(param)
 	if paramString == "" {

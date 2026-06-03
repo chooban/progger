@@ -22,8 +22,8 @@ func TestBook_URL(t *testing.T) {
 	t.Parallel()
 
 	id := newTSID(t)
-	book := Book{ID: id}
-	expected := fmt.Sprintf("/api/v1/books/%s", tsid.FromNumber(id).ToString())
+	book := Book{ID: id, Name: "2000 AD #2347"}
+	expected := fmt.Sprintf("/api/v1/books/%s/file/2000-AD-2347.pdf", tsid.FromNumber(id).ToString())
 	require.Equal(t, expected, book.URL())
 }
 

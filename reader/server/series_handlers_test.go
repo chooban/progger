@@ -214,3 +214,63 @@ func TestListSeriesLatest_ReturnsPaginatedSeries(t *testing.T) {
 	}
 	require.Equal(t, float64(2), pageResp2["totalElements"])
 }
+
+func TestListSeries_WithLibraryId_FiltersCorrectly(t *testing.T) {
+	t.Parallel()
+
+	handlers := createTestHandlers(t)
+	server := createTestServer(t, handlers)
+	defer server.Close()
+
+	lib1 := services.CreateTestLibrary(t, handlers.librarySer, "Library A")
+	lib2 := services.CreateTestLibrary(t, handlers.librarySer, "Library B")
+	_ = services.CreateTestSeries(t, handlers.seriesSer, lib1.ID)
+	_ = services.CreateTestSeriesWithName(t, handlers.seriesSer, lib2.ID, "Series B")
+
+	lib1ID := idToString(lib1.ID)
+	reqBody := `{"condition":{"libraryId":{"value":"` + lib1ID + `"}}}`
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/series/list", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, _ := io.ReadAll(resp.Body)
+	var pageResp map[string]interface{}
+	json.Unmarshal(body, &pageResp)
+	require.Equal(t, float64(1), pageResp["totalElements"])
+}
+
+func TestListSeries_InvalidOperator_Returns400(t *testing.T) {
+	t.Parallel()
+
+	handlers := createTestHandlers(t)
+	server := createTestServer(t, handlers)
+	defer server.Close()
+
+	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	libID := idToString(lib.ID)
+	reqBody := `{"condition":{"libraryId":{"operator":"invalid","value":"` + libID + `"}}}`
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/series/list", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestListSeries_MalformedJSON_Returns400(t *testing.T) {
+	t.Parallel()
+
+	handlers := createTestHandlers(t)
+	server := createTestServer(t, handlers)
+	defer server.Close()
+
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/series/list", strings.NewReader(`{bad json`))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}

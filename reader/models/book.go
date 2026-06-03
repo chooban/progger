@@ -1,8 +1,13 @@
 package models
 
 import (
+	"regexp"
+	"strings"
+
 	"github.com/rushysloth/go-tsid"
 )
+
+var urlUnsafe = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 
 type Book struct {
 	ID          int64      `db:"id"`
@@ -24,7 +29,10 @@ type Book struct {
 
 func (b Book) URL() string {
 	t := tsid.FromNumber(b.ID)
-	return "/api/v1/books/" + t.ToString()
+	safe := strings.TrimSpace(b.Name)
+	safe = urlUnsafe.ReplaceAllString(safe, "-")
+	safe = strings.Trim(safe, "-")
+	return "/api/v1/books/" + t.ToString() + "/file/" + safe + ".pdf"
 }
 
 type BookWithSeries struct {

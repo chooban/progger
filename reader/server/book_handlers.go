@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -64,7 +65,7 @@ func bookToDto(b *models.Book, series *models.Series) api.BookDto {
 			Comment:              "",
 			EpubDivinaCompatible: false,
 			EpubIsKepub:          false,
-			MediaProfile:         "",
+			MediaProfile:         "PDF",
 			MediaType:            "application/pdf",
 			PagesCount:           int32(b.PageCount),
 			Status:               "READY",
@@ -136,12 +137,16 @@ func (h *Handlers) ListBooksV1(c *gin.Context) {
 }
 
 func (h *Handlers) ListBooks(c *gin.Context) {
-	var search struct {
-		Condition map[string]interface{} `json:"condition"`
+	var search api.BookSearchRequest
+
+	if err := c.ShouldBindJSON(&search); err != nil && c.Request.Method == "POST" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
-	if err := c.ShouldBindJSON(&search); err != nil {
-		search.Condition = make(map[string]interface{})
+	if err := validateCondition(search.Condition); err != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err})
+		return
 	}
 
 	var req api.PageRequest
@@ -150,30 +155,29 @@ func (h *Handlers) ListBooks(c *gin.Context) {
 		req.Size = 100
 	}
 
-	seriesIDStr := extractValueAsString(search, "seriesId")
-	libraryIDStr := extractValueAsString(search, "libraryId")
-
 	var books []*models.Book
 	var total int
 	var err error
 
-	if seriesIDStr != "" {
-		id, err := services.StringIDToInt64(seriesIDStr)
-		if err != nil {
+	cond := search.Condition
+	switch {
+	case cond.SeriesId != nil:
+		id, parseErr := services.StringIDToInt64(cond.SeriesId.Value)
+		if parseErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid seriesId"})
 			return
 		}
 		books, total, err = h.bookSer.ListBySeries(c.Request.Context(), id, req.Offset(), req.Limit())
 
-	} else if libraryIDStr != "" {
-		id, err := services.StringIDToInt64(libraryIDStr)
-		if err != nil {
+	case cond.LibraryId != nil:
+		id, parseErr := services.StringIDToInt64(cond.LibraryId.Value)
+		if parseErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid libraryId"})
 			return
 		}
 		books, total, err = h.bookSer.ListByLibraryID(c.Request.Context(), id, req.Offset(), req.Limit())
 
-	} else {
+	default:
 		books, total, err = h.bookSer.ListAll(c.Request.Context(), req.Offset(), req.Limit())
 	}
 
@@ -189,6 +193,26 @@ func (h *Handlers) ListBooks(c *gin.Context) {
 	}
 
 	writePaginatedResponse(c, req, 1, 100, total, dtos)
+}
+
+func validateCondition(cond api.BookSearchCondition) string {
+	for _, v := range cond.AllOf {
+		if err := validateCondition(v); err != "" {
+			return err
+		}
+	}
+	for _, v := range cond.AnyOf {
+		if err := validateCondition(v); err != "" {
+			return err
+		}
+	}
+	if cond.SeriesId != nil && cond.SeriesId.Operator != "" && cond.SeriesId.Operator != "is" && cond.SeriesId.Operator != "isNot" {
+		return "invalid operator for seriesId: " + cond.SeriesId.Operator
+	}
+	if cond.LibraryId != nil && cond.LibraryId.Operator != "" && cond.LibraryId.Operator != "is" && cond.LibraryId.Operator != "isNot" {
+		return "invalid operator for libraryId: " + cond.LibraryId.Operator
+	}
+	return ""
 }
 
 func (h *Handlers) GetBook(c *gin.Context) {
@@ -375,6 +399,13 @@ func (h *Handlers) DownloadBook(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	filename := c.Param("filename")
+	if filename != "" {
+		c.Header("Content-Disposition", "attachment; filename="+filepath.Base(filename))
+	} else {
+		c.Header("Content-Disposition", "attachment; filename="+filepath.Base(book.URL()))
 	}
 
 	c.Data(http.StatusOK, "application/pdf", data)

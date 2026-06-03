@@ -1,11 +1,16 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"embed"
+	"fmt"
 	"html/template"
+	"io"
 	"net"
+	"net/http"
 	"os"
+	"strings"
 	"syscall"
 
 	"github.com/chooban/progger/reader/config"
@@ -44,10 +49,21 @@ func NewServer(ctx context.Context, cfg *config.Config, handlers *Handlers) *Ser
 			"path", c.Request.URL.Path,
 		)
 
+		if body, err := io.ReadAll(c.Request.Body); err == nil {
+			c.Request.Body = io.NopCloser(bytes.NewBuffer(body))
+			if len(body) > 0 {
+				reqLogger.V(1).Info("request body", "body", string(body))
+			}
+		}
+
+		reqLogger.V(1).Info("request headers", "headers", headerMap(c.Request.Header))
+
 		loggerContext := logr.NewContext(c.Request.Context(), reqLogger)
 		c.Request = c.Request.WithContext(loggerContext)
 
 		c.Next()
+
+		reqLogger.V(1).Info("response headers", "headers", headerMap(c.Writer.Header()))
 	})
 	tmpl := template.Must(template.ParseFS(templateFS, "templates/*.html"))
 	s.router.SetHTMLTemplate(tmpl)
@@ -87,4 +103,17 @@ func loggerFromContext(ctx context.Context) logr.Logger {
 	} else {
 		return logger
 	}
+}
+
+func headerMap(h http.Header) string {
+	var b strings.Builder
+	first := true
+	for k, v := range h {
+		if !first {
+			b.WriteString(", ")
+		}
+		first = false
+		b.WriteString(fmt.Sprintf("%s: %s", k, strings.Join(v, "; ")))
+	}
+	return b.String()
 }

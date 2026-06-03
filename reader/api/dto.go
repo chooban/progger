@@ -196,12 +196,42 @@ type ReadListDto struct {
 	LastModifiedDate string   `json:"lastModifiedDate"`
 }
 
-type BookSearch struct {
+type BookSearchRequest struct {
 	Condition      BookSearchCondition `json:"condition"`
-	FullTextSearch string              `json:"fullTextSearch"`
+	FullTextSearch string              `json:"fullTextSearch,omitempty"`
 }
 
-type BookSearchCondition map[string]interface{}
+type BookSearchCondition struct {
+	AllOf      []BookSearchCondition `json:"allOf"`
+	AnyOf      []BookSearchCondition `json:"anyOf"`
+	SeriesId   *ConditionValue       `json:"seriesId"`
+	LibraryId  *ConditionValue       `json:"libraryId"`
+	ReadStatus *ConditionValue       `json:"readStatus"`
+}
+
+type ConditionValue struct {
+	Operator string `json:"operator"`
+	Value    string `json:"value"`
+}
+
+func (c BookSearchCondition) IsEmpty() bool {
+	return c.AllOf == nil && c.AnyOf == nil && c.SeriesId == nil && c.LibraryId == nil && c.ReadStatus == nil
+}
+
+type SeriesSearchRequest struct {
+	Condition SeriesSearchCondition `json:"condition"`
+}
+
+type SeriesSearchCondition struct {
+	AllOf      []SeriesSearchCondition `json:"allOf"`
+	AnyOf      []SeriesSearchCondition `json:"anyOf"`
+	LibraryId  *ConditionValue         `json:"libraryId"`
+	CollectionId *ConditionValue       `json:"collectionId"`
+}
+
+func (c SeriesSearchCondition) IsEmpty() bool {
+	return c.AllOf == nil && c.AnyOf == nil && c.LibraryId == nil && c.CollectionId == nil
+}
 
 type BookMetadataDto struct {
 	Authors         []AuthorDto  `json:"authors"`

@@ -76,10 +76,7 @@ func NewPageResponse[T any](content T, totalElements int, page, size int) *PageR
 
 	totalPageVal := int32(0)
 	if size > 0 {
-		totalPageVal = int32((totalElements + size - 1) / size)
-		if totalPageVal < 1 {
-			totalPageVal = 1
-		}
+		totalPageVal = max(int32((totalElements+size-1)/size), 1)
 	}
 
 	return &PageResponse[T]{

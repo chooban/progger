@@ -55,7 +55,7 @@ reader:
   DYLD_LIBRARY_PATH="`pwd`/" HOST=:8083 DATABASE_PATH=./reader/test.db SCAN_DIRS=./test_documents SCAN_ON_STARTUP=false gow -c run reader/cmd/main.go
 
 fullreader:
-  DYLD_LIBRARY_PATH="`pwd`/" HOST=:8083 LOG_LEVEL=info DATABASE_PATH=./reader/reader.db SCAN_DIRS=/Users/ross/Documents/2000AD SCAN_ON_STARTUP=false gow -c run reader/cmd/main.go
+  DYLD_LIBRARY_PATH="`pwd`/" HOST=:8083 LOG_LEVEL=debug DATABASE_PATH=./reader/reader.db SCAN_DIRS=/Users/ross/Documents/2000AD SCAN_ON_STARTUP=false gow -c run reader/cmd/main.go
 
 licenses:
     go-licenses report ./exporter/ --template build/licenses.tpl

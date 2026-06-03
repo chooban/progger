@@ -96,9 +96,38 @@ func (h *Handlers) RecentlyAddedSeries(c *gin.Context) {
 }
 
 func (h *Handlers) ListSeries(c *gin.Context) {
+	var search api.SeriesSearchRequest
+
+	if err := c.ShouldBindJSON(&search); err != nil && c.Request.Method == "POST" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := validateSeriesCondition(search.Condition); err != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err})
+		return
+	}
+
 	req := resolvePageRequest(c)
 
-	series, total, err := h.seriesSer.List(c.Request.Context(), req.Offset(), req.Limit())
+	var series []models.Series
+	var total int
+	var err error
+
+	cond := search.Condition
+	switch {
+	case cond.LibraryId != nil:
+		id, parseErr := services.StringIDToInt64(cond.LibraryId.Value)
+		if parseErr != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid libraryId"})
+			return
+		}
+		series, total, err = h.seriesSer.ListByLibraryID(c.Request.Context(), id, req.Offset(), req.Limit())
+
+	default:
+		series, total, err = h.seriesSer.List(c.Request.Context(), req.Offset(), req.Limit())
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -110,6 +139,23 @@ func (h *Handlers) ListSeries(c *gin.Context) {
 	}
 
 	writePaginatedResponse(c, req, 1, 100, total, dtos)
+}
+
+func validateSeriesCondition(cond api.SeriesSearchCondition) string {
+	for _, v := range cond.AllOf {
+		if err := validateSeriesCondition(v); err != "" {
+			return err
+		}
+	}
+	for _, v := range cond.AnyOf {
+		if err := validateSeriesCondition(v); err != "" {
+			return err
+		}
+	}
+	if cond.LibraryId != nil && cond.LibraryId.Operator != "" && cond.LibraryId.Operator != "is" && cond.LibraryId.Operator != "isNot" {
+		return "invalid operator for libraryId: " + cond.LibraryId.Operator
+	}
+	return ""
 }
 
 func (h *Handlers) GetSeries(c *gin.Context) {

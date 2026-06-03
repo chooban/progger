@@ -42,6 +42,7 @@ func ConfigureRoutes(router *gin.Engine, handlers *Handlers) {
 	public.GET("/books/ondeck", handlers.ListBooksOnDeck)
 	public.GET("/books/:id", handlers.GetBook)
 	public.GET("/books/:id/file", handlers.DownloadBook)
+	public.GET("/books/:id/file/*filename", handlers.DownloadBook)
 	public.GET("/books/:id/next", handlers.GetBookSiblingNext)
 	public.GET("/books/:id/previous", handlers.GetBookSiblingPrevious)
 	public.PATCH("/books/:id/read-progress", handlers.MarkBookReadProgress)

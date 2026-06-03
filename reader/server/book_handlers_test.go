@@ -594,3 +594,68 @@ func TestGetBookSiblingNext_Returns404WhenSeriesDeleted(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusNotFound, resp.StatusCode)
 }
+
+func TestListBooks_WithIsOperator_FiltersCorrectly(t *testing.T) {
+	t.Parallel()
+
+	handlers := createTestHandlers(t)
+	server := createTestServer(t, handlers)
+	defer server.Close()
+
+	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	series1 := services.CreateTestSeries(t, handlers.seriesSer, lib.ID)
+	series2 := services.CreateTestSeriesWithName(t, handlers.seriesSer, lib.ID, "Series B")
+
+	_ = services.CreateTestBook(t, handlers.bookSer, "First", series1.ID)
+	_ = services.CreateTestBook(t, handlers.bookSer, "Second", series1.ID)
+	_ = services.CreateTestBook(t, handlers.bookSer, "Third", series2.ID)
+
+	series1ID := idToString(series1.ID)
+	reqBody := `{"condition":{"seriesId":{"operator":"is","value":"` + series1ID + `"}}}`
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/books/list", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, _ := io.ReadAll(resp.Body)
+	var pageResp map[string]interface{}
+	json.Unmarshal(body, &pageResp)
+	require.Equal(t, float64(2), pageResp["totalElements"])
+}
+
+func TestListBooks_InvalidOperator_Returns400(t *testing.T) {
+	t.Parallel()
+
+	handlers := createTestHandlers(t)
+	server := createTestServer(t, handlers)
+	defer server.Close()
+
+	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	series := services.CreateTestSeries(t, handlers.seriesSer, lib.ID)
+
+	seriesID := idToString(series.ID)
+	reqBody := `{"condition":{"seriesId":{"operator":"invalid","value":"` + seriesID + `"}}}`
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/books/list", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}
+
+func TestListBooks_MalformedJSON_Returns400(t *testing.T) {
+	t.Parallel()
+
+	handlers := createTestHandlers(t)
+	server := createTestServer(t, handlers)
+	defer server.Close()
+
+	req, _ := http.NewRequest("POST", server.URL+"/api/v1/books/list", strings.NewReader(`{bad json`))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusBadRequest, resp.StatusCode)
+}

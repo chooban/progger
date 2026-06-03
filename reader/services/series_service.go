@@ -44,6 +44,29 @@ func (s *SeriesService) List(ctx context.Context, offset, limit int) ([]models.S
 	return series, total, nil
 }
 
+func (s *SeriesService) ListByLibraryID(ctx context.Context, libraryID int64, offset, limit int) ([]models.Series, int, error) {
+	var series []models.Series
+	var total int
+
+	countErr := s.db.GetContext(ctx, &total,
+		"SELECT COUNT(*) FROM series WHERE library_id = ?",
+		libraryID)
+	if countErr != nil {
+		return nil, 0, countErr
+	}
+
+	query, args := applyPagination(
+		"SELECT * FROM series WHERE library_id = ? ORDER BY name",
+		[]interface{}{libraryID}, limit, offset)
+
+	err := s.db.SelectContext(ctx, &series, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return series, total, nil
+}
+
 func (s *SeriesService) GetByID(ctx context.Context, id int64) (*models.Series, error) {
 	var series models.Series
 	err := s.db.GetContext(ctx, &series, "SELECT * FROM series WHERE id = ?", id)
