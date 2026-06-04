@@ -276,8 +276,8 @@ func startDownloadSelected(a *app.ProggerApp) {
 
 func triggerScanAfterDownload(a *app.ProggerApp) {
 	dirsToScan := []string{a.Services.Prefs.ProgSourceDirectory(), a.Services.Prefs.MegSourceDirectory()}
-	knownTitles := a.Services.Storage.ReadKnownTitles()
-	skipTitles := a.Services.Storage.ReadSkipTitles()
+	knownTitles := readKnownTitles(a)
+	skipTitles := readSkipTitles(a)
 
 	// Create the operation
 	op := app.NewScanOperation()
@@ -310,10 +310,8 @@ func triggerScanAfterDownload(a *app.ProggerApp) {
 			return
 		}
 
-		// Store the stories
-		if err := a.Services.Storage.StoreStories(storiesToStore); err != nil {
-			_ = op.Error.Set("Failed to save stories: " + err.Error())
-		}
+		// Persist stories to database
+		persistStories(a, storiesToStore, "2000 AD")
 	}()
 
 	// Bind the operation state to the app state

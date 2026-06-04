@@ -10,18 +10,16 @@ import (
 	"strings"
 
 	"gangleri.io/pkg/humanbytes"
-	"github.com/chooban/progger/reader/api"
-	"github.com/chooban/progger/reader/models"
-	"github.com/chooban/progger/reader/services"
+	"github.com/chooban/progger/database"
 	"github.com/chooban/progger/scan"
 	scanApi "github.com/chooban/progger/scan/api"
 	"github.com/gin-gonic/gin"
 )
 
-func bookToDto(b *models.Book, series *models.Series) api.BookDto {
+func bookToDto(b *database.Book, series *database.Series) BookDto {
 	libraryID := ""
 	if series != nil {
-		libraryID = services.Int64ToStringID(series.LibraryID)
+		libraryID = database.Int64ToStringID(series.LibraryID)
 	}
 	numberStr := strconv.Itoa(b.Number)
 
@@ -45,9 +43,9 @@ func bookToDto(b *models.Book, series *models.Series) api.BookDto {
 	if createdAt == "" {
 		createdAt = b.UpdatedAt
 	}
-	return api.BookDto{
-		ID:               services.Int64ToStringID(b.ID),
-		SeriesID:         services.Int64ToStringID(b.SeriesID),
+	return BookDto{
+		ID:               database.Int64ToStringID(b.ID),
+		SeriesID:         database.Int64ToStringID(b.SeriesID),
 		SeriesTitle:      seriesName,
 		Name:             strconv.Itoa(b.Number) + " " + b.Name,
 		Number:           int32(b.Number),
@@ -61,7 +59,7 @@ func bookToDto(b *models.Book, series *models.Series) api.BookDto {
 		FileHash:         b.FileHash,
 		FileLastModified: b.UpdatedAt,
 		Oneshot:          false,
-		Media: api.MediaDto{
+		Media: MediaDto{
 			Comment:              "",
 			EpubDivinaCompatible: false,
 			EpubIsKepub:          false,
@@ -70,14 +68,14 @@ func bookToDto(b *models.Book, series *models.Series) api.BookDto {
 			PagesCount:           int32(b.PageCount),
 			Status:               "READY",
 		},
-		Metadata: api.BookMetadataDto{
-			Authors:         []api.AuthorDto{},
+		Metadata: BookMetadataDto{
+			Authors:         []AuthorDto{},
 			AuthorsLock:     false,
 			Created:         createdAt,
 			ISBN:            "",
 			ISBNLock:        false,
 			LastModified:    b.UpdatedAt,
-			Links:           []api.WebLinkDto{},
+			Links:           []WebLinkDto{},
 			LinksLock:       false,
 			Number:          numberStr,
 			NumberLock:      false,
@@ -109,7 +107,7 @@ func (h *Handlers) ListBooksV1(c *gin.Context) {
 	pageSizeInt, _ := strconv.Atoi(pageSize)
 	pageNumberInt, _ := strconv.Atoi(pageNumber)
 
-	req := api.PageRequest{
+	req := PageRequest{
 		Page:    pageNumberInt,
 		Size:    pageSizeInt,
 		Unpaged: false,
@@ -128,7 +126,7 @@ func (h *Handlers) ListBooksV1(c *gin.Context) {
 		return
 	}
 
-	dtos := make([]api.BookDto, len(books))
+	dtos := make([]BookDto, len(books))
 	for i, b := range books {
 		dtos[i] = bookToDto(b, series)
 	}
@@ -137,7 +135,7 @@ func (h *Handlers) ListBooksV1(c *gin.Context) {
 }
 
 func (h *Handlers) ListBooks(c *gin.Context) {
-	var search api.BookSearchRequest
+	var search BookSearchRequest
 
 	if err := c.ShouldBindJSON(&search); err != nil && c.Request.Method == "POST" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -149,20 +147,20 @@ func (h *Handlers) ListBooks(c *gin.Context) {
 		return
 	}
 
-	var req api.PageRequest
+	var req PageRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		req.Page = 1
 		req.Size = 100
 	}
 
-	var books []*models.Book
+	var books []*database.Book
 	var total int
 	var err error
 
 	cond := search.Condition
 	switch {
 	case cond.SeriesId != nil:
-		id, parseErr := services.StringIDToInt64(cond.SeriesId.Value)
+		id, parseErr := database.StringIDToInt64(cond.SeriesId.Value)
 		if parseErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid seriesId"})
 			return
@@ -170,7 +168,7 @@ func (h *Handlers) ListBooks(c *gin.Context) {
 		books, total, err = h.bookSer.ListBySeries(c.Request.Context(), id, req.Offset(), req.Limit())
 
 	case cond.LibraryId != nil:
-		id, parseErr := services.StringIDToInt64(cond.LibraryId.Value)
+		id, parseErr := database.StringIDToInt64(cond.LibraryId.Value)
 		if parseErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid libraryId"})
 			return
@@ -186,7 +184,7 @@ func (h *Handlers) ListBooks(c *gin.Context) {
 		return
 	}
 
-	dtos := make([]api.BookDto, len(books))
+	dtos := make([]BookDto, len(books))
 	seriesMap := buildSeriesMap(c.Request.Context(), h.seriesSer, books)
 	for i, b := range books {
 		dtos[i] = bookToDto(b, seriesMap[b.SeriesID])
@@ -195,7 +193,7 @@ func (h *Handlers) ListBooks(c *gin.Context) {
 	writePaginatedResponse(c, req, 1, 100, total, dtos)
 }
 
-func validateCondition(cond api.BookSearchCondition) string {
+func validateCondition(cond BookSearchCondition) string {
 	for _, v := range cond.AllOf {
 		if err := validateCondition(v); err != "" {
 			return err
@@ -237,7 +235,7 @@ func (h *Handlers) GetBook(c *gin.Context) {
 }
 
 func (h *Handlers) ListBooksOnDeck(c *gin.Context) {
-	var req api.PageRequest
+	var req PageRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		req.Page = 0
 		req.Size = 20
@@ -247,7 +245,7 @@ func (h *Handlers) ListBooksOnDeck(c *gin.Context) {
 	var libraryIDs []int64
 	if libraryIDsParam != "" {
 		for _, idStr := range strings.Split(libraryIDsParam, ",") {
-			id, err := services.StringIDToInt64(strings.TrimSpace(idStr))
+			id, err := database.StringIDToInt64(strings.TrimSpace(idStr))
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid library_id"})
 				return
@@ -262,7 +260,7 @@ func (h *Handlers) ListBooksOnDeck(c *gin.Context) {
 		return
 	}
 
-	dtos := make([]api.BookDto, len(books))
+	dtos := make([]BookDto, len(books))
 	seriesMap := buildSeriesMap(c.Request.Context(), h.seriesSer, books)
 	for i, b := range books {
 		dtos[i] = bookToDto(b, seriesMap[b.SeriesID])
@@ -312,11 +310,11 @@ func (h *Handlers) ListBookThumbnails(c *gin.Context) {
 		return
 	}
 
-	var thumbs []api.ThumbnailDto
+	var thumbs []ThumbnailDto
 	covers, _ := h.coverSer.FindForBook(c.Request.Context(), book)
 
 	for _, cover := range covers {
-		thumbs = append(thumbs, api.ThumbnailDto{
+		thumbs = append(thumbs, ThumbnailDto{
 			Type:     "book",
 			ID:       strconv.Itoa(int(cover.ID)),
 			Selected: false,
@@ -333,7 +331,7 @@ func (h *Handlers) ListBooksLatest(c *gin.Context) {
 	var libraryIDs []int64
 	if libraryIDsParam != "" {
 		for _, idStr := range strings.Split(libraryIDsParam, ",") {
-			id, err := services.StringIDToInt64(strings.TrimSpace(idStr))
+			id, err := database.StringIDToInt64(strings.TrimSpace(idStr))
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid library_id"})
 				return
@@ -348,7 +346,7 @@ func (h *Handlers) ListBooksLatest(c *gin.Context) {
 		return
 	}
 
-	dtos := make([]api.BookDto, len(books))
+	dtos := make([]BookDto, len(books))
 	seriesMap := buildSeriesMap(c.Request.Context(), h.seriesSer, books)
 	for i, b := range books {
 		dtos[i] = bookToDto(b, seriesMap[b.SeriesID])
@@ -435,7 +433,7 @@ func (h *Handlers) GetBookSiblingPrevious(c *gin.Context) {
 	h.getBookSibling(c, h.bookSer.GetPreviousBook)
 }
 
-func (h *Handlers) getBookSibling(c *gin.Context, lookup func(context.Context, int64) (*models.Book, error)) {
+func (h *Handlers) getBookSibling(c *gin.Context, lookup func(context.Context, int64) (*database.Book, error)) {
 	id, err := tsidParamAsInt(c, "id")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
@@ -495,8 +493,8 @@ func (h *Handlers) DeleteBookReadProgress(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-func buildSeriesMap(ctx context.Context, seriesSer *services.SeriesService, books []*models.Book) map[int64]*models.Series {
-	m := make(map[int64]*models.Series, len(books))
+func buildSeriesMap(ctx context.Context, seriesSer *database.SeriesRepo, books []*database.Book) map[int64]*database.Series {
+	m := make(map[int64]*database.Series, len(books))
 	for _, b := range books {
 		if _, ok := m[b.SeriesID]; ok {
 			continue

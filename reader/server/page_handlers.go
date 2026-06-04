@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/chooban/progger/reader/models"
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 )
@@ -35,9 +34,9 @@ func (h *Handlers) ListPages(c *gin.Context) {
 		return
 	}
 
-	dtos := make([]models.Page, len(pages))
+	dtos := make([]Page, len(pages))
 	for i, p := range pages {
-		dtos[i] = models.Page{
+		dtos[i] = Page{
 			Number:    p.Number,
 			MediaType: p.MediaType,
 			FileName:  p.FileName,

@@ -2,11 +2,8 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 
-	"github.com/chooban/progger/reader/api"
-	"github.com/chooban/progger/reader/config"
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 )
@@ -20,8 +17,8 @@ func (h *Handlers) ListLibraries(c *gin.Context) {
 		return
 	}
 
-	logger.Info(fmt.Sprintf("Found %d libraries", len(libs)))
-	dtos := make([]api.LibraryDto, len(libs))
+	logger.Info("libraries listed", "count", len(libs))
+	dtos := make([]LibraryDto, len(libs))
 	for i, lib := range libs {
 		dtos[i] = libraryToDto(&lib)
 	}
@@ -46,16 +43,20 @@ func (h *Handlers) GetLibrary(c *gin.Context) {
 }
 
 func (h *Handlers) ScanLibrary(c *gin.Context) {
-	cfg := config.Load()
+	logger := logr.FromContextOrDiscard(c.Request.Context())
+	cfg := h.scanSer.Cfg()
+
+	logger.Info("scan library requested", "scan_dirs", cfg.ScanDirectories, "library", cfg.LibraryName)
 
 	if cfg.ScanDirectories == nil || len(cfg.ScanDirectories) == 0 {
+		logger.Error(nil, "no scan directories configured")
 		c.JSON(http.StatusBadRequest, gin.H{"error": "no scan directories configured"})
 		return
 	}
 
 	go func() {
+		logger.Info("starting background scan")
 		// TODO: Should I create a new context here? The request one is cancelled when the request returns
-		logger := logr.FromContextOrDiscard(c.Request.Context())
 		ctx := logr.NewContext(context.Background(), logger)
 		if err := h.scanSer.ScanDirectories(ctx); err != nil {
 			logger.Error(err, "failed to scan directories")

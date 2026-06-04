@@ -3,7 +3,6 @@ package server
 import (
 	"net/http"
 
-	"github.com/chooban/progger/reader/api"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,7 +15,7 @@ func (h *Handlers) ListUserClientSettings(c *gin.Context) {
 }
 
 func (h *Handlers) GetMe(c *gin.Context) {
-	c.JSON(http.StatusOK, api.UserDto{
+	c.JSON(http.StatusOK, UserDto{
 		Email:              "admin@example.com",
 		ID:                 "1",
 		LabelsAllow:        []string{},

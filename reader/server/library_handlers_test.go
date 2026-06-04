@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chooban/progger/reader/api"
-	"github.com/chooban/progger/reader/services"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,14 +16,14 @@ func TestListLibraries_ReturnsAllLibraries(t *testing.T) {
 	server := createTestServer(t, handlers)
 	defer server.Close()
 
-	lib1 := services.CreateTestLibrary(t, handlers.librarySer, "Library A")
-	lib2 := services.CreateTestLibrary(t, handlers.librarySer, "Library B")
+	lib1 := CreateTestLibrary(t, handlers.librarySer, "Library A")
+	lib2 := CreateTestLibrary(t, handlers.librarySer, "Library B")
 
 	resp, err := http.Get(server.URL + "/api/v1/libraries")
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var libs []api.LibraryDto
+	var libs []LibraryDto
 	json.NewDecoder(resp.Body).Decode(&libs)
 	require.Len(t, libs, 2)
 
@@ -44,13 +42,13 @@ func TestGetLibrary_Found(t *testing.T) {
 	server := createTestServer(t, handlers)
 	defer server.Close()
 
-	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	lib := CreateTestLibrary(t, handlers.librarySer, "Test Library")
 
 	resp, err := http.Get(server.URL + "/api/v1/libraries/" + idToString(lib.ID))
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var library api.LibraryDto
+	var library LibraryDto
 	json.NewDecoder(resp.Body).Decode(&library)
 	require.Equal(t, "Test Library", library.Name)
 }

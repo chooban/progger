@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/chooban/progger/reader/api"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +19,7 @@ func TestGetMe_ReturnsUserDto(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var user api.UserDto
+	var user UserDto
 	json.NewDecoder(resp.Body).Decode(&user)
 	require.Equal(t, "admin@example.com", user.Email)
 	require.Equal(t, "1", user.ID)

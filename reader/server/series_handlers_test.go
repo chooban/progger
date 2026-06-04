@@ -7,8 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/chooban/progger/reader/api"
-	"github.com/chooban/progger/reader/services"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,9 +17,9 @@ func TestListSeries_ReturnsPaginatedSeries(t *testing.T) {
 	server := createTestServer(t, handlers)
 	defer server.Close()
 
-	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
-	_ = services.CreateTestSeries(t, handlers.seriesSer, lib.ID)
-	_ = services.CreateTestSeriesWithName(t, handlers.seriesSer, lib.ID, "Series B")
+	lib := CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	_ = CreateTestSeries(t, handlers.seriesSer, lib.ID)
+	_ = CreateTestSeriesWithName(t, handlers.seriesSer, lib.ID, "Series B")
 
 	reqBody := `{"page":0,"size":10}`
 	req, _ := http.NewRequest("POST", server.URL+"/api/v1/series/list", strings.NewReader(reqBody))
@@ -48,14 +46,14 @@ func TestGetSeries_Found(t *testing.T) {
 	server := createTestServer(t, handlers)
 	defer server.Close()
 
-	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
-	series := services.CreateTestSeries(t, handlers.seriesSer, lib.ID)
+	lib := CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	series := CreateTestSeries(t, handlers.seriesSer, lib.ID)
 
 	resp, err := http.Get(server.URL + "/api/v1/series/" + idToString(series.ID))
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var s api.SeriesDto
+	var s SeriesDto
 	json.NewDecoder(resp.Body).Decode(&s)
 	require.Equal(t, "Test Series", s.Name)
 }
@@ -80,16 +78,16 @@ func TestListSeriesThumbnails_ReturnsList(t *testing.T) {
 	server := createTestServer(t, handlers)
 	defer server.Close()
 
-	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
-	ser := services.CreateTestSeriesWithName(t, handlers.seriesSer, lib.ID, "Series B")
-	cover := services.CreateTestCover(t, handlers.coverSer, ser.ID, 100)
+	lib := CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	ser := CreateTestSeriesWithName(t, handlers.seriesSer, lib.ID, "Series B")
+	cover := CreateTestCover(t, handlers.coverSer, ser.ID, 100)
 	require.NotEqual(t, 0, cover.ID)
 
 	resp, err := http.Get(server.URL + "/api/v1/series/" + idToString(ser.ID) + "/thumbnails")
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var thumbs []api.ThumbnailDto
+	var thumbs []ThumbnailDto
 	json.NewDecoder(resp.Body).Decode(&thumbs)
 	require.Len(t, thumbs, 1)
 	require.Equal(t, "series", thumbs[0].Type)
@@ -105,9 +103,9 @@ func TestRecentlyAddedSeries_ReturnsSeriesAddedInLast7Days(t *testing.T) {
 	server := createTestServer(t, handlers)
 	defer server.Close()
 
-	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
-	_ = services.CreateTestSeries(t, handlers.seriesSer, lib.ID)
-	_ = services.CreateTestSeriesWithName(t, handlers.seriesSer, lib.ID, "Series B")
+	lib := CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	_ = CreateTestSeries(t, handlers.seriesSer, lib.ID)
+	_ = CreateTestSeriesWithName(t, handlers.seriesSer, lib.ID, "Series B")
 
 	resp, err := http.Get(server.URL + "/api/v1/series/new")
 	require.NoError(t, err)
@@ -151,9 +149,9 @@ func TestRecentlyUpdatedSeries_ReturnsSeriesUpdatedInLast7Days(t *testing.T) {
 	server := createTestServer(t, handlers)
 	defer server.Close()
 
-	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
-	_ = services.CreateTestSeries(t, handlers.seriesSer, lib.ID)
-	_ = services.CreateTestSeriesWithName(t, handlers.seriesSer, lib.ID, "Series B")
+	lib := CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	_ = CreateTestSeries(t, handlers.seriesSer, lib.ID)
+	_ = CreateTestSeriesWithName(t, handlers.seriesSer, lib.ID, "Series B")
 
 	resp, err := http.Get(server.URL + "/api/v1/series/updated")
 	require.NoError(t, err)
@@ -197,9 +195,9 @@ func TestListSeriesLatest_ReturnsPaginatedSeries(t *testing.T) {
 	server := createTestServer(t, handlers)
 	defer server.Close()
 
-	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
-	_ = services.CreateTestSeries(t, handlers.seriesSer, lib.ID)
-	_ = services.CreateTestSeriesWithName(t, handlers.seriesSer, lib.ID, "Series B")
+	lib := CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	_ = CreateTestSeries(t, handlers.seriesSer, lib.ID)
+	_ = CreateTestSeriesWithName(t, handlers.seriesSer, lib.ID, "Series B")
 
 	resp, err := http.Get(server.URL + "/api/v1/series/latest")
 	require.NoError(t, err)
@@ -222,10 +220,10 @@ func TestListSeries_WithLibraryId_FiltersCorrectly(t *testing.T) {
 	server := createTestServer(t, handlers)
 	defer server.Close()
 
-	lib1 := services.CreateTestLibrary(t, handlers.librarySer, "Library A")
-	lib2 := services.CreateTestLibrary(t, handlers.librarySer, "Library B")
-	_ = services.CreateTestSeries(t, handlers.seriesSer, lib1.ID)
-	_ = services.CreateTestSeriesWithName(t, handlers.seriesSer, lib2.ID, "Series B")
+	lib1 := CreateTestLibrary(t, handlers.librarySer, "Library A")
+	lib2 := CreateTestLibrary(t, handlers.librarySer, "Library B")
+	_ = CreateTestSeries(t, handlers.seriesSer, lib1.ID)
+	_ = CreateTestSeriesWithName(t, handlers.seriesSer, lib2.ID, "Series B")
 
 	lib1ID := idToString(lib1.ID)
 	reqBody := `{"condition":{"libraryId":{"value":"` + lib1ID + `"}}}`
@@ -249,7 +247,7 @@ func TestListSeries_InvalidOperator_Returns400(t *testing.T) {
 	server := createTestServer(t, handlers)
 	defer server.Close()
 
-	lib := services.CreateTestLibrary(t, handlers.librarySer, "Test Library")
+	lib := CreateTestLibrary(t, handlers.librarySer, "Test Library")
 	libID := idToString(lib.ID)
 	reqBody := `{"condition":{"libraryId":{"operator":"invalid","value":"` + libID + `"}}}`
 	req, _ := http.NewRequest("POST", server.URL+"/api/v1/series/list", strings.NewReader(reqBody))

@@ -5,33 +5,31 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/chooban/progger/reader/api"
-	"github.com/chooban/progger/reader/models"
-	"github.com/chooban/progger/reader/services"
+	"github.com/chooban/progger/database"
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 )
 
-func seriesToDto(s *models.Series) api.SeriesDto {
-	return api.SeriesDto{
-		ID:                   services.Int64ToStringID(s.ID),
-		LibraryID:            services.Int64ToStringID(s.LibraryID),
+func seriesToDto(s *database.Series) SeriesDto {
+	return SeriesDto{
+		ID:                   database.Int64ToStringID(s.ID),
+		LibraryID:            database.Int64ToStringID(s.LibraryID),
 		Name:                 s.Name,
 		BookCount:            s.BookCount,
 		BooksInProgressCount: 0,
 		BooksReadCount:       0,
 		BooksUnreadCount:     s.BookCount,
-		BooksMetadata:        api.BookMetadataAggregationDto{},
+		BooksMetadata:        BookMetadataAggregationDto{},
 		URL:                  s.URL(),
 		Created:              s.CreatedAt,
 		LastModified:         s.UpdatedAt,
 		FileLastModified:     s.UpdatedAt,
-		Metadata: api.SeriesMetadataDto{
+		Metadata: SeriesMetadataDto{
 			Title:                s.Name,
 			Summary:              "",
 			AgeRating:            0,
 			AgeRatingLock:        false,
-			AlternateTitles:      []api.AlternateTitleDto{},
+			AlternateTitles:      []AlternateTitleDto{},
 			AlternateTitlesLock:  false,
 			Created:              s.CreatedAt,
 			Genres:               []string{},
@@ -39,7 +37,7 @@ func seriesToDto(s *models.Series) api.SeriesDto {
 			Language:             "",
 			LanguageLock:         false,
 			LastModified:         s.UpdatedAt,
-			Links:                []api.WebLinkDto{},
+			Links:                []WebLinkDto{},
 			LinksLock:            false,
 			Publisher:            "",
 			PublisherLock:        false,
@@ -70,7 +68,7 @@ func (h *Handlers) RecentlyUpdatedSeries(c *gin.Context) {
 		return
 	}
 
-	dtos := make([]api.SeriesDto, len(series))
+	dtos := make([]SeriesDto, len(series))
 	for i, s := range series {
 		dtos[i] = seriesToDto(&s)
 	}
@@ -87,7 +85,7 @@ func (h *Handlers) RecentlyAddedSeries(c *gin.Context) {
 		return
 	}
 
-	dtos := make([]api.SeriesDto, len(series))
+	dtos := make([]SeriesDto, len(series))
 	for i, s := range series {
 		dtos[i] = seriesToDto(&s)
 	}
@@ -96,7 +94,7 @@ func (h *Handlers) RecentlyAddedSeries(c *gin.Context) {
 }
 
 func (h *Handlers) ListSeries(c *gin.Context) {
-	var search api.SeriesSearchRequest
+	var search SeriesSearchRequest
 
 	if err := c.ShouldBindJSON(&search); err != nil && c.Request.Method == "POST" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -110,14 +108,14 @@ func (h *Handlers) ListSeries(c *gin.Context) {
 
 	req := resolvePageRequest(c)
 
-	var series []models.Series
+	var series []database.Series
 	var total int
 	var err error
 
 	cond := search.Condition
 	switch {
 	case cond.LibraryId != nil:
-		id, parseErr := services.StringIDToInt64(cond.LibraryId.Value)
+		id, parseErr := database.StringIDToInt64(cond.LibraryId.Value)
 		if parseErr != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid libraryId"})
 			return
@@ -133,7 +131,7 @@ func (h *Handlers) ListSeries(c *gin.Context) {
 		return
 	}
 
-	dtos := make([]api.SeriesDto, len(series))
+	dtos := make([]SeriesDto, len(series))
 	for i, s := range series {
 		dtos[i] = seriesToDto(&s)
 	}
@@ -141,7 +139,7 @@ func (h *Handlers) ListSeries(c *gin.Context) {
 	writePaginatedResponse(c, req, 1, 100, total, dtos)
 }
 
-func validateSeriesCondition(cond api.SeriesSearchCondition) string {
+func validateSeriesCondition(cond SeriesSearchCondition) string {
 	for _, v := range cond.AllOf {
 		if err := validateSeriesCondition(v); err != "" {
 			return err
@@ -197,10 +195,10 @@ func (h *Handlers) ListSeriesThumbnails(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to find covers for series"})
 		return
 	}
-	thumbnails := make([]api.ThumbnailDto, len(covers))
+	thumbnails := make([]ThumbnailDto, len(covers))
 	for i, cover := range covers {
-		coverIDStr := services.Int64ToStringID(cover.ID)
-		thumbnails[i] = api.ThumbnailDto{
+		coverIDStr := database.Int64ToStringID(cover.ID)
+		thumbnails[i] = ThumbnailDto{
 			Type: "series",
 			ID:   coverIDStr,
 			URL:  "/api/v1/series/" + c.Param("id") + "/thumbnails/" + coverIDStr,
@@ -284,7 +282,7 @@ func (h *Handlers) ListSeriesLatest(c *gin.Context) {
 	var libraryIDs []int64
 	if libraryIDsParam != "" {
 		for _, idStr := range strings.Split(libraryIDsParam, ",") {
-			id, err := services.StringIDToInt64(strings.TrimSpace(idStr))
+			id, err := database.StringIDToInt64(strings.TrimSpace(idStr))
 			if err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid library_id"})
 				return
@@ -299,7 +297,7 @@ func (h *Handlers) ListSeriesLatest(c *gin.Context) {
 		return
 	}
 
-	dtos := make([]api.SeriesDto, len(series))
+	dtos := make([]SeriesDto, len(series))
 	for i, s := range series {
 		dtos[i] = seriesToDto(&s)
 	}

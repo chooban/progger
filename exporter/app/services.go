@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	"fyne.io/fyne/v2"
+	"github.com/chooban/progger/database"
 	"github.com/chooban/progger/exporter/services"
 )
 
@@ -14,10 +15,10 @@ type AppServices struct {
 	Scanner    *services.Scanner
 	Prefs      *Prefs
 	Storage    *services.Storage
+	DB         *database.DB
 }
 
 func NewAppServices(a fyne.App) *AppServices {
-
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		panic("could not get user config dir")
@@ -32,6 +33,11 @@ func NewAppServices(a fyne.App) *AppServices {
 		}
 	}
 
+	db, err := database.Open(filepath.Join(proggerConfigDir, "progger.db"))
+	if err != nil {
+		println("Warning: could not open database: " + err.Error())
+	}
+
 	storage := services.NewStorage(proggerConfigDir)
 
 	return &AppServices{
@@ -40,5 +46,6 @@ func NewAppServices(a fyne.App) *AppServices {
 		Scanner:    services.NewScanner(storage),
 		Prefs:      NewPrefs(a),
 		Storage:    storage,
+		DB:         db,
 	}
 }

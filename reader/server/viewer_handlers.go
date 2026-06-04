@@ -4,8 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/chooban/progger/reader/models"
-	"github.com/chooban/progger/reader/services"
+	"github.com/chooban/progger/database"
 	"github.com/gin-gonic/gin"
 )
 
@@ -72,7 +71,7 @@ func (h *Handlers) ReadLibrariesPage(c *gin.Context) {
 	}
 	for _, lib := range libraries {
 		data.Libraries = append(data.Libraries, readerLibrary{
-			ID:   services.Int64ToStringID(lib.ID),
+			ID:   database.Int64ToStringID(lib.ID),
 			Name: lib.Name,
 		})
 	}
@@ -83,7 +82,7 @@ func (h *Handlers) ReadLibrariesPage(c *gin.Context) {
 func (h *Handlers) ReadSeriesPage(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	libraryID, err := services.StringIDToInt64(c.Param("lid"))
+	libraryID, err := database.StringIDToInt64(c.Param("lid"))
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid library ID")
 		return
@@ -105,7 +104,7 @@ func (h *Handlers) ReadSeriesPage(c *gin.Context) {
 	for _, s := range allSeries {
 		if s.LibraryID == libraryID {
 			matching = append(matching, readerSeries{
-				ID:        services.Int64ToStringID(s.ID),
+				ID:        database.Int64ToStringID(s.ID),
 				Name:      s.Name,
 				BookCount: s.BookCount,
 			})
@@ -115,10 +114,10 @@ func (h *Handlers) ReadSeriesPage(c *gin.Context) {
 	data := viewerData{
 		Title:           library.Name,
 		ContentTemplate: "series_content",
-		LibraryID:       services.Int64ToStringID(libraryID),
+		LibraryID:       database.Int64ToStringID(libraryID),
 		Series:    matching,
 		Breadcrumbs: []breadcrumb{
-			{Label: library.Name, URL: "/read/libraries/" + services.Int64ToStringID(libraryID) + "/series"},
+			{Label: library.Name, URL: "/read/libraries/" + database.Int64ToStringID(libraryID) + "/series"},
 		},
 	}
 
@@ -128,13 +127,13 @@ func (h *Handlers) ReadSeriesPage(c *gin.Context) {
 func (h *Handlers) ReadBooksPage(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	libraryID, err := services.StringIDToInt64(c.Param("lid"))
+	libraryID, err := database.StringIDToInt64(c.Param("lid"))
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid library ID")
 		return
 	}
 
-	seriesID, err := services.StringIDToInt64(c.Param("sid"))
+	seriesID, err := database.StringIDToInt64(c.Param("sid"))
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid series ID")
 		return
@@ -158,13 +157,13 @@ func (h *Handlers) ReadBooksPage(c *gin.Context) {
 		return
 	}
 
-	libStr := services.Int64ToStringID(libraryID)
-	seriesStr := services.Int64ToStringID(seriesID)
+	libStr := database.Int64ToStringID(libraryID)
+	seriesStr := database.Int64ToStringID(seriesID)
 
 	var bookViews []readerBook
 	for _, b := range books {
 		bookViews = append(bookViews, readerBook{
-			ID:        services.Int64ToStringID(b.ID),
+			ID:        database.Int64ToStringID(b.ID),
 			Name:      b.Name,
 			Number:    b.Number,
 			PageCount: b.PageCount,
@@ -188,13 +187,13 @@ func (h *Handlers) ReadBooksPage(c *gin.Context) {
 func (h *Handlers) ReadBookPage(c *gin.Context) {
 	ctx := c.Request.Context()
 
-	libraryID, err := services.StringIDToInt64(c.Param("lid"))
+	libraryID, err := database.StringIDToInt64(c.Param("lid"))
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid library ID")
 		return
 	}
 
-	bookID, err := services.StringIDToInt64(c.Param("bid"))
+	bookID, err := database.StringIDToInt64(c.Param("bid"))
 	if err != nil {
 		c.String(http.StatusBadRequest, "Invalid book ID")
 		return
@@ -234,9 +233,9 @@ func (h *Handlers) ReadBookPage(c *gin.Context) {
 		pageNum = 0
 	}
 
-	libStr := services.Int64ToStringID(libraryID)
-	bookStr := services.Int64ToStringID(bookID)
-	seriesStr := services.Int64ToStringID(book.SeriesID)
+	libStr := database.Int64ToStringID(libraryID)
+	bookStr := database.Int64ToStringID(bookID)
+	seriesStr := database.Int64ToStringID(book.SeriesID)
 
 	data := viewerData{
 		Title:           book.Name + " — Page " + strconv.Itoa(pageNum),
@@ -263,13 +262,13 @@ func (h *Handlers) ReadBookPage(c *gin.Context) {
 	if pageNum == 1 {
 		prevBook, err := h.bookSer.GetPreviousBook(ctx, bookID)
 		if err == nil && prevBook != nil {
-			data.PrevBookID = services.Int64ToStringID(prevBook.ID)
+			data.PrevBookID = database.Int64ToStringID(prevBook.ID)
 		}
 	}
 	if pageNum == totalPages {
 		nextBook, err := h.bookSer.GetNextBook(ctx, bookID)
 		if err == nil && nextBook != nil {
-			data.NextBookID = services.Int64ToStringID(nextBook.ID)
+			data.NextBookID = database.Int64ToStringID(nextBook.ID)
 		}
 	}
 
@@ -285,7 +284,7 @@ func (h *Handlers) ReadBookPage(c *gin.Context) {
 	c.HTML(http.StatusOK, "viewer", data)
 }
 
-func computeTotalPages(episodes []*models.Episode) int {
+func computeTotalPages(episodes []*database.Episode) int {
 	total := 0
 	for _, ep := range episodes {
 		total += ep.PageTo - ep.PageFrom + 1

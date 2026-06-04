@@ -1,11 +1,13 @@
 package app
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"sort"
 
 	"fyne.io/fyne/v2/data/binding"
+	"github.com/chooban/progger/database"
 	downloadApi "github.com/chooban/progger/download"
 	"github.com/chooban/progger/exporter/api"
 )
@@ -34,13 +36,18 @@ func NewAppState(s *AppServices) *State {
 		KnownTitles:    binding.NewStringList(),
 	}
 
-	// Look for stored known titles
-	storedKnownTitles := s.Storage.ReadKnownTitles()
-	appState.KnownTitles.Set(storedKnownTitles)
+	if s.DB != nil {
+		ctx := context.Background()
+		knownRepo := database.NewKnownTitlesRepo(s.DB)
+		skipRepo := database.NewSkipTitlesRepo(s.DB)
 
-	// Look for stored skip titles
-	storedSkipTitles := s.Storage.ReadSkipTitles()
-	appState.SkipTitles.Set(storedSkipTitles)
+		if titles, err := knownRepo.List(ctx); err == nil {
+			appState.KnownTitles.Set(titles)
+		}
+		if titles, err := skipRepo.List(ctx); err == nil {
+			appState.SkipTitles.Set(titles)
+		}
+	}
 
 	refreshIssues := func() {
 		savedProgs := s.Storage.ReadIssues()
@@ -62,7 +69,6 @@ func NewAppState(s *AppServices) *State {
 	return &appState
 }
 
-// GetToDownload returns the current list of items to download
 func (s *State) GetToDownload() []api.Downloadable {
 	items, _ := s.ToDownload.Get()
 	result := make([]api.Downloadable, len(items))
@@ -72,11 +78,9 @@ func (s *State) GetToDownload() []api.Downloadable {
 	return result
 }
 
-// AddToDownload adds an item to the download list if not already present
 func (s *State) AddToDownload(issue api.Downloadable) {
 	items, _ := s.ToDownload.Get()
 
-	// Check if already in list
 	for _, v := range items {
 		downloadable := v.(api.Downloadable)
 		if (&downloadable.Comic).Equals(issue.Comic) {
@@ -87,7 +91,6 @@ func (s *State) AddToDownload(issue api.Downloadable) {
 	s.ToDownload.Append(issue)
 }
 
-// RemoveFromDownload removes an item from the download list
 func (s *State) RemoveFromDownload(issue api.Downloadable) {
 	items, _ := s.ToDownload.Get()
 
@@ -103,12 +106,10 @@ func (s *State) RemoveFromDownload(issue api.Downloadable) {
 	}
 }
 
-// ClearToDownload clears the download list
 func (s *State) ClearToDownload() {
 	s.ToDownload.Set(make([]interface{}, 0))
 }
 
-// RefreshProgList refreshes the available progs list to mark downloaded items
 func (s *State) RefreshProgList() {
 	availableProgs, _ := s.AvailableProgs.Get()
 
@@ -125,7 +126,6 @@ func (s *State) RefreshProgList() {
 	}
 }
 
-// BuildIssueList converts issues to untyped list, checks which are already downloaded, and sorts
 func (s *State) BuildIssueList(issues []api.Downloadable) []interface{} {
 	if len(issues) == 0 {
 		return make([]interface{}, 0)
@@ -134,7 +134,6 @@ func (s *State) BuildIssueList(issues []api.Downloadable) []interface{} {
 	progSourceDir := s.services.Prefs.ProgSourceDirectory()
 	megSourceDir := s.services.Prefs.MegSourceDirectory()
 
-	// Sort by issue number descending
 	sort.Slice(issues, func(a, b int) bool {
 		return issues[a].Comic.IssueNumber > issues[b].Comic.IssueNumber
 	})
@@ -146,7 +145,6 @@ func (s *State) BuildIssueList(issues []api.Downloadable) []interface{} {
 			targetDir = megSourceDir
 		}
 
-		// Check if already downloaded
 		filename := v.Comic.Filename(downloadApi.Pdf)
 		if _, err := os.Stat(filepath.Join(targetDir, filename)); err == nil {
 			v.Downloaded = true

@@ -51,6 +51,9 @@ testdata:
   cp ~/Documents/2000AD/2000AD\ 2337\ \(1977\).pdf scan/test/testdata/creators/
   cp ~/Documents/2000AD/2000AD\ 2348\ \(1977\).pdf scan/test/testdata/creators/
 
+exporter:
+  DYLD_LIBRARY_PATH="`pwd`/" go run --tags hint exporter/cmd/exporter.go
+
 reader:
   DYLD_LIBRARY_PATH="`pwd`/" HOST=:8083 DATABASE_PATH=./reader/test.db SCAN_DIRS=./test_documents SCAN_ON_STARTUP=false gow -c run reader/cmd/main.go
 

@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"github.com/chooban/progger/database"
 	"github.com/chooban/progger/exporter/api"
 	"github.com/chooban/progger/exporter/app"
 )
@@ -165,8 +166,8 @@ func noStoriesContainer(a *app.ProggerApp) fyne.CanvasObject {
 
 func startScan(a *app.ProggerApp) {
 	dirsToScan := []string{a.Services.Prefs.ProgSourceDirectory(), a.Services.Prefs.MegSourceDirectory()}
-	knownTitles := a.Services.Storage.ReadKnownTitles()
-	skipTitles := a.Services.Storage.ReadSkipTitles()
+	knownTitles := readKnownTitles(a)
+	skipTitles := readSkipTitles(a)
 
 	// Create the operation
 	op := app.NewScanOperation()
@@ -199,10 +200,8 @@ func startScan(a *app.ProggerApp) {
 			return
 		}
 
-		// Store the stories
-		if err := a.Services.Storage.StoreStories(storiesToStore); err != nil {
-			_ = op.Error.Set("Failed to save stories: " + err.Error())
-		}
+		// Persist stories to database
+		persistStories(a, storiesToStore, "2000 AD")
 	}()
 
 	// Bind the operation state to the app state
@@ -344,4 +343,144 @@ func ContainsAll(s string, t []string) bool {
 		}
 	}
 	return true
+}
+
+func readKnownTitles(a *app.ProggerApp) []string {
+	if a.Services.DB != nil {
+		repo := database.NewKnownTitlesRepo(a.Services.DB)
+		titles, err := repo.List(context.Background())
+		if err == nil {
+			return titles
+		}
+	}
+	return nil
+}
+
+func readSkipTitles(a *app.ProggerApp) []string {
+	if a.Services.DB != nil {
+		repo := database.NewSkipTitlesRepo(a.Services.DB)
+		titles, err := repo.List(context.Background())
+		if err == nil {
+			return titles
+		}
+	}
+	return nil
+}
+
+func persistStories(a *app.ProggerApp, stories []api.Story, publication string) {
+	if a.Services.DB == nil {
+		return
+	}
+
+	ctx := context.Background()
+	db := a.Services.DB
+
+	libraryRepo := database.NewLibraryRepo(db)
+	seriesRepo := database.NewSeriesRepo(db)
+	bookRepo := database.NewBookRepo(db)
+
+	libName := "2000 AD"
+	lib, err := libraryRepo.EnsureLibrary(ctx, libName)
+	if err != nil {
+		println("failed to ensure library:", err.Error())
+		return
+	}
+
+	for _, story := range stories {
+		seriesID := database.HashEntityID("series", story.Series)
+		series := &database.Series{
+			ID:        seriesID,
+			LibraryID: lib.ID,
+			Name:      story.Series,
+		}
+		if err := seriesRepo.Upsert(ctx, series); err != nil {
+			println("failed to upsert series:", err.Error())
+			continue
+		}
+
+		bookID := database.HashEntityID("book", story.Series, story.Title)
+		book := &database.Book{
+			ID:          bookID,
+			SeriesID:    seriesID,
+			Name:        story.Title,
+			Publication: publication,
+			Status:      "READY",
+		}
+		if err := bookRepo.Upsert(ctx, book); err != nil {
+			println("failed to upsert book:", err.Error())
+			continue
+		}
+
+		var episodes []*database.Episode
+		for _, ep := range story.Episodes {
+			episode := &database.Episode{
+				ID:          database.HashEntityID("episode", story.Series, story.Title, fmt.Sprintf("%d-%d", ep.IssueNumber, ep.Episode.Part)),
+				BookID:      bookID,
+				Filename:    ep.Filename,
+				IssueNumber: ep.IssueNumber,
+				Title:       ep.Episode.Title,
+				Part:        ep.Episode.Part,
+				PageFrom:    ep.Episode.FirstPage,
+				PageTo:      ep.Episode.LastPage,
+			}
+			episodes = append(episodes, episode)
+		}
+		if err := bookRepo.UpsertEpisodes(ctx, episodes); err != nil {
+			println("failed to upsert episodes:", err.Error())
+		}
+	}
+
+	runExportPostScanSQL(ctx, db)
+}
+
+func runExportPostScanSQL(ctx context.Context, db *database.DB) {
+	db.ExecContext(ctx, `
+with book_counts as (
+	select series_id, count(*) as c
+	from books b
+	group by series_id
+	)
+update series set book_count = ( select c from book_counts where book_counts.series_id = series.id )
+`)
+
+	db.ExecContext(ctx, `
+with page_counts as (
+	select book_id, sum((e.page_to - e.page_from) + 1) as c
+	from episodes e
+	group by 1
+)
+update books set page_count = (
+	select c from page_counts where page_counts.book_id = books.id
+)
+`)
+
+	db.ExecContext(ctx, `
+with first_issues as (
+select distinct
+	books.id,
+	first_value(episodes.issue_number) OVER (partition by books.id ORDER BY issue_number) as issue_number
+from books
+join episodes on (episodes.book_id = books.id)
+),
+last_issues as (
+	select distinct
+		books.id,
+		first_value(episodes.issue_number) OVER (partition by books.id ORDER BY issue_number DESC) as issue_number
+	from books
+	join episodes on (episodes.book_id = books.id)
+)
+update books
+set first_issue = (select issue_number from first_issues where id = books.id), last_issue = (select issue_number from last_issues where id = books.id)
+`)
+
+	db.ExecContext(ctx, `
+with book_order as (
+	select 
+		books.id, 
+		row_number() OVER (PARTITION BY series_id ORDER BY first_issue) as row_number
+	from books 
+	order by id ASC
+)
+update books set number = ( select row_number from book_order where id = books.id limit 1 )
+`)
 }

@@ -13,7 +13,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/chooban/progger/reader/config"
 	"github.com/gin-contrib/requestid"
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
@@ -26,11 +25,11 @@ var templateFS embed.FS
 
 type Server struct {
 	router   *gin.Engine
-	cfg      *config.Config
+	cfg      *Config
 	listener net.Listener
 }
 
-func NewServer(ctx context.Context, cfg *config.Config, handlers *Handlers) *Server {
+func NewServer(ctx context.Context, cfg *Config, handlers *Handlers) *Server {
 	s := &Server{
 		cfg: cfg,
 	}
