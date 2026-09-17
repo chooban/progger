@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 	"os"
 	"path/filepath"
 	"strconv"

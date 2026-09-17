@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 )
 
 var signinUrl = "https://shop.2000ad.com/account/sign-in"

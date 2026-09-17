@@ -9,7 +9,7 @@ import (
 	"path"
 
 	"github.com/go-logr/logr"
-	"github.com/playwright-community/playwright-go"
+	"github.com/mxschmitt/playwright-go"
 )
 
 // Session holds a browser context and login state for efficient bulk operations.

@@ -13,7 +13,7 @@ COPY . .
 
 RUN go build -o progdl ./download/cmd/download.go
 
-FROM mcr.microsoft.com/playwright:v1.51.1-jammy
+FROM mcr.microsoft.com/playwright:v1.63.0-noble
 
 LABEL org.opencontainers.image.description="Utility for downloading 2000AD"
 
@@ -44,7 +44,7 @@ RUN chown pwuser /opt/downloads
 RUN chown pwuser /opt/cache
 
 USER pwuser:pwuser
-RUN go run github.com/playwright-community/playwright-go/cmd/playwright@v0.5001.0 install firefox
+RUN go run github.com/mxschmitt/playwright-go/cmd/playwright@v0.6201.1 install --with-deps firefox
 
 RUN mkdir -p ~/.config/progger/
 

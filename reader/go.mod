@@ -17,6 +17,7 @@ require (
 	github.com/go-logr/zerologr v1.2.3
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/mattn/go-sqlite3 v1.14.33
+	github.com/pdfcpu/pdfcpu v0.8.0
 	github.com/rs/zerolog v1.32.0
 	github.com/rushysloth/go-tsid v1.0.6
 	github.com/stretchr/testify v1.11.1
@@ -58,7 +59,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/oklog/run v1.1.0 // indirect
-	github.com/pdfcpu/pdfcpu v0.8.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/playwright-community/playwright-go v0.5200.1 // indirect
